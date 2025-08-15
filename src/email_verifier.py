@@ -476,32 +476,5 @@ def integrate_with_pipeline(verifier: MailTesterVerifier, lead_data: Dict) -> Di
 
 
 if __name__ == "__main__":
-    # Example usage
-    import json
-    
-    # Initialize verifier
-    verifier = MailTesterVerifier()
-    
-    # Test single email verification
-    test_email = "test@example.com"
-    print(f"\nVerifying {test_email}...")
-    result = verifier.verify_email(test_email)
-    print(f"Status: {result.status.value}")
-    print(f"Score: {result.score}")
-    print(f"Details: {json.dumps(result.to_dict(), indent=2)}")
-    
-    # Test batch verification
-    test_emails = [
-        "john.doe@gmail.com",
-        "info@company.com",
-        "invalid.email",
-        "test@tempmail.com"
-    ]
-    
-    print("\nBatch verification:")
-    results = verifier.verify_batch(test_emails)
-    for result in results:
-        print(f"{result.email}: {result.status.value} (score: {result.score})")
-    
-    # Show cache stats
-    print(f"\nCache stats: {verifier.get_cache_stats()}")
+    # Module can be imported - no demo/test code in production
+    pass

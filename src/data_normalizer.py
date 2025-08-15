@@ -49,6 +49,7 @@ class DataNormalizer:
             'Name': 'NA',
             'Address': 'NA',
             'Phone': 'NA',
+            'Email': 'NA',  # Email field for verification
             'Website': 'NA',
             'SocialMediaLinks': 'NA',
             'Reviews': 'NA',
@@ -66,7 +67,7 @@ class DataNormalizer:
                 normalized[field] = default if field not in ['Rating', 'ReviewCount', 'GoogleBusinessClaimed'] else default
             else:
                 # Clean and format the value
-                if field in ['Name', 'Address', 'Phone', 'Website', 'SocialMediaLinks', 'Reviews', 'Images']:
+                if field in ['Name', 'Address', 'Phone', 'Email', 'Website', 'SocialMediaLinks', 'Reviews', 'Images']:
                     # String fields - clean whitespace and handle commas
                     value = str(value).strip()
                     # Quote fields with commas for CSV safety

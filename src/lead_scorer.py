@@ -116,8 +116,8 @@ Apply the R27 scoring rules and provide your score and reasoning."""
                     else:
                         score = int(score_str.split('/')[0])  # Handle "8/10" format
                     score = max(0, min(10, score))  # Clamp to 0-10
-                except:
-                    logger.warning(f"Could not parse score from: {line}")
+                except (ValueError, IndexError, TypeError) as e:
+                    logger.warning(f"Could not parse score from: {line}. Error: {e}")
             elif line.startswith('Reasoning:'):
                 reasoning = line.replace('Reasoning:', '').strip()
         

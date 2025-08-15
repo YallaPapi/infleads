@@ -111,10 +111,25 @@ class ApifyProvider(BaseProvider):
         # Check if business is claimed (this might not always be available)
         claimed = item.get('claimedByOwnerAt') is not None or item.get('isClaimedByOwner', False)
         
+        # Try to extract email from various possible fields
+        email = item.get('email', 'NA')
+        if email == 'NA':
+            # Sometimes email might be in additionalInfo or other fields
+            additional_info = item.get('additionalInfo', {})
+            email = additional_info.get('email', 'NA')
+        
+        # If still no email, it might be in the raw data under different names
+        if email == 'NA':
+            for field in ['contactEmail', 'businessEmail', 'contact']:
+                if field in item and '@' in str(item[field]):
+                    email = item[field]
+                    break
+        
         return {
             'Name': item.get('title', 'NA'),
             'Address': item.get('address', item.get('streetAddress', 'NA')),
             'Phone': item.get('phone', item.get('phoneNumber', 'NA')),
+            'Email': email,  # Added email field
             'Website': item.get('website', item.get('url', 'NA')),
             'SocialMediaLinks': social_media,
             'Reviews': reviews_info,

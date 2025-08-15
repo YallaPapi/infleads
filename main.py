@@ -164,8 +164,17 @@ def main():
                     logger.info(f"Valid emails: {valid_count}/{len(normalized_leads)} ({valid_count*100/len(normalized_leads):.1f}%)")
                     
                 except Exception as e:
-                    logger.error(f"Email verification failed: {e}")
-                    logger.info("Continuing without email verification...")
+                    logger.error(f"Email verification failed: {e}", exc_info=True)
+                    logger.warning("Email verification service error - marking all emails as unverified")
+                    
+                    # Mark all leads as having verification errors
+                    for lead in normalized_leads:
+                        lead['email_verified'] = False
+                        lead['email_status'] = 'verification_error'
+                        lead['email_score'] = 0.0
+                        lead['mx_valid'] = False
+                        lead['smtp_valid'] = False
+                        lead['email_quality_boost'] = 0
         
         # Step 3: Score leads with AI
         logger.info("Step 3: Scoring leads with AI...")

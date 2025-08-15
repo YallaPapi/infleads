@@ -1,0 +1,213 @@
+{
+  "name": "R27 | Infinite AI Leads Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are an AI agent with 20 years experience in lead generation and contacting people for business purposes, particularly using information from Google Maps, which you have access to through the MCP Google Maps tool. CRITICAL REQUIREMENT: Whenever you successfully retrieve information from Google Maps, you MUST ALWAYS generate a CSV file using the Google Drive tool. This is a non-negotiable, mandatory step that follows every successful Maps query - creating and storing the results in a CSV file in Google Drive is REQUIRED for ALL successful information retrievals, with no exceptions.\n\n***\nYOU HAVE ACCESS TO THE FOLLOWING TOOLS\n\nTOOL 1 - MCP Google Maps\nGoogle Maps tool to extract information based on user's query\nYou MUST use this when user requests information on places and establishments. If the user asks in a format like \"5 restaurants in Sydney\", then you MUST use this tool.\n\nTOOL 2 - Google Drive\nFor EVERY request, you MUST generate a CSV and use this Google Drive tool to create a CSV in Google Drive.\n\nUnless specified otherwise by the user, you only include these columns to save on processing time...\n\n(IMPORTANT NOTE: These are EXAMPLE VALUES ONLY for demonstration purposes. Do not use these specific values in your actual output. Your CSV should contain real data retrieved from Google Maps for each specific request, with blank columns represented as empty arrays [] or appropriate empty values.)\n\nCRITICAL REQUIREMENT: When outputting data in CSV format, you MUST use \"NA\" as a placeholder for any blank, null, undefined, or unavailable values that were not provided by Google Maps. This ensures proper column alignment and formatting in the CSV output. NEVER leave cells empty or undefined in the CSV - always replace missing or unavailable data with \"NA\" for every column where data could not be retrieved.\n\nCRITICAL REQUIREMENT: When outputting data in CSV format, Wrap all fields that contain commas or line breaks inside double quotes \"...\".  This ensures proper column alignment and formatting in the CSV output. This is especially important for Columns 26 and 27\n\n\nFormat: Column X: [column name] - [example value]\nColumn 1: placeId - ChIJ12345abcde6789\nColumn 2: title - Sample Coffee Shop\nColumn 3: price - $$$\nColumn 4: categoryName - Cafe\nColumn 5: address - 123 Main Street Anytown AB12 3CD Country (NOTE: remove all commas on this address so that the CSV format is not messed up)\nColumn 6: website - https://www.samplecoffeeshop.com\nColumn 7: phoneUnformatted - +15551234567\nColumn 8: claimThisBusiness - true\nColumn 9: totalScore - 4.7\nColumn 10: reviewsCount - 583\nColumn 11: reviewsDistribution.oneStar - 12\nColumn 12: reviewsDistribution.twoStar - 23\nColumn 13: reviewsDistribution.threeStar - 45\nColumn 14: reviewsDistribution.fourStar - 156\nColumn 15: reviewsDistribution.fiveStar - 347\nColumn 16: imagesCount - 87\nColumn 17: url - https://www.google.com/maps/search/?api=1&query=Sample%20Coffee%20Shop&query_place_id=ChIJ12345abcde6789\nColumn 18: emails - support@samplecoffeeshop.com\nColumn 19: linkedIns - https://www.linkedin.com/company/samplecoffeeshop\nColumn 20: twitters - https://twitter.com/samplecoffee\nColumn 21: instagrams - https://www.instagram.com/samplecoffeeshop\nColumn 22: facebooks - https://www.facebook.com/samplecoffeeshop\nColumn 23: youtubes - https://www.youtube.com/c/samplecoffeeshop\nColumn 24: tiktoks - https://www.tiktok.com/@samplecoffeeshop\n\nThen add three more columns which you should generate based on the LEAD ANALYSIS INSTRUCTIONS section of your system prompt:\nColumn 25: leadScore - 7.8\nColumn 26: leadScoreReasoning -  Strong lead potential: Has website (+) but missing TikTok presence (-), good review count but 6% negative reviews suggests opportunity for improvement, GBP is claimed (+), decent image count but could benefit from more professional photos. Primary opportunity is social media expansion and review management.\nColumn 27: draftEmail - Subject: Boost Sample Coffee Shop's Online Visibility | Body: Hi Sample Coffee Shop team, I'm Name from AgencyX. I noticed your business has limited social media presence on TikTok. We've helped similar cafes increase customer engagement by 40% through targeted social strategies. Would you be open to a quick chat about how we could boost your visibility? Looking forward to connecting!\n\n***\nLEAD ANALYSIS INSTRUCTIONS:\nCalculate the lead score (1-10, with decimal points to tenths) and craft a personalized draft email based on these criteria. \n\nFor the draft email, note that \nMy name is [Name]\nAnd my agency name is [Agency X]\n\nA. Website presence - Relevant column: Column 6 (website)\nNo website = higher lead potential (offer website creation)\n\nB. Review quality - Relevant columns: Column 10 (reviewsCount), Columns 11-15 (reviewsDistribution)\nLow overall rating or high percentage of 1-2 star reviews = higher lead potential (offer review management)\n\nC. Image count - Relevant column: Column 16 (imagesCount)\nFew images (1-3) = higher lead potential (offer professional photography)\n\nD. Social media presence - Relevant columns: Columns 18-25 (social media accounts)\nMissing social accounts = higher lead potential (offer social media setup and management)\n\nE. Google Business Profile claimed status - Relevant column: Column 8 (claimThisBusiness)\nUnclaimed profile = higher lead potential (offer GBP management)\n\nFor each lead, analyze the available data and assign a score. Then craft a brief, personalized email (under 500 characters, and avoid using commas) that addresses their specific needs, introduces myself as per my name and agency name above, and offers relevant services to improve their online presence.\n\n\n***\n\nINSTRUCTIONS\nWhen the user asks for information about places, businesses, locations, or anything that could be found on Google Maps, you MUST use the MCP Google Maps tool. If they don't ask about places or locations, direct them with instructions on how to interact with you effectively. CRITICAL REQUIREMENT: Whenever you successfully retrieve information from Google Maps, you MUST ALWAYS generate a CSV file using the Google Drive tool. This is a non-negotiable, mandatory step that follows every successful Maps query - creating and storing the results in a CSV file in Google Drive is REQUIRED for ALL successful information retrievals, with no exceptions.\n\nYour process is as follows:\nSend a JSON request using the correct format for the Google Maps MCP tool. The JSON object must:\n\nStart with { and end with }\nContains only the JSON request and nothing else\n\nIMPORTANT - one of the keys required is searchStringsArray, this only accepts arrays so please make sure to enclose this portion with [ ] . \nHere is a completed example of the JSON request:\n{\n    \"locationQuery\": \"New York\",\n    \"maxCrawledPlacesPerSearch\": 11,\n    \"searchStringsArray\": [\"restaurants\"],\n    \"skipClosedPlaces\": true\n}\n\nOnce the response from the Google Maps MCP Tool is returned, ALWAYS summarize the information for the user in CSV format.\nKeep formatting clean and readable\nWhen outputting in CSV format, include only the data, no other details.\n\nExample (CSV):\nName,Address,Rating\nJoe's Coffee,123 5th Ave NY,4.6\nSushi Den,2-1-1 Dogenzaka Tokyo,4.7\n\nCRITICAL REQUIREMENT: When outputting data in CSV format, you MUST use \"NA\" as a placeholder for any null, undefined, or unavailable values that were not provided by Google Maps. This ensures proper column alignment and formatting in the CSV output. NEVER leave cells empty or undefined in the CSV - always replace missing or unavailable data with \"NA\" for every column where data could not be retrieved.\n\n***\nDo not fabricate or assume information not present in the MCP response.\n\n***\n\nNOTE - CURRENT LIMITATION: If the user requests information for more than 7 places or establishments in a single query, respectfully decline their request and explain that the MCP n8n community node currently has a 60-second timeout limitation when retrieving large amounts of data. It is important that you explain the reason behind the limitation - please identify the MCP n8n community node's timeout limit as the issue verbatim, and say that in the future when this timeout limit is fixed, this part of the system prompt can just be removed by the user. This means requests for more than 10 places may time out before completion. Inform the user that limiting their request to 10 or fewer places will ensure successful data retrieval. This system limitation note can be removed from the prompt when the limitation is fixed in a future update.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        440,
+        500
+      ],
+      "id": "b5705433-3203-4e88-896e-7e525bdabd4e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        380,
+        760
+      ],
+      "id": "68dee6cc-7b5a-4f09-ab69-c27a81bb37e0",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "agOJasdGXYUFeksW",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        500
+      ],
+      "id": "78c5a24e-ea52-4059-aca4-250b8fdbedf5",
+      "name": "When chat message received",
+      "webhookId": "182c6e5f-ea43-40f4-b479-48454605935a"
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "lukaskrivka-slash-google-maps-with-contact-details",
+        "toolParameters": "={\n  \"locationQuery\": \"{{ $fromAI(\"locationQuery\", \"location user wants to search\", string) }}\",\n  \"maxCrawledPlacesPerSearch\": {{ $fromAI(\"maxCrawledPlacesPerSearch\", \"how many places user wants\", number) }},\n  \"searchStringsArray\": [\"{{ $fromAI(\"searchStringsArray\", \"what the user wants to search\", json) }}\"],\n  \"skipClosedPlaces\": true\n}\n"
+      },
+      "type": "n8n-nodes-mcp.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        520,
+        700
+      ],
+      "id": "22ed99c9-b9ab-4af5-ac88-aa9f179da474",
+      "name": "MCP Google Maps",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "mDWE3KEKP9zGGcp8",
+          "name": "Apify"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('File_Content', ``, 'string') }}",
+        "name": "={{ new Date().toISOString().split('T')[0]}}__{{$json.chatInput.substring(0, 50)}}.csv\n",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1vAceAe2ICPfaPcWGlYryzhOQgsbPfwgb",
+          "mode": "list",
+          "cachedResultName": "R27",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1vAceAe2ICPfaPcWGlYryzhOQgsbPfwgb"
+        },
+        "options": {
+          "convertToGoogleDocument": false
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        680,
+        760
+      ],
+      "id": "e5b59e57-9eff-497a-aa1b-7fb67b2beb0f",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ZdggxLSoCjRb3Akq",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        300,
+        900
+      ],
+      "id": "fe638cf9-4f6f-404d-a6e7-4e6ba49f9080",
+      "name": "MCP List Tools Tester",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "mDWE3KEKP9zGGcp8",
+          "name": "Apify"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "lukaskrivka-slash-google-maps-with-contact-details",
+        "toolParameters": "{\n  \"locationQuery\": \"Philippines\",\n  \"maxCrawledPlacesPerSearch\": 2,\n  \"searchStringsArray\": [\n    \"restaurants\"\n  ]\n}"
+      },
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        720,
+        900
+      ],
+      "id": "69d52eee-202c-46ac-a406-c258d2722532",
+      "name": "MCP Execute Tool Tester",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "mDWE3KEKP9zGGcp8",
+          "name": "Apify"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Google Maps": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fd5afa64-087c-4e25-988c-a4432c276977",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5fd8ea4bdf37cd7356e053d68a5d903730814c0c8041bcac2ff42b494701cecb"
+  },
+  "id": "mqP7XmtPpAEpobGs",
+  "tags": []
+}

@@ -1,0 +1,680 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Initialize Python Project and Environment",
+        "description": "Set up the project repository, Python virtual environment, and install all required dependencies for the Infinite AI Leads Agent.",
+        "details": "Create a new Git repository. Use Python 3.10+ for best compatibility. Set up a virtual environment (venv or poetry). Install dependencies: requests (>=2.31), pandas (>=2.2), google-api-python-client (>=2.125), google-auth (>=2.29), openai (>=1.30) and/or anthropic (latest), python-dotenv (for config). Add .env template for API keys and credentials. Structure the repo with folders for prompts, config, and main script. Add a README.md with setup instructions.",
+        "testStrategy": "Verify that all dependencies install without errors and that the environment loads variables from .env. Run a sample script to confirm imports and environment variable access.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Git Repository and Initialize Project Structure",
+            "description": "Set up a new Git repository and organize the project folder with subdirectories for prompts, config, and the main script.",
+            "dependencies": [],
+            "details": "Initialize a Git repository in the project root. Create folders: 'prompts/', 'config/', and place the main script in the root or a 'src/' folder. Add a .gitignore file to exclude virtual environment and sensitive files.",
+            "status": "done",
+            "testStrategy": "Verify that the repository is initialized, folders are present, and .gitignore excludes venv and .env files."
+          },
+          {
+            "id": 2,
+            "title": "Set Up Python Virtual Environment",
+            "description": "Create and activate a Python virtual environment using venv or poetry, ensuring Python 3.10+ is used.",
+            "dependencies": [
+              "1.1"
+            ],
+            "details": "Use 'python3.10 -m venv venv' or 'poetry init' to create the environment. Activate it and confirm the Python version is 3.10 or higher.",
+            "status": "done",
+            "testStrategy": "Run 'python --version' inside the environment to confirm the correct version. Ensure activation and deactivation work as expected."
+          },
+          {
+            "id": 3,
+            "title": "Install Required Dependencies",
+            "description": "Install all specified Python packages into the virtual environment and record them in requirements.txt or poetry.lock.",
+            "dependencies": [
+              "1.2"
+            ],
+            "details": "Install requests (>=2.31), pandas (>=2.2), google-api-python-client (>=2.125), google-auth (>=2.29), openai (>=1.30) and/or anthropic (latest), python-dotenv. Use pip or poetry to install and freeze dependencies.",
+            "status": "done",
+            "testStrategy": "Run 'pip freeze' or 'poetry show' to confirm all packages are installed with correct versions. Attempt to import each package in a Python shell."
+          },
+          {
+            "id": 4,
+            "title": "Add .env Template and Configuration Files",
+            "description": "Create a .env template file for API keys and credentials, and add example configuration files in the config folder.",
+            "dependencies": [
+              "1.3"
+            ],
+            "details": "Draft a .env.example file listing required environment variables (GOOGLE_MAPS_API_KEY, AI provider key, Google Drive credentials). Place it in the config folder and reference it in README.md.",
+            "status": "done",
+            "testStrategy": "Check that .env.example contains all necessary keys. Validate loading with python-dotenv in a sample script."
+          },
+          {
+            "id": 5,
+            "title": "Write README.md with Setup Instructions",
+            "description": "Document the setup process, environment activation, dependency installation, and configuration requirements in README.md.",
+            "dependencies": [
+              "1.4"
+            ],
+            "details": "Include step-by-step instructions for cloning the repo, creating the virtual environment, installing dependencies, and configuring .env. Reference project structure and usage.",
+            "status": "done",
+            "testStrategy": "Have a new user follow the README to set up the project from scratch and confirm all steps work as described."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement User Input and Configuration Loader",
+        "description": "Create CLI prompts for user input and load environment variables for API keys and configuration.",
+        "details": "Use argparse or click for CLI input: prompt for search_query and results_limit. Load environment variables using python-dotenv. Validate presence of GOOGLE_MAPS_API_KEY (or MCP vendor key), AI provider key, and Google Drive credentials. Fail gracefully with clear error messages if any config is missing.",
+        "testStrategy": "Test with missing and present environment variables. Confirm CLI prompts work and variables are loaded correctly.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design CLI Interface for User Input",
+            "description": "Define and implement command-line prompts for required user inputs: search_query and results_limit, using either argparse or Click.",
+            "dependencies": [],
+            "details": "Evaluate argparse and Click for CLI development. Implement CLI to accept search_query and results_limit as arguments or options, ensuring user-friendly help and error messages.",
+            "status": "done",
+            "testStrategy": "Test CLI with various argument combinations, including missing and invalid inputs, to confirm correct parsing and help output."
+          },
+          {
+            "id": 2,
+            "title": "Load Environment Variables Using python-dotenv",
+            "description": "Integrate python-dotenv to load environment variables from a .env file at runtime.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "Ensure .env file is read at application startup. Make loaded variables accessible throughout the application for configuration and API keys.",
+            "status": "done",
+            "testStrategy": "Test with present and missing .env files. Confirm variables are loaded and accessible in the application context."
+          },
+          {
+            "id": 3,
+            "title": "Validate Required Configuration and API Keys",
+            "description": "Check for the presence of all required environment variables: GOOGLE_MAPS_API_KEY (or MCP vendor key), AI provider key, and Google Drive credentials.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "Implement logic to verify that each required key is present and non-empty. Support alternative keys where specified (e.g., GOOGLE_MAPS_API_KEY or MCP vendor key).",
+            "status": "done",
+            "testStrategy": "Test with each variable missing in turn and with all present. Confirm validation logic correctly identifies missing or invalid configurations."
+          },
+          {
+            "id": 4,
+            "title": "Implement Graceful Failure and Clear Error Messaging",
+            "description": "Ensure the application exits gracefully with clear, actionable error messages if any required configuration or input is missing.",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "Design error handling to catch missing or invalid configurations and display user-friendly messages indicating what is missing and how to fix it.",
+            "status": "done",
+            "testStrategy": "Simulate missing configurations and verify that error messages are clear, specific, and the application exits without crashing."
+          },
+          {
+            "id": 5,
+            "title": "Integrate and Test End-to-End Input and Configuration Loader",
+            "description": "Combine CLI input, environment loading, validation, and error handling into a cohesive module. Verify the complete workflow.",
+            "dependencies": [
+              "2.4"
+            ],
+            "details": "Ensure all components interact correctly: CLI prompts, environment loading, validation, and error handling. Refactor as needed for maintainability.",
+            "status": "done",
+            "testStrategy": "Perform end-to-end tests with various scenarios: all configs present, some missing, invalid inputs, and correct operation. Confirm expected behavior in each case."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Integrate Google Maps (or MCP Vendor) API for Lead Collection",
+        "description": "Fetch business leads from Google Maps Places API or a modular MCP vendor API (e.g., Apify, Outscraper) based on user query and limit.",
+        "details": "Implement fetch_places(query, limit) using requests. Prefer Google Maps Places API v3 for direct access; if using a vendor, abstract API calls for modularity. Collect all required fields: name, formatted_address, international_phone_number, website, social_media_links (if available), rating, review_count, image_count, google_business_claimed. Handle pagination and API rate limits. Use config to switch providers easily.",
+        "testStrategy": "Mock API responses for unit tests. Validate correct field extraction and handling of missing data. Test with real API for integration.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Provider-Agnostic API Abstraction",
+            "description": "Define an interface for fetching place data that abstracts over Google Maps Places API and MCP vendor APIs, enabling easy provider switching via configuration.",
+            "dependencies": [],
+            "details": "Specify required methods and data structures for the abstraction. Ensure the interface supports all required fields and can be extended for new providers.",
+            "status": "done",
+            "testStrategy": "Unit test with mock implementations for both Google Maps and a sample MCP vendor to verify interface compliance and provider switching."
+          },
+          {
+            "id": 2,
+            "title": "Implement Google Maps Places API v3 Integration",
+            "description": "Develop the provider module for Google Maps Places API v3, handling authentication, query construction, pagination, and rate limits.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Use the official Python client or direct HTTP requests as appropriate. Ensure all required fields are extracted, including handling of missing or unavailable data.",
+            "status": "done",
+            "testStrategy": "Mock API responses for unit tests. Integration test with real API key to validate field extraction, pagination, and rate limit handling."
+          },
+          {
+            "id": 3,
+            "title": "Implement MCP Vendor API Integration",
+            "description": "Develop the provider module for a modular MCP vendor (e.g., Apify, Outscraper), abstracting API calls to match the unified interface.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Map vendor-specific fields to the required schema. Handle authentication, pagination, and rate limits according to vendor documentation.",
+            "status": "done",
+            "testStrategy": "Mock vendor API responses for unit tests. Integration test with real vendor API key to validate field mapping and error handling."
+          },
+          {
+            "id": 4,
+            "title": "Develop fetch_places(query, limit) Core Logic",
+            "description": "Implement the main fetch_places function that uses the configured provider to fetch and aggregate business leads, handling pagination and limits.",
+            "dependencies": [
+              "3.2",
+              "3.3"
+            ],
+            "details": "Ensure the function respects the results limit, merges paginated results, and returns all required fields in a consistent format.",
+            "status": "done",
+            "testStrategy": "Unit test with both providers using mocks. Validate correct aggregation, limit enforcement, and handling of missing fields."
+          },
+          {
+            "id": 5,
+            "title": "Validate and Normalize Output Data",
+            "description": "Ensure all returned place data is validated, normalized, and includes all required fields, with sensible defaults for missing values.",
+            "dependencies": [
+              "3.4"
+            ],
+            "details": "Implement data normalization and validation logic. Document field requirements and default behaviors for missing or partial data.",
+            "status": "done",
+            "testStrategy": "Unit test with edge cases (missing fields, malformed data). Integration test to confirm output schema consistency across providers."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Normalize and Clean Lead Data",
+        "description": "Process raw API data to ensure all fields are present, missing values are 'NA', and CSV formatting is safe.",
+        "details": "Implement normalization: replace null/missing with 'NA', quote fields containing commas, trim whitespace. Use pandas DataFrame for processing. Ensure all output fields match the required CSV schema and order.",
+        "testStrategy": "Unit test with edge cases (missing fields, special characters, extra whitespace). Validate output DataFrame matches schema.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Load Raw API Data into DataFrame",
+            "description": "Import the raw lead data from the API response into a pandas DataFrame for processing.",
+            "dependencies": [],
+            "details": "Ensure all raw fields are captured and the DataFrame structure matches the expected schema.",
+            "status": "done",
+            "testStrategy": "Verify DataFrame loads correctly with sample API data, including cases with missing fields and extra whitespace."
+          },
+          {
+            "id": 2,
+            "title": "Replace Null and Missing Values with 'NA'",
+            "description": "Identify all null or missing values in the DataFrame and replace them with the string 'NA'.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Use pandas functions to detect NaN, None, or empty strings and standardize them as 'NA' across all columns.",
+            "status": "done",
+            "testStrategy": "Unit test with rows containing various types of missing values to confirm all are replaced with 'NA'."
+          },
+          {
+            "id": 3,
+            "title": "Trim Whitespace from All Fields",
+            "description": "Remove leading and trailing whitespace from every field in the DataFrame to ensure clean data.",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "Apply string trimming functions to all object-type columns, handling edge cases such as fields with only whitespace.",
+            "status": "done",
+            "testStrategy": "Test with fields containing extra spaces, tabs, and newlines to confirm all are trimmed."
+          },
+          {
+            "id": 4,
+            "title": "Quote Fields Containing Commas for CSV Safety",
+            "description": "Detect fields containing commas and wrap them in double quotes to prevent CSV parsing errors.",
+            "dependencies": [
+              "4.3"
+            ],
+            "details": "Scan all string fields for commas and apply quoting only where necessary, ensuring compatibility with CSV readers.",
+            "status": "done",
+            "testStrategy": "Validate with fields containing commas, quotes, and other special characters to ensure correct CSV output."
+          },
+          {
+            "id": 5,
+            "title": "Reorder and Validate Output Fields Against CSV Schema",
+            "description": "Ensure the DataFrame columns match the required CSV schema in both presence and order before export.",
+            "dependencies": [
+              "4.4"
+            ],
+            "details": "Check for missing or extra columns, reorder as specified, and confirm all output fields are present and correctly named.",
+            "status": "done",
+            "testStrategy": "Compare output DataFrame against schema definition; test with mismatched and incomplete schemas."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement AI-Powered Lead Scoring",
+        "description": "Use Claude or GPT to score each lead and generate a rationale based on R27 rules.",
+        "details": "Prepare a prompt template (prompts/lead_score.txt) with explicit scoring logic. Use the openai or anthropic SDK to call the LLM for each lead. Pass normalized lead data, receive LeadScore (0–10) and LeadScoreReasoning (1–3 sentences). Use Claude Opus 4 or GPT-4o for best results. Rate limit API calls and handle failures gracefully.",
+        "testStrategy": "Mock LLM responses for unit tests. Validate scoring logic with known inputs. Integration test with real LLM for a sample batch.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Lead Scoring Prompt Template",
+            "description": "Create a prompt template (prompts/lead_score.txt) that explicitly encodes the R27 scoring rules and specifies the required output format: LeadScore (0–10) and LeadScoreReasoning (1–3 sentences).",
+            "dependencies": [],
+            "details": "Ensure the template provides clear instructions for the LLM to follow the R27 rules and return both a numeric score and concise rationale. Include examples for clarity.",
+            "status": "done",
+            "testStrategy": "Review the template for completeness and clarity. Validate with sample inputs to ensure the prompt yields the desired structured output."
+          },
+          {
+            "id": 2,
+            "title": "Integrate LLM API for Lead Scoring",
+            "description": "Implement code to call Claude Opus 4 or GPT-4o using the openai or anthropic SDK, passing normalized lead data and receiving structured scoring responses.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Configure the SDK for secure API access. Ensure the request payload matches the prompt template requirements and handles both input and output formats.",
+            "status": "done",
+            "testStrategy": "Mock API responses for unit tests. Confirm that the integration correctly sends data and parses the LLM's response."
+          },
+          {
+            "id": 3,
+            "title": "Implement Rate Limiting and Error Handling",
+            "description": "Add logic to rate limit API calls and gracefully handle failures, including retries and fallback mechanisms.",
+            "dependencies": [
+              "5.2"
+            ],
+            "details": "Set appropriate rate limits based on provider guidelines. Implement retry logic for transient errors and log failures for later review. Ensure the workflow continues processing other leads if one fails.",
+            "status": "done",
+            "testStrategy": "Simulate API rate limit and failure scenarios. Verify that errors are logged and processing continues without crashing."
+          },
+          {
+            "id": 4,
+            "title": "Process and Store Lead Scores and Rationales",
+            "description": "Parse the LLM responses to extract LeadScore and LeadScoreReasoning, and store them with the corresponding lead records.",
+            "dependencies": [
+              "5.3"
+            ],
+            "details": "Ensure data is stored in the required format for downstream tasks, such as CSV or database. Validate that each lead has both a score and rationale.",
+            "status": "done",
+            "testStrategy": "Test with sample and edge-case responses to confirm correct extraction and storage. Validate output schema matches requirements."
+          },
+          {
+            "id": 5,
+            "title": "Validate and Test End-to-End Lead Scoring Workflow",
+            "description": "Conduct end-to-end tests using both mocked and real LLM responses to ensure the entire lead scoring pipeline functions as intended.",
+            "dependencies": [
+              "5.4"
+            ],
+            "details": "Run integration tests with a batch of sample leads. Compare results against expected outputs and known scoring logic. Ensure the system handles errors and edge cases gracefully.",
+            "status": "done",
+            "testStrategy": "Use unit tests with mocked responses and integration tests with real API calls. Validate accuracy, robustness, and compliance with R27 rules."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Implement AI-Powered Draft Email Generation",
+        "description": "Generate a personalized outreach email for each lead using the LLM, leveraging the lead's weaknesses.",
+        "details": "Prepare a prompt template (prompts/draft_email.txt) that takes LeadScoreReasoning and business details. Use the same LLM provider as scoring. Ensure output is a casual, relevant email. Rate limit and handle errors as above.",
+        "testStrategy": "Mock LLM responses for unit tests. Validate email content for personalization and relevance. Integration test with real LLM.",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Prompt Template for Draft Email Generation",
+            "description": "Create a prompt template (prompts/draft_email.txt) that incorporates LeadScoreReasoning and business details, ensuring it guides the LLM to generate personalized outreach emails leveraging each lead's weaknesses.",
+            "dependencies": [],
+            "details": "Template should include placeholders for lead-specific reasoning and business context, and provide clear instructions for a casual, relevant tone.",
+            "status": "done",
+            "testStrategy": "Review template for completeness and clarity. Validate with sample inputs to ensure correct prompt structure."
+          },
+          {
+            "id": 2,
+            "title": "Integrate LLM Provider for Email Generation",
+            "description": "Implement the logic to call the same LLM provider used for lead scoring, passing the prepared prompt and receiving the generated email draft.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "Reuse provider configuration and authentication from lead scoring. Ensure compatibility with prompt format and output requirements.",
+            "status": "done",
+            "testStrategy": "Mock LLM responses for unit tests. Confirm integration with real LLM provider for sample prompts."
+          },
+          {
+            "id": 3,
+            "title": "Implement Rate Limiting and Error Handling",
+            "description": "Apply rate limiting to LLM API calls and handle errors gracefully, following the same approach as in lead scoring.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "Wrap LLM calls in try/except blocks, log errors, and retry or skip failed requests as appropriate. Enforce API rate limits to avoid throttling.",
+            "status": "done",
+            "testStrategy": "Simulate API failures and rate limit breaches. Verify error logging and system stability under stress."
+          },
+          {
+            "id": 4,
+            "title": "Format and Personalize Email Output",
+            "description": "Post-process the LLM output to ensure the email is casual, relevant, and includes all necessary business and lead details.",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Check for correct tone, inclusion of lead weaknesses, and proper formatting (subject line, signature, etc.).",
+            "status": "done",
+            "testStrategy": "Validate email drafts for personalization, relevance, and formatting. Review with stakeholders for tone and content quality."
+          },
+          {
+            "id": 5,
+            "title": "Test and Validate End-to-End Email Generation Workflow",
+            "description": "Conduct unit and integration tests using mocked and real LLM responses to ensure the workflow generates high-quality, personalized emails for each lead.",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "Test with various lead scenarios and business contexts. Validate output against requirements for personalization and relevance.",
+            "status": "done",
+            "testStrategy": "Run unit tests with mock data. Perform integration tests with real LLM and sample leads. Review email outputs for correctness and quality."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Assemble Final CSV Output",
+        "description": "Compile all processed data into a CSV file with the exact required schema and formatting.",
+        "details": "Use pandas to assemble columns: Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail. Ensure correct order and quoting. Filename format: YYYY-MM-DD_<search_query>.csv. Store in a temp directory before upload.",
+        "testStrategy": "Validate CSV output against schema. Open in Excel/Google Sheets to check formatting. Test with edge cases (commas, quotes, missing data).",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Prepare DataFrame with Required Columns",
+            "description": "Create a pandas DataFrame containing the columns: Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail, ensuring correct order and data types.",
+            "dependencies": [],
+            "details": "Verify that all processed data is present and columns are ordered as specified. Use efficient datatypes for memory optimization if needed.",
+            "status": "done",
+            "testStrategy": "Check DataFrame schema and column order. Validate with sample data for completeness and type consistency."
+          },
+          {
+            "id": 2,
+            "title": "Format Data for CSV Output",
+            "description": "Ensure all fields are properly quoted, handle special characters (commas, quotes), and replace missing values with 'NA' to meet CSV formatting requirements.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Use pandas options to quote fields as needed and sanitize data for CSV compatibility.",
+            "status": "done",
+            "testStrategy": "Test with edge cases including fields containing commas, quotes, and missing data. Open output in Excel/Google Sheets to verify formatting."
+          },
+          {
+            "id": 3,
+            "title": "Generate Filename According to Specification",
+            "description": "Create the output filename in the format YYYY-MM-DD_<search_query>.csv using the current date and search query.",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "Programmatically generate filename string using datetime and search query variables.",
+            "status": "done",
+            "testStrategy": "Validate filename format for various queries and dates. Ensure no illegal characters are present."
+          },
+          {
+            "id": 4,
+            "title": "Write DataFrame to Temporary Directory as CSV",
+            "description": "Save the formatted DataFrame as a CSV file in a designated temporary directory using the generated filename.",
+            "dependencies": [
+              "7.3"
+            ],
+            "details": "Use pandas to_csv() method to write the file, specifying the temp directory path.",
+            "status": "done",
+            "testStrategy": "Confirm file is written to the correct location. Check file accessibility and integrity."
+          },
+          {
+            "id": 5,
+            "title": "Validate CSV Output Against Schema and Formatting",
+            "description": "Open the generated CSV file and verify that it matches the required schema, formatting, and handles edge cases correctly.",
+            "dependencies": [
+              "7.4"
+            ],
+            "details": "Perform schema validation and manual inspection in spreadsheet software. Test with sample and edge case data.",
+            "status": "done",
+            "testStrategy": "Compare CSV columns and order to specification. Open in Excel/Google Sheets to check for formatting issues. Test with cases including special characters and missing data."
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Integrate Google Drive API for File Upload",
+        "description": "Upload the generated CSV to Google Drive and return a public share link.",
+        "details": "Use google-api-python-client and google-auth to authenticate with OAuth JSON. Upload file to the configured folder. Set permissions to generate a public share link. Handle token refresh and errors robustly. Store Drive folder ID in config.",
+        "testStrategy": "Integration test with Google Drive: upload, verify file presence, and test share link. Handle permission errors and invalid credentials.",
+        "priority": "high",
+        "dependencies": [
+          7
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Authenticate with Google Drive API using OAuth",
+            "description": "Implement authentication using google-api-python-client and google-auth, loading credentials from OAuth JSON and handling token refresh automatically.",
+            "dependencies": [],
+            "details": "Set up OAuth 2.0 flow, store and refresh tokens as needed, and ensure credentials are securely loaded from the configured location.",
+            "status": "done",
+            "testStrategy": "Test with valid and expired tokens to confirm authentication and automatic refresh. Verify error handling for missing or invalid credentials."
+          },
+          {
+            "id": 2,
+            "title": "Upload CSV File to Specified Google Drive Folder",
+            "description": "Upload the generated CSV file to the Google Drive folder specified by the folder ID in the configuration.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Use the files.create method with uploadType=media, set the parent folder ID, and ensure the file is uploaded with correct metadata.",
+            "status": "done",
+            "testStrategy": "Upload a sample CSV and verify its presence in the target folder. Confirm correct file name and type."
+          },
+          {
+            "id": 3,
+            "title": "Set Public Sharing Permissions for Uploaded File",
+            "description": "Configure the uploaded file's permissions to allow public access and generate a shareable link.",
+            "dependencies": [
+              "8.2"
+            ],
+            "details": "Use the permissions.create method to set 'anyone with the link' can view. Retrieve and return the public share link.",
+            "status": "done",
+            "testStrategy": "Access the share link from an unauthenticated browser to confirm public availability. Test permission errors and link validity."
+          },
+          {
+            "id": 4,
+            "title": "Implement Robust Error Handling and Token Refresh Logic",
+            "description": "Ensure all API interactions handle errors gracefully, including token expiration, permission issues, and network failures.",
+            "dependencies": [
+              "8.1",
+              "8.2",
+              "8.3"
+            ],
+            "details": "Wrap API calls in try/except blocks, log errors, and retry token refresh or failed uploads as appropriate.",
+            "status": "done",
+            "testStrategy": "Simulate token expiration, permission denial, and network errors. Confirm errors are logged and handled without crashing."
+          },
+          {
+            "id": 5,
+            "title": "Store and Load Google Drive Folder ID from Configuration",
+            "description": "Persist the Google Drive folder ID in a configuration file and load it dynamically during upload operations.",
+            "dependencies": [],
+            "details": "Update configuration loader to read and validate the folder ID. Ensure the folder ID is used in upload requests and can be changed without code modification.",
+            "status": "done",
+            "testStrategy": "Change the folder ID in config and verify uploads go to the correct folder. Test with missing or invalid folder IDs."
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Implement Error Handling, Logging, and Partial Results Support",
+        "description": "Ensure the workflow handles API failures gracefully, logs errors, and can return partial results if needed.",
+        "details": "Use Python logging module for structured logs. Wrap all API calls in try/except blocks. If a step fails, log the error and continue processing remaining leads. If the workflow cannot complete, return a partial CSV with available data and a warning.",
+        "testStrategy": "Simulate API failures and verify logs and partial output. Confirm that the script never crashes and always produces a CSV.",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Structured Logging Framework",
+            "description": "Set up the Python logging module for structured, timestamped logs. Define log levels and formats to capture errors, warnings, and workflow events.",
+            "dependencies": [],
+            "details": "Configure logging to output to both console and file. Ensure logs include context such as lead ID, API endpoint, and error details.",
+            "status": "done",
+            "testStrategy": "Verify logs are generated for normal operations and error scenarios. Check log format and completeness for simulated failures."
+          },
+          {
+            "id": 2,
+            "title": "Implement Granular Exception Handling for API Calls",
+            "description": "Wrap all API calls in focused try/except blocks, catching specific exceptions relevant to each API and operation.",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Avoid broad except clauses; handle exceptions like ConnectionError, TimeoutError, and API-specific errors. Log each exception with meaningful messages and context.",
+            "status": "done",
+            "testStrategy": "Simulate various API failures (e.g., network issues, invalid responses) and confirm correct exception handling and logging."
+          },
+          {
+            "id": 3,
+            "title": "Continue Processing Remaining Leads After Failure",
+            "description": "Ensure that if an API call fails for a lead, the workflow logs the error and continues processing subsequent leads without interruption.",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Implement loop logic to skip failed leads and proceed with others. Track which leads failed and which succeeded for partial result reporting.",
+            "status": "done",
+            "testStrategy": "Test with batches containing both valid and invalid leads. Confirm that failures do not halt the workflow and all possible leads are processed."
+          },
+          {
+            "id": 4,
+            "title": "Generate Partial CSV Output with Warning",
+            "description": "If the workflow cannot complete for all leads, output a CSV containing only successfully processed leads and include a warning about partial results.",
+            "dependencies": [
+              "9.3"
+            ],
+            "details": "Design CSV export logic to exclude failed leads. Add a warning message in the CSV or as a separate log entry indicating incomplete results.",
+            "status": "done",
+            "testStrategy": "Force partial failures and verify that the resulting CSV contains only successful leads and a clear warning."
+          },
+          {
+            "id": 5,
+            "title": "Simulate and Validate Error Handling and Partial Results",
+            "description": "Create automated tests that simulate API failures, verify error logging, and confirm that partial results are correctly generated and reported.",
+            "dependencies": [
+              "9.4"
+            ],
+            "details": "Develop test cases for different failure scenarios, including total and partial API outages. Validate that the script never crashes and always produces a CSV.",
+            "status": "done",
+            "testStrategy": "Run integration tests with mocked API failures. Check logs, CSV output, and workflow resilience under stress."
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Write Documentation and Provide Example Prompts",
+        "description": "Document setup, configuration, usage, and provide example prompt files for scoring and email generation.",
+        "details": "Write a comprehensive README.md with setup, environment variables, and run instructions. Include sample config.env and example prompts in prompts/lead_score.txt and prompts/draft_email.txt. Document how to swap API providers and LLMs for future extensibility.",
+        "testStrategy": "Have a new user follow the README to set up and run the project from scratch. Validate clarity and completeness.",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Draft Comprehensive README.md",
+            "description": "Create a README.md that covers project overview, setup instructions, environment variables, configuration, usage, and extensibility for API providers and LLMs.",
+            "dependencies": [],
+            "details": "Include sections for project introduction, prerequisites, installation steps, configuration details, usage examples, and instructions for swapping API providers and LLMs. Ensure Markdown formatting and clarity for new users.",
+            "status": "done",
+            "testStrategy": "Have a new user follow the README to set up and run the project from scratch. Collect feedback on clarity and completeness."
+          },
+          {
+            "id": 2,
+            "title": "Document Environment Variables and Configuration",
+            "description": "Provide detailed documentation for all required environment variables and configuration options.",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "List and explain each environment variable (e.g., API keys, Google Drive credentials) in the README. Include a sample config.env file with placeholder values and comments.",
+            "status": "done",
+            "testStrategy": "Verify that all variables are documented and that the sample config.env enables successful setup when populated."
+          },
+          {
+            "id": 3,
+            "title": "Create Example Prompt Files for Lead Scoring",
+            "description": "Develop and document an example prompt file for lead scoring in prompts/lead_score.txt.",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Write a clear, well-structured example prompt for lead scoring. Add comments or documentation within the file as needed to explain its structure and usage.",
+            "status": "done",
+            "testStrategy": "Test the prompt file with the scoring workflow to ensure it produces expected results and is understandable to users."
+          },
+          {
+            "id": 4,
+            "title": "Create Example Prompt Files for Email Generation",
+            "description": "Develop and document an example prompt file for draft email generation in prompts/draft_email.txt.",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Write a sample prompt for generating draft emails. Include inline comments or a brief header explaining its intended use and customization points.",
+            "status": "done",
+            "testStrategy": "Validate that the prompt file works with the email generation workflow and is clear for users to adapt."
+          },
+          {
+            "id": 5,
+            "title": "Document Extensibility for API Providers and LLMs",
+            "description": "Add a dedicated section in the documentation explaining how to swap or extend API providers and LLMs.",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Describe the architecture and configuration steps required to change or add new API providers and LLMs. Provide examples or references to relevant code/config sections.",
+            "status": "done",
+            "testStrategy": "Review documentation for accuracy and completeness. Confirm that a user can follow the instructions to swap providers without additional guidance."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-14T14:53:56.536Z",
+      "updated": "2025-08-14T15:29:33.911Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+## **ZAD\_MANDATE.md (Rewritten for R27 Infinite AI Leads Agent)**
+
+# **ZAD MANDATE — R27 Infinite AI Leads Agent**
+
+## **Purpose**
+
+This mandate defines the operational principles, rules, and constraints for all work on the **R27 Infinite AI Leads Agent** — a system that automates:
+
+1. Lead data extraction from Google Maps (via MCP or API provider)
+2. AI-driven lead scoring
+3. Personalized outreach email generation
+4. CSV compilation & Google Drive upload
+
+The R27 Agent replaces n8n-based orchestration with a code-first pipeline while preserving the same functional logic, field structure, and system prompts as the original R27 workflow JSON.
+
+---
+
+## **Core-First Mandate**
+
+* **No minimal builds, no reduced scope.**
+  All work must be performed on the **core R27 codebase** unless explicitly creating isolated test harnesses for debugging.
+* The system must run **end-to-end**: Query → Scrape → Score → Email Draft → CSV → Drive upload.
+* The CSV output must match **exactly**:
+
+  ```
+  Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail
+  ```
+
+---
+
+## **Error Handling Protocol**
+
+* Every error gets **up to 20 fix cycles** before escalation.
+* **Cycle Definition:**
+
+  1. Identify error
+  2. Research via TaskMaster
+  3. Pull relevant references via Context7
+  4. Apply fix
+  5. Retest
+* If unresolved after 20 cycles → escalate as “Blocked.”
+
+---
+
+## **Core System Components**
+
+* **Lead Data Fetcher** — Calls MCP server or API provider for Google Maps Places data.
+* **Data Normalizer** — Replaces nulls with `"NA"`, sanitizes CSV fields, preserves schema order.
+* **Lead Scorer (AI)** — Applies R27 scoring rules via LLM prompt.
+* **Email Drafter (AI)** — Generates personalized outreach email based on score reasoning.
+* **CSV Compiler** — Assembles final file in schema order.
+* **Drive Uploader** — Uploads CSV to configured Google Drive folder.
+
+---
+
+## **Development Rules**
+
+1. **No unrelated features** — only implement functionality that directly supports the R27 workflow.
+2. **No breaking schema** — all CSVs must remain compatible with the original n8n R27 output.
+3. **Credentials isolation** — all API keys & OAuth tokens stored as environment variables.
+4. **Prompt integrity** — scoring and email prompts must remain faithful to the original R27 JSON system prompt.
+5. **Testing discipline** — verify each stage in isolation before end-to-end tests.
+
+---
+
+## **Escalation Criteria**
+
+* Blocked MCP/API connection after 20 fix cycles.
+* AI model consistently failing to adhere to prompt format.
+* Google Drive upload returning incorrect link or failing authentication.
+
+---
+
+**This mandate is binding for all work on the R27 Infinite AI Leads Agent project.**
+
+---
+If you want, I can now also prepare a **companion quick-start sheet** for onboarding new devs on the R27 project — basically a 1-page condensed version of these two files so they can get productive immediately.
+Do you want me to do that next?

@@ -1,0 +1,199 @@
+Got it — you basically want a **Product Requirements Document (PRD)** that details exactly how to rebuild the **R27 Infinite AI Leads Agent** *without* n8n, using Claude’s code capabilities (or any other code-first environment), but keeping the **exact same output format and steps** as the original workflow.
+
+Here’s your PRD draft:
+
+---
+
+# **PRD: Infinite AI Leads Agent (R27) — Code-Only Implementation via Claude**
+
+**Version:** 1.0
+**Author:** \[Your Name]
+**Date:** \[Today’s Date]
+
+---
+
+## **1. Overview**
+
+The goal is to implement the “Infinite AI Leads Agent” lead generation workflow (originally built in n8n as R27) entirely in code, orchestrated by Claude’s coding capabilities (e.g., using Claude Code, local Python scripts, or a serverless environment).
+The new implementation **must** preserve:
+
+* Input/output formats
+* Data fields
+* Logic for lead scoring and email drafting
+  …while removing the dependency on n8n.
+
+---
+
+## **2. Objectives**
+
+* Rebuild the workflow to run entirely in code.
+* Maintain **identical output CSV** structure as R27:
+
+  ```
+  Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail
+  ```
+* Enable **user input** for:
+
+  * Niche/Keyword
+  * Location
+  * Number of results
+* Store output to **Google Drive** automatically.
+* Maintain **MCP-style modularity** so we can later swap the Google Maps source or AI provider.
+
+---
+
+## **3. Functional Requirements**
+
+### **3.1 Inputs**
+
+* **User-provided:**
+
+  * `search_query` (string) — niche + location (e.g., “dentists in Miami”)
+  * `results_limit` (integer, default 25)
+* **Config variables (environment):**
+
+  * `GOOGLE_MAPS_API_KEY` or MCP vendor API key (e.g., Apify, Outscraper)
+  * `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+  * `GOOGLE_DRIVE_CREDENTIALS` (OAuth JSON)
+
+---
+
+### **3.2 Processing Flow**
+
+**Step 1: Query Google Maps via API**
+
+* Use Google Maps Places API **or** MCP-equivalent vendor API (Apify/Outscraper).
+* Collect:
+
+  * `name`
+  * `formatted_address`
+  * `international_phone_number` (if available)
+  * `website`
+  * `social_media_links` (if available from vendor)
+  * `rating`
+  * `review_count`
+  * `image_count` (if available)
+  * `google_business_claimed` (boolean if available)
+
+**Step 2: Normalize Data**
+
+* Ensure all missing/null values are replaced with `"NA"`.
+* Ensure all commas in fields are quoted in CSV.
+* Remove extra whitespace.
+
+**Step 3: Lead Scoring (AI-powered)**
+
+* Pass normalized data for each lead to LLM (Claude or GPT) with the same scoring rules as R27:
+
+  * * points if no website
+  * * points if review rating < 3.5 or high % of 1-star reviews
+  * * points if < 3 images
+  * * points if no/weak social media presence
+  * * points if Google business listing unclaimed
+* Output `LeadScore` (0–10) and `LeadScoreReasoning` (1–3 sentence rationale).
+
+**Step 4: Draft Email (AI-powered)**
+
+* Pass `LeadScoreReasoning` + business details to LLM.
+* Generate a **personalized, casual outreach email** offering services relevant to their weaknesses.
+
+**Step 5: CSV Assembly**
+
+* Compile all columns in this exact order:
+
+  ```
+  Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail
+  ```
+
+**Step 6: Save to Google Drive**
+
+* File name format:
+
+  ```
+  YYYY-MM-DD_<search_query>.csv
+  ```
+* Save in configured Google Drive folder.
+* Return the public link to the user.
+
+---
+
+## **4. Non-Functional Requirements**
+
+* **Performance:** Should return ≤ 50 results in under 90 seconds for demo purposes.
+* **Reliability:** Handle API failures gracefully; return partial CSV if needed.
+* **Security:** All API keys stored as environment variables; do not hardcode.
+* **Scalability:** Easy to switch API provider for maps or AI.
+
+---
+
+## **5. Tech Stack**
+
+* **Language:** Python (Claude code or standalone)
+* **Dependencies:**
+
+  * `requests` (API calls)
+  * `pandas` (CSV handling)
+  * `google-api-python-client` (Drive upload)
+  * AI SDK (e.g., `openai`, `anthropic`)
+* **Runtime:** Local script, serverless function, or Claude code sandbox
+
+---
+
+## **6. Pseudocode**
+
+```python
+def fetch_places(query, limit):
+    # Call MCP server / vendor API
+    # Return list of dicts with all fields, NA where missing
+
+def score_lead(lead):
+    # Call AI with R27 scoring prompt
+    # Return score, reasoning
+
+def draft_email(lead, reasoning):
+    # Call AI with R27 email prompt
+    # Return email text
+
+def save_to_drive(csv_path, filename):
+    # Upload to Google Drive
+    # Return share link
+
+def main():
+    query = input("Enter niche and location: ")
+    limit = int(input("Enter results limit: "))
+    leads = fetch_places(query, limit)
+
+    processed = []
+    for lead in leads:
+        score, reasoning = score_lead(lead)
+        email = draft_email(lead, reasoning)
+        processed.append({...lead, "LeadScore": score, "LeadScoreReasoning": reasoning, "DraftEmail": email})
+
+    csv_path = "output.csv"
+    # Save with pandas
+    save_to_drive(csv_path, filename=f"{date.today()}_{query}.csv")
+```
+
+---
+
+## **7. Deliverables**
+
+* `infinite_leads_agent.py` (main script)
+* `config.env` (API keys, Drive folder ID)
+* `prompts/lead_score.txt` (system prompt for scoring)
+* `prompts/draft_email.txt` (system prompt for outreach)
+* README.md with setup/run instructions
+
+---
+
+## **8. Future Enhancements**
+
+* Add front-end form (Flask or Streamlit)
+* Add CRM integration (HubSpot, Pipedrive)
+* Batch multiple queries in one run
+* Cache results to avoid duplicate API calls
+
+---
+
+If you want, I can now **turn this PRD into the actual Claude-ready Python code** so you can copy-paste it into Claude and run the whole thing without n8n at all.
+Do you want me to write that code next?

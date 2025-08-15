@@ -22,6 +22,7 @@ from src.lead_scorer import LeadScorer
 from src.email_generator import EmailGenerator
 # from src.drive_uploader import DriveUploader  # Removed - local downloads only
 from src.data_normalizer import DataNormalizer
+from src.email_verifier import MailTesterVerifier, EmailStatus
 
 # Load environment variables
 load_dotenv()
@@ -73,6 +74,8 @@ def main():
                        help='Industry type for scoring (default, restaurant, dental, coffee_equipment, law_firm, real_estate, fitness, automotive, beauty_salon, home_services)')
     parser.add_argument('--no-upload', action='store_true', help='Skip Google Drive upload')
     parser.add_argument('--output-dir', default='output', help='Output directory for CSV files')
+    parser.add_argument('--verify-emails', action='store_true', help='Enable email verification via MailTester.ninja')
+    parser.add_argument('--skip-invalid-emails', action='store_true', help='Skip leads with invalid emails from final output')
     
     args = parser.parse_args()
     
@@ -102,6 +105,68 @@ def main():
         normalized_leads = normalizer.normalize(raw_leads)
         logger.info(f"Normalized {len(normalized_leads)} leads")
         
+        # Step 2.5: Email Verification (optional)
+        if args.verify_emails:
+            logger.info("Step 2.5: Verifying email addresses...")
+            
+            # Check for API key
+            if not os.getenv('MAILTESTER_API_KEY'):
+                logger.warning("MAILTESTER_API_KEY not found. Skipping email verification.")
+            else:
+                try:
+                    verifier = MailTesterVerifier()
+                    verified_leads = []
+                    
+                    for lead in tqdm(normalized_leads, desc="Verifying emails"):
+                        email = lead.get('Email', '').strip()
+                        
+                        if email:
+                            result = verifier.verify_email(email)
+                            
+                            # Add verification data to lead
+                            lead['email_verified'] = result.status == EmailStatus.VALID
+                            lead['email_status'] = result.status.value
+                            lead['email_score'] = result.score
+                            lead['mx_valid'] = result.mx_valid
+                            lead['smtp_valid'] = result.smtp_valid
+                            
+                            # Adjust lead score based on email validity
+                            if result.status == EmailStatus.VALID:
+                                lead['email_quality_boost'] = 20
+                            elif result.status == EmailStatus.CATCH_ALL:
+                                lead['email_quality_boost'] = 10
+                            elif result.status == EmailStatus.ROLE_BASED:
+                                lead['email_quality_boost'] = 5
+                            elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
+                                lead['email_quality_boost'] = -50
+                            else:
+                                lead['email_quality_boost'] = 0
+                        else:
+                            lead['email_verified'] = False
+                            lead['email_status'] = 'missing'
+                            lead['email_score'] = 0.0
+                            lead['mx_valid'] = False
+                            lead['smtp_valid'] = False
+                            lead['email_quality_boost'] = -20
+                        
+                        # Skip invalid emails if requested
+                        if args.skip_invalid_emails and lead['email_status'] in ['invalid', 'disposable', 'missing']:
+                            logger.info(f"Skipping lead with invalid email: {lead.get('Name', 'Unknown')}")
+                            continue
+                        
+                        verified_leads.append(lead)
+                    
+                    normalized_leads = verified_leads
+                    logger.info(f"Email verification complete. {len(normalized_leads)} leads remaining.")
+                    
+                    # Show verification stats
+                    valid_count = sum(1 for l in normalized_leads if l.get('email_verified', False))
+                    logger.info(f"Valid emails: {valid_count}/{len(normalized_leads)} ({valid_count*100/len(normalized_leads):.1f}%)")
+                    
+                except Exception as e:
+                    logger.error(f"Email verification failed: {e}")
+                    logger.info("Continuing without email verification...")
+        
         # Step 3: Score leads with AI
         logger.info("Step 3: Scoring leads with AI...")
         scorer = LeadScorer(industry=args.industry)
@@ -110,6 +175,14 @@ def main():
         for lead in tqdm(normalized_leads, desc="Scoring leads"):
             try:
                 score, reasoning = scorer.score_lead(lead)
+                
+                # Apply email quality boost if email was verified
+                if 'email_quality_boost' in lead:
+                    original_score = score
+                    score = max(0, min(100, score + lead['email_quality_boost']))
+                    if lead['email_quality_boost'] != 0:
+                        reasoning += f" Email verification: {lead['email_status']} (score adjusted by {lead['email_quality_boost']:+d} points)."
+                
                 lead['LeadScore'] = score
                 lead['LeadScoreReasoning'] = reasoning
                 scored_leads.append(lead)
@@ -149,6 +222,11 @@ def main():
         # Create DataFrame with exact column order
         columns = ['Name', 'Address', 'Phone', 'Website', 'SocialMediaLinks', 
                   'Reviews', 'Images', 'LeadScore', 'LeadScoreReasoning', 'DraftEmail']
+        
+        # Add email verification columns if verification was performed
+        if args.verify_emails and os.getenv('MAILTESTER_API_KEY'):
+            verification_columns = ['email_verified', 'email_status', 'email_score', 'mx_valid', 'smtp_valid']
+            columns = columns[:-1] + verification_columns + columns[-1:]  # Insert before DraftEmail
         
         df = pd.DataFrame(final_leads)
         

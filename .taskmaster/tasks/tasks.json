@@ -669,11 +669,204 @@
             "testStrategy": "Review documentation for accuracy and completeness. Confirm that a user can follow the instructions to swap providers without additional guidance."
           }
         ]
+      },
+      {
+        "id": 11,
+        "title": "Create Email Verifier Module",
+        "description": "Develop the core module `src/email_verifier.py` to interface with MailTester.ninja API for email validation.",
+        "details": "Use Python 3.11+ and the latest `requests` (v2.31.0) for HTTP calls. Structure the module with a class `MailTesterVerifier` encapsulating API interactions. Implement methods for token retrieval, email verification, and error handling. Ensure all API calls use HTTPS and sanitize email inputs before requests. Follow single-responsibility principle for maintainability.",
+        "testStrategy": "Write unit tests for each method using pytest. Mock API responses for token and email verification endpoints. Validate input sanitization and HTTPS enforcement.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design MailTesterVerifier Class Structure",
+            "description": "Define the MailTesterVerifier class in src/email_verifier.py, ensuring clear separation of responsibilities for token management, email verification, and error handling.",
+            "dependencies": [],
+            "details": "Establish the class skeleton with method stubs for token retrieval, email verification, input sanitization, and error handling. Ensure adherence to the single-responsibility principle for maintainability.",
+            "status": "done",
+            "testStrategy": "Review class and method structure for clarity and separation of concerns. Confirm that each method has a distinct, well-defined purpose."
+          },
+          {
+            "id": 2,
+            "title": "Implement Token Retrieval Method",
+            "description": "Develop a method to securely retrieve and cache the authentication token from MailTester.ninja API using HTTPS.",
+            "dependencies": [
+              "11.1"
+            ],
+            "details": "Use Python 3.11+ and requests v2.31.0 to make a GET request to the token endpoint. Parse and store the token for subsequent API calls. Handle token expiration and errors gracefully.",
+            "status": "done",
+            "testStrategy": "Write unit tests to mock token endpoint responses, including success, failure, and expiration scenarios. Validate HTTPS enforcement and error handling."
+          },
+          {
+            "id": 3,
+            "title": "Implement Email Input Sanitization",
+            "description": "Create a method to sanitize and validate email addresses before making API requests.",
+            "dependencies": [
+              "11.1"
+            ],
+            "details": "Ensure emails conform to RFC standards, strip whitespace, and reject invalid formats. Prevent injection or malformed requests.",
+            "status": "done",
+            "testStrategy": "Unit test with valid, invalid, and edge-case email inputs. Confirm only sanitized emails are sent to the API."
+          },
+          {
+            "id": 4,
+            "title": "Implement Email Verification Method",
+            "description": "Develop a method to verify emails using the MailTester.ninja API, utilizing the retrieved token and sanitized input.",
+            "dependencies": [
+              "11.2",
+              "11.3"
+            ],
+            "details": "Make a GET request to the verification endpoint with the token and sanitized email. Parse and return the verification result. Handle API errors and unexpected responses.",
+            "status": "done",
+            "testStrategy": "Mock API responses for various verification outcomes (valid, invalid, error). Test integration with token retrieval and input sanitization."
+          },
+          {
+            "id": 5,
+            "title": "Implement Robust Error Handling",
+            "description": "Add comprehensive error handling for all API interactions and input validation steps.",
+            "dependencies": [
+              "11.2",
+              "11.3",
+              "11.4"
+            ],
+            "details": "Catch and log exceptions, provide clear error messages, and ensure the module fails gracefully on network, authentication, or validation errors.",
+            "status": "done",
+            "testStrategy": "Unit test error scenarios for token retrieval, email verification, and input sanitization. Confirm appropriate exceptions and messages are raised for each failure mode."
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Implement Token Management System",
+        "description": "Design and implement robust token management for MailTester.ninja API authentication.",
+        "details": "Store API token and expiration timestamp securely in memory (use Redis v7.2.0 for distributed caching if scaling is required). Auto-refresh token every 23 hours using a background scheduler (recommend `APScheduler` v4.0.0). Handle token failures gracefully with fallback and exponential backoff. Store API key in environment variables using `python-dotenv` v1.0.0.",
+        "testStrategy": "Unit test token retrieval, refresh logic, and failure scenarios. Simulate token expiry and validate auto-refresh. Ensure API key is never logged or exposed.",
+        "priority": "high",
+        "dependencies": [
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Integrate Email Verification Pipeline",
+        "description": "Integrate email verification into the R27 Infinite AI Leads Agent pipeline after data normalization.",
+        "details": "Modify the pipeline to invoke the verifier for each normalized email. Implement batch processing (recommend batch size of 100, adjustable via config). Use async requests with `httpx` v0.27.0 for concurrency. Cache results in Redis to avoid duplicate API calls. Ensure pipeline skips invalid emails from further processing.",
+        "testStrategy": "Integration tests with mock pipeline data. Validate batch processing, concurrency, and cache hit ratio. End-to-end tests for pipeline flow.",
+        "priority": "high",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Update Lead Data Schema",
+        "description": "Extend lead data structure to include email verification fields as specified in PRD.",
+        "details": "Update ORM models (SQLAlchemy v2.0+) and database schema to add fields: `email_verified`, `email_status`, `email_score`, `mx_valid`, `smtp_valid`, `verification_date`. Ensure backward compatibility and migration scripts using Alembic v1.13.0.",
+        "testStrategy": "Database migration tests. Validate schema updates and data integrity. Unit tests for model serialization/deserialization.",
+        "priority": "high",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Integrate Lead Scoring Logic",
+        "description": "Adjust lead scoring algorithm to incorporate email verification results.",
+        "details": "Update scoring logic to apply PRD-specified point adjustments based on email status. Ensure invalid/disposable emails are excluded from further processing. Refactor scoring code for clarity and maintainability. Document scoring rules in code comments and developer docs.",
+        "testStrategy": "Unit tests for scoring logic. Test all email status scenarios. Validate exclusion of invalid emails from downstream processes.",
+        "priority": "high",
+        "dependencies": [
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Enhance CSV Export Functionality",
+        "description": "Update CSV export to include verification fields and summary statistics. Generate quarantine CSV for invalid emails.",
+        "details": "Modify export logic to add new fields and summary stats. Use `pandas` v2.2.0 for efficient CSV handling. Implement separate export for invalid emails. Ensure sensitive data (API keys, raw emails) are never exported.",
+        "testStrategy": "Unit and integration tests for CSV exports. Validate field inclusion, summary stats, and quarantine list accuracy.",
+        "priority": "medium",
+        "dependencies": [
+          15
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Update GUI Dashboard",
+        "description": "Display real-time email verification status and statistics in the dashboard. Add filtering options for email status.",
+        "details": "Update frontend (React v18.2.0) to show verification status, valid/invalid ratios, and success rates. Implement filter controls for email status. Use WebSocket or polling for real-time updates. Ensure UI/UX accessibility and responsiveness.",
+        "testStrategy": "UI tests for display accuracy and filter functionality. End-to-end tests for real-time updates. Accessibility audits.",
+        "priority": "medium",
+        "dependencies": [
+          16
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Implement Configuration Management",
+        "description": "Add environment variable support and configuration options for verification thresholds, toggling, and rate limiting.",
+        "details": "Use `python-dotenv` for env vars. Create config files (YAML or JSON) for thresholds and toggles. Implement rate limiting using `ratelimit` v2.2.1 or Redis-based counters. Ensure secure handling of sensitive configs.",
+        "testStrategy": "Unit tests for config loading and toggling. Validate rate limiting under load. Security review for sensitive data handling.",
+        "priority": "medium",
+        "dependencies": [
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Advanced Error Handling and Recovery",
+        "description": "Implement robust error handling for API failures, rate limits, and network issues with retry and backoff.",
+        "details": "Use exponential backoff for 429/500 errors. Queue failed requests for retry using Redis or in-memory queue. Log errors securely (never log raw emails or API keys). Document error codes and recovery logic.",
+        "testStrategy": "Simulate API errors and validate recovery. Unit tests for retry logic and queue handling. Security tests for logging.",
+        "priority": "medium",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Documentation and Developer Guides",
+        "description": "Produce comprehensive documentation covering API integration, configuration, troubleshooting, and performance tuning.",
+        "details": "Write Markdown docs for integration steps, config options, error handling, and rollback plan. Include code samples and test instructions. Use Sphinx v7.2.0 for API docs generation. Ensure docs are clear, up-to-date, and accessible.",
+        "testStrategy": "Peer review of documentation. Validate code samples and instructions. Ensure docs cover all PRD requirements.",
+        "priority": "low",
+        "dependencies": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-14T14:53:56.536Z",
-      "updated": "2025-08-14T15:29:33.911Z",
+      "updated": "2025-08-15T15:16:17.516Z",
       "description": "Tasks for master context"
     }
   }

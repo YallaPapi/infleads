@@ -3,16 +3,26 @@ Lead data providers for R27 Infinite AI Leads Agent
 """
 
 from .base import BaseProvider
-from .apify_provider import ApifyProvider
+# from .apify_provider import ApifyProvider  # FUCK APIFY - removed
+from .serp_provider import get_maps_provider, DirectGoogleMapsProvider
+from .google_places_new import GooglePlacesNewProvider
+from .hybrid_scraper import HybridGoogleScraper
+import os
 
-def get_provider(provider_name: str) -> BaseProvider:
+def get_provider(provider_name: str = 'auto') -> BaseProvider:
     """Factory function to get the appropriate provider"""
-    providers = {
-        'apify': ApifyProvider,
-        # Add more providers here as needed
-    }
+    # NO MORE APIFY - using alternatives
     
-    if provider_name not in providers:
-        raise ValueError(f"Unknown provider: {provider_name}")
+    # Use the working Google Maps Legacy API by default!
+    if provider_name == 'auto' and os.getenv('GOOGLE_API_KEY'):
+        return DirectGoogleMapsProvider()
     
-    return providers[provider_name]()
+    # Try the new Google Places API if specifically requested
+    if provider_name == 'google_new' and os.getenv('GOOGLE_API_KEY'):
+        return GooglePlacesNewProvider()
+    
+    # Hybrid scraper as fallback
+    if provider_name == 'hybrid':
+        return HybridGoogleScraper()
+    
+    return get_maps_provider(provider_name)

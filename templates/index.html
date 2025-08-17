@@ -134,6 +134,43 @@
             }
         }
 
+        /* Scheduler Tab Styling - Make it HIGHLY VISIBLE */
+        #scheduler-tab {
+            background: linear-gradient(45deg, #ff6b6b, #ff0066) !important;
+            color: #fff !important;
+            font-weight: 900 !important;
+            font-size: 1.1rem !important;
+            border: 3px solid #ff0066 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            padding: 12px 20px !important;
+            animation: glow 2s ease-in-out infinite !important;
+            margin-left: 10px !important;
+        }
+
+        #scheduler-tab:hover {
+            background: linear-gradient(45deg, #ff0066, #ff6b6b) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 0 30px rgba(255, 0, 102, 0.8) !important;
+        }
+
+        #scheduler-tab.active {
+            background: linear-gradient(45deg, #ff0066, #ff3366) !important;
+            box-shadow: 0 0 40px rgba(255, 0, 102, 1) !important;
+        }
+
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 0, 102, 0.9);
+            }
+            100% {
+                box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+            }
+        }
+
         .status-badge {
             padding: 8px 16px;
             border-radius: 20px;
@@ -233,6 +270,11 @@
                     <i class="bi bi-rocket-takeoff-fill"></i> 🔥 APOLLO CSV UPLOAD 🔥
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="scheduler-tab" data-bs-toggle="tab" data-bs-target="#scheduler" type="button">
+                    🔥 <i class="bi bi-clock-history"></i> SCHEDULER & QUEUE 🔥
+                </button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -260,7 +302,20 @@
                                 <option value="25" selected>25 leads</option>
                                 <option value="50">50 leads</option>
                                 <option value="100">100 leads</option>
+                                <option value="250">250 leads</option>
+                                <option value="500">500 leads</option>
+                                <option value="1000">1000 leads (Max)</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="verifyEmails">
+                                <label class="form-check-label" for="verifyEmails">
+                                    <strong>Verify Emails</strong> - Check email validity and deliverability (adds ~1 second per lead)
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="text-center mt-3">
@@ -325,6 +380,141 @@
                                 <a href="#" class="btn btn-success btn-lg" id="apolloDownloadBtn">
                                     <i class="bi bi-download"></i> Download CSV
                                 </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scheduler Tab -->
+            <div class="tab-pane fade" id="scheduler" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-clock-history"></i> Scheduled Searches & Queue</span>
+                        <button class="btn btn-sm btn-primary" onclick="showAddScheduleModal()">
+                            <i class="bi bi-plus-circle"></i> Add Schedule
+                        </button>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- CSV Bulk Upload Section -->
+                        <div class="mb-4 p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px;">
+                            <h5 class="fw-bold text-white mb-3">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> 📊 BULK CSV UPLOAD - Add 100s of Searches at Once! 📊
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="bg-white p-3 rounded">
+                                        <label class="form-label fw-bold">Upload CSV with Multiple Searches</label>
+                                        <input type="file" class="form-control mb-2" id="bulkScheduleFile" accept=".csv">
+                                        <button class="btn btn-success w-100" onclick="uploadBulkSchedules()">
+                                            <i class="bi bi-cloud-upload"></i> Upload & Schedule All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="bg-white p-3 rounded">
+                                        <label class="form-label fw-bold">Need a Template?</label>
+                                        <p class="text-muted small">Download our CSV template with examples</p>
+                                        <a href="/api/schedules/template" class="btn btn-primary w-100" download>
+                                            <i class="bi bi-download"></i> Download CSV Template
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-white">
+                                <small>
+                                    <strong>How it works:</strong><br>
+                                    • Searches are automatically scheduled with time gaps to avoid overloading<br>
+                                    • Default: 15 minutes between searches (customizable with interval_minutes column)<br>
+                                    • Use "max" in limit_leads column to get maximum leads (1000)<br>
+                                    • Each search runs at its scheduled time and is marked complete when done<br>
+                                    • Example: Upload 50 states → Scheduled over ~12 hours (50 × 15 min)
+                                </small>
+                            </div>
+                            <div id="bulkUploadResults" class="mt-3 d-none">
+                                <div class="alert alert-info" id="bulkUploadMessage"></div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Add to Queue -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Quick Add to Queue</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="quickQuery" placeholder="e.g., dentists in Miami">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="number" class="form-control" id="quickLimit" value="25" min="5" max="1000">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-success w-100" onclick="addToQueue()">
+                                        <i class="bi bi-plus"></i> Add to Queue
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedules List -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Active Schedules</h6>
+                            <div id="schedulesList" class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Interval</th>
+                                            <th>Next Run</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="schedulesTableBody">
+                                        <tr><td colspan="6" class="text-center text-muted">Loading schedules...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Queue Status -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Queue Status</h6>
+                            <div id="queueList" class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Status</th>
+                                            <th>Scheduled For</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="queueTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading queue...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Search History -->
+                        <div>
+                            <h6 class="fw-bold">Recent History</h6>
+                            <div id="historyList" class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Emails</th>
+                                            <th>Status</th>
+                                            <th>Completed</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -409,6 +599,7 @@
             
             const query = document.getElementById('query').value;
             const limit = document.getElementById('limit').value;
+            const verifyEmails = document.getElementById('verifyEmails').checked;
             
             // Reset UI
             document.getElementById('errorSection').classList.add('d-none');
@@ -422,7 +613,7 @@
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query, limit})
+                    body: JSON.stringify({query, limit, verify_emails: verifyEmails})
                 });
                 
                 if (!response.ok) throw new Error('Failed to start job');
@@ -587,6 +778,29 @@
             document.getElementById('totalLeads').textContent = data.total_leads;
             document.getElementById('avgScore').textContent = data.average_score + '/10';
             
+            // Add email verification summary if available
+            if (data.emails_verified !== undefined && data.emails_verified > 0) {
+                const summaryCard = document.querySelector('.summary-card .card-body');
+                const emailStatsHTML = `
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted">Email Verification:</small><br>
+                        <span class="badge bg-info">${data.emails_verified} Emails Found</span>
+                        <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
+                    </div>
+                `;
+                // Check if email stats already exist to avoid duplicates
+                if (!summaryCard.querySelector('.email-stats')) {
+                    const emailDiv = document.createElement('div');
+                    emailDiv.className = 'email-stats mt-2 pt-2 border-top';
+                    emailDiv.innerHTML = `
+                        <small class="text-muted">Email Verification:</small><br>
+                        <span class="badge bg-info">${data.emails_verified} Emails Found</span>
+                        <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
+                    `;
+                    summaryCard.appendChild(emailDiv);
+                }
+            }
+            
             // Set up download button
             document.getElementById('downloadBtn').onclick = () => {
                 window.location.href = `/api/download/${currentJobId}`;
@@ -601,22 +815,81 @@
                 };
             }
             
-            // Show lead preview
+            // Show lead preview with proper email verification status
             const preview = document.getElementById('leadPreview');
             preview.innerHTML = '';
             
             if (data.leads_preview && data.leads_preview.length > 0) {
-                data.leads_preview.forEach(lead => {
+                // Add a header showing how many leads are displayed
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'mb-3 text-muted';
+                headerDiv.innerHTML = `<small>Showing ${data.leads_preview.length} of ${data.total_leads} leads</small>`;
+                preview.appendChild(headerDiv);
+                
+                data.leads_preview.forEach((lead, index) => {
+                    // Determine email status display
+                    let emailStatus = '';
+                    let emailBadgeClass = '';
+                    let emailIcon = '';
+                    
+                    // Debug logging
+                    console.log(`Lead ${index + 1}:`, lead.Name);
+                    console.log('  Email:', lead.Email);
+                    console.log('  email_verified:', lead.email_verified);
+                    console.log('  email_status:', lead.email_status);
+                    
+                    if (!lead.Email || lead.Email === 'NA' || lead.Email === '') {
+                        emailStatus = 'No Email';
+                        emailBadgeClass = 'bg-secondary';
+                        emailIcon = '📧❌';
+                    } else {
+                        // Email exists, check verification status
+                        if (lead.email_verified === true || lead.email_verified === 'True' || lead.email_verified === 'true') {
+                            emailStatus = 'Valid Email';
+                            emailBadgeClass = 'bg-success';
+                            emailIcon = '✅';
+                        } else if (lead.email_status === 'catch-all' || lead.email_status === 'catch_all') {
+                            emailStatus = 'Catch-All';
+                            emailBadgeClass = 'bg-warning text-dark';
+                            emailIcon = '⚠️';
+                        } else if (lead.email_status === 'invalid') {
+                            emailStatus = 'Invalid Email';
+                            emailBadgeClass = 'bg-danger';
+                            emailIcon = '❌';
+                        } else if (lead.email_status === 'error') {
+                            emailStatus = 'Verification Error';
+                            emailBadgeClass = 'bg-warning text-dark';
+                            emailIcon = '⚠️';
+                        } else if (lead.email_status === 'missing') {
+                            emailStatus = 'No Email';
+                            emailBadgeClass = 'bg-secondary';
+                            emailIcon = '📧❌';
+                        } else {
+                            emailStatus = 'Unverified';
+                            emailBadgeClass = 'bg-info';
+                            emailIcon = '❓';
+                        }
+                    }
+                    
                     const leadDiv = document.createElement('div');
                     leadDiv.className = 'lead-item fade-in';
                     leadDiv.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="fw-bold">${lead.Name}</h6>
+                            <div style="flex: 1;">
+                                <h6 class="fw-bold">${index + 1}. ${lead.Name}</h6>
                                 <p class="text-muted mb-1"><i class="bi bi-geo-alt"></i> ${lead.Address}</p>
-                                <p class="mb-1"><small>${lead.LeadScoreReasoning}</small></p>
+                                <div class="mb-1">
+                                    <span class="badge ${emailBadgeClass} me-2">${emailIcon} ${emailStatus}</span>
+                                    ${lead.Email && lead.Email !== 'NA' ? `<small class="text-muted">${lead.Email}</small>` : ''}
+                                </div>
+                                ${lead.Phone && lead.Phone !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-telephone"></i> ${lead.Phone}</small></p>` : ''}
+                                ${lead.Website && lead.Website !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-globe"></i> <a href="${lead.Website}" target="_blank">Website</a></small></p>` : ''}
+                                <p class="mb-1 mt-2"><small class="text-muted">${lead.LeadScoreReasoning}</small></p>
                             </div>
-                            <span class="score-badge">${lead.LeadScore}/10</span>
+                            <div class="text-end">
+                                <span class="score-badge">${lead.LeadScore}/10</span>
+                                ${lead.email_quality_boost ? `<br><small class="text-muted">Email: ${lead.email_quality_boost > 0 ? '+' : ''}${lead.email_quality_boost}</small>` : ''}
+                            </div>
                         </div>
                     `;
                     preview.appendChild(leadDiv);
@@ -643,6 +916,341 @@
                 console.error('Health check failed:', error);
             }
         }
+
+        checkHealth();
+
+        // Scheduler functions
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedules');
+                const schedules = await response.json();
+                
+                const tbody = document.getElementById('schedulesTableBody');
+                if (schedules.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No scheduled searches</td></tr>';
+                } else {
+                    tbody.innerHTML = schedules.map(schedule => `
+                        <tr>
+                            <td>${schedule.name}</td>
+                            <td>${schedule.query}</td>
+                            <td>${schedule.limit_leads}</td>
+                            <td>${schedule.interval_hours}h</td>
+                            <td>${new Date(schedule.next_run).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-${schedule.enabled ? 'warning' : 'success'}" 
+                                        onclick="toggleSchedule(${schedule.id}, ${!schedule.enabled})">
+                                    ${schedule.enabled ? 'Disable' : 'Enable'}
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSchedule(${schedule.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+            }
+        }
+
+        async function loadQueue() {
+            try {
+                const response = await fetch('/api/queue');
+                const queue = await response.json();
+                
+                const tbody = document.getElementById('queueTableBody');
+                if (queue.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Queue is empty</td></tr>';
+                } else {
+                    tbody.innerHTML = queue.map((item, index) => {
+                        // Format scheduled time in local timezone
+                        let scheduledTime = '';
+                        if (item.scheduled_time) {
+                            const date = new Date(item.scheduled_time);
+                            scheduledTime = date.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        } else {
+                            scheduledTime = 'Immediate';
+                        }
+                        
+                        return `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${item.query}</td>
+                                <td>${item.limit_leads}</td>
+                                <td><span class="badge bg-${getStatusColor(item.status)}">${item.status}</span></td>
+                                <td>${scheduledTime}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading queue:', error);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history?limit=10');
+                const history = await response.json();
+                
+                const tbody = document.getElementById('historyTableBody');
+                if (history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No history</td></tr>';
+                } else {
+                    tbody.innerHTML = history.map(item => `
+                        <tr>
+                            <td>${item.query}</td>
+                            <td>${item.leads_found}</td>
+                            <td>${item.emails_found}/${item.emails_valid}</td>
+                            <td><span class="badge bg-${getStatusColor(item.status)}">${item.status}</span></td>
+                            <td>${new Date(item.completed_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'completed': return 'success';
+                case 'processing': return 'warning';
+                case 'error': return 'danger';
+                case 'pending': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        async function uploadBulkSchedules() {
+            const fileInput = document.getElementById('bulkScheduleFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file to upload');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/schedules/bulk-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const resultsDiv = document.getElementById('bulkUploadResults');
+                    const messageDiv = document.getElementById('bulkUploadMessage');
+                    
+                    resultsDiv.classList.remove('d-none');
+                    messageDiv.innerHTML = `
+                        <strong>Upload Complete!</strong><br>
+                        ✅ Successfully added: ${result.total_added} schedules/queue items<br>
+                        ${result.total_errors > 0 ? `⚠️ Errors: ${result.total_errors} rows failed<br>` : ''}
+                        Total processed: ${result.total_processed} rows
+                    `;
+                    
+                    // Clear the file input
+                    fileInput.value = '';
+                    
+                    // Reload schedules and queue
+                    loadSchedules();
+                    loadQueue();
+                } else {
+                    alert(`Upload failed: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error uploading bulk schedules:', error);
+                alert('Failed to upload CSV file');
+            }
+        }
+
+        async function addToQueue() {
+            const query = document.getElementById('quickQuery').value;
+            const limit = document.getElementById('quickLimit').value;
+            const priority = 1; // All same priority = process in order
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/queue', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: query,
+                        limit_leads: parseInt(limit),
+                        priority: parseInt(priority),
+                        verify_emails: true
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('quickQuery').value = '';
+                    loadQueue();
+                    alert('Added to queue successfully!');
+                }
+            } catch (error) {
+                console.error('Error adding to queue:', error);
+                alert('Failed to add to queue');
+            }
+        }
+
+        async function toggleSchedule(id, enabled) {
+            try {
+                const response = await fetch(`/api/schedules/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: enabled})
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                }
+            } catch (error) {
+                console.error('Error toggling schedule:', error);
+            }
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('Are you sure you want to delete this schedule?')) return;
+            
+            try {
+                const response = await fetch(`/api/schedules/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                }
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+            }
+        }
+
+        function showAddScheduleModal() {
+            const modal = `
+                <div class="modal fade" id="addScheduleModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Add Scheduled Search</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="scheduleForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="scheduleName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Search Query</label>
+                                        <input type="text" class="form-control" id="scheduleQuery" 
+                                               placeholder="e.g., dentists in Miami" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Number of Leads</label>
+                                        <input type="number" class="form-control" id="scheduleLimit" 
+                                               value="25" min="5" max="1000">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Run Every (hours)</label>
+                                        <select class="form-select" id="scheduleInterval">
+                                            <option value="1">Every hour</option>
+                                            <option value="6">Every 6 hours</option>
+                                            <option value="12">Every 12 hours</option>
+                                            <option value="24" selected>Daily</option>
+                                            <option value="168">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="scheduleVerifyEmails" checked>
+                                        <label class="form-check-label" for="scheduleVerifyEmails">
+                                            Verify Emails
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createSchedule()">Create Schedule</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to page if not exists
+            if (!document.getElementById('addScheduleModal')) {
+                document.body.insertAdjacentHTML('beforeend', modal);
+            }
+            
+            const modalEl = new bootstrap.Modal(document.getElementById('addScheduleModal'));
+            modalEl.show();
+        }
+
+        async function createSchedule() {
+            const name = document.getElementById('scheduleName').value;
+            const query = document.getElementById('scheduleQuery').value;
+            const limit = document.getElementById('scheduleLimit').value;
+            const interval = document.getElementById('scheduleInterval').value;
+            const verifyEmails = document.getElementById('scheduleVerifyEmails').checked;
+            
+            if (!name || !query) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/schedules', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        query: query,
+                        limit_leads: parseInt(limit),
+                        interval_hours: parseInt(interval),
+                        verify_emails: verifyEmails
+                    })
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addScheduleModal')).hide();
+                    loadSchedules();
+                    alert('Schedule created successfully!');
+                }
+            } catch (error) {
+                console.error('Error creating schedule:', error);
+                alert('Failed to create schedule');
+            }
+        }
+
+        // Load scheduler data when tab is shown
+        document.getElementById('scheduler-tab').addEventListener('shown.bs.tab', function() {
+            loadSchedules();
+            loadQueue();
+            loadHistory();
+        });
+
+        // Refresh scheduler data every 30 seconds when tab is active
+        setInterval(() => {
+            if (document.getElementById('scheduler').classList.contains('active')) {
+                loadQueue();
+                loadHistory();
+            }
+        }, 30000);
 
         checkHealth();
     </script>

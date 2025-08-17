@@ -194,8 +194,8 @@ if __name__ == "__main__":
     print("\nEnvironment Check:")
     print("-" * 40)
     
-    apify_key = "✅" if os.getenv('APIFY_API_KEY') else "❌"
-    mailtester_key = "✅" if os.getenv('MAILTESTER_API_KEY') else "❌"
+    apify_key = "YES" if os.getenv('APIFY_API_KEY') else "NO"
+    mailtester_key = "YES" if os.getenv('MAILTESTER_API_KEY') else "NO"
     
     print(f"APIFY_API_KEY: {apify_key}")
     print(f"MAILTESTER_API_KEY: {mailtester_key}")

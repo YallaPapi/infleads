@@ -144,9 +144,9 @@ OPENAI_API_KEY=sk-proj-[your_actual_key_here]
 # Check your .env file
 cat .env
 
-# GOOD - Real keys (replace with your actual keys):
-# ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY_HERE
-# PERPLEXITY_API_KEY=YOUR_PERPLEXITY_API_KEY_HERE
+# GOOD - Real keys:
+# ANTHROPIC_API_KEY=sk-ant-api03-[YOUR_REAL_KEY_HERE]
+# PERPLEXITY_API_KEY=pplx-[YOUR_REAL_KEY_HERE]
 
 # BAD - Placeholder keys:
 # ANTHROPIC_API_KEY=sk-ant-api03-PLACEHOLDER

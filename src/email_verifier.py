@@ -299,7 +299,27 @@ class MailTesterVerifier:
                 )
             
             response.raise_for_status()
-            data = response.json()
+            
+            # Handle different response types
+            try:
+                data = response.json()
+            except ValueError:
+                # Response is not JSON
+                logger.warning(f"Non-JSON response for {email}: {response.text}")
+                return VerificationResult(
+                    email=email,
+                    status=EmailStatus.ERROR,
+                    message=f"Invalid API response format"
+                )
+            
+            # Check if response is a string error message
+            if isinstance(data, str):
+                logger.warning(f"String response for {email}: {data}")
+                return VerificationResult(
+                    email=email,
+                    status=EmailStatus.ERROR,
+                    message=data
+                )
             
             # Parse response
             result = self._parse_response(email, data)
@@ -346,42 +366,67 @@ class MailTesterVerifier:
         Returns:
             Parsed VerificationResult
         """
-        # Determine status
-        status_str = data.get('status', 'unknown').lower()
-        if status_str == 'valid':
+        # Handle case where data is not a dict
+        if not isinstance(data, dict):
+            logger.warning(f"Invalid data type for {email}: {type(data)}")
+            return VerificationResult(
+                email=email,
+                status=EmailStatus.ERROR,
+                message=f"Invalid response data type: {type(data)}"
+            )
+        
+        # Handle MailTester.ninja response format
+        code = data.get('code', '').lower()
+        message = data.get('message', '')
+        detail = data.get('detail', '')
+        
+        # Determine status based on code and message
+        # MailTester.ninja codes: ok=valid, ko=invalid, mb=catch-all/mx-issue
+        if code == 'ok' or 'accepted' in message.lower():
             status = EmailStatus.VALID
-        elif status_str == 'invalid':
-            status = EmailStatus.INVALID
-        elif 'catch' in status_str:
+            score = 100.0
+        elif code == 'mb' and 'catch' in message.lower():
             status = EmailStatus.CATCH_ALL
-        elif data.get('disposable', False):
+            score = 50.0
+        elif code == 'ko' or 'rejected' in message.lower():
+            status = EmailStatus.INVALID
+            score = 0.0
+        elif code == 'mb' and 'mx error' in message.lower():
+            status = EmailStatus.INVALID
+            score = 0.0
+        elif 'disposable' in message.lower():
             status = EmailStatus.DISPOSABLE
-        elif data.get('role_based', False):
+            score = 0.0
+        elif 'role' in message.lower():
             status = EmailStatus.ROLE_BASED
+            score = 30.0
+        elif 'spam' in detail.lower() or 'trap' in detail.lower():
+            # Special case for spam traps (like example.com)
+            status = EmailStatus.INVALID
+            score = 0.0
         else:
             status = EmailStatus.UNKNOWN
+            score = 0.0
         
-        # Extract MX records
-        mx_data = data.get('mx', {})
-        mx_valid = mx_data.get('accepts_mail', False)
+        # Extract domain from email
+        domain = email.split('@')[1] if '@' in email else ''
         
-        # Extract SMTP data
-        smtp_data = data.get('smtp', {})
-        smtp_valid = smtp_data.get('valid', False)
+        # Check for MX validity
+        mx_valid = code != 'mb' and code != 'mx' and 'mx error' not in message.lower()
         
         return VerificationResult(
             email=email,
             status=status,
-            score=data.get('score', 0.0),
-            user=data.get('user', ''),
-            domain=data.get('domain', ''),
+            score=score,
+            user=email.split('@')[0] if '@' in email else '',
+            domain=domain,
             mx_valid=mx_valid,
-            smtp_valid=smtp_valid,
-            disposable=data.get('disposable', False),
-            role_based=data.get('role_based', False),
-            catch_all=data.get('catch_all', False),
-            free_provider=data.get('free', False),
-            message=data.get('message', ''),
+            smtp_valid=status == EmailStatus.VALID,
+            disposable='disposable' in message.lower() or code == 'disposable',
+            role_based='role' in message.lower() or code == 'role',
+            catch_all='catch' in message.lower() or code == 'catch_all',
+            free_provider=False,  # Not provided by this API
+            message=f"{message} - {detail}" if detail else message,
             raw_response=data
         )
     

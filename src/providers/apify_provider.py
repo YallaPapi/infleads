@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ApifyProvider(BaseProvider):
     """Provider for fetching Google Maps data via Apify"""
     
-    # Apify Google Maps Scraper actor ID (use the popular one)
+    # Apify Google Maps Scraper actor ID (use the ID not the name!)
     ACTOR_ID = "nwua9Gu5YrADL7ZDj"  # Google Maps Scraper by Compass
     
     def __init__(self):
@@ -40,17 +40,39 @@ class ApifyProvider(BaseProvider):
         logger.info(f"Fetching places from Apify: query='{query}', limit={limit}")
         
         try:
-            # Prepare input for the actor (using correct field names)
+            # Split query into keyword and location if "in" is present
+            keyword = query
+            location = None
+            if " in " in query.lower():
+                parts = query.split(" in ", 1)
+                keyword = parts[0].strip()
+                location = parts[1].strip()
+                logger.info(f"Split query: keyword='{keyword}', location='{location}'")
+            
+            # Prepare input for the actor (correct parameters for compass/crawler-google-places)
             run_input = {
-                "searchStringsArray": [query],  # Correct field name
+                "searchStringsArray": [keyword],  # Just the keyword, no location
                 "maxCrawledPlacesPerSearch": limit,
                 "language": "en",
-                "scrapeReviews": False,  # We don't need individual reviews
-                "scrapePhotos": False,   # We just need count
-                "additionalInfo": True,   # Get all available info
-                "deeperCityScrape": False,
-                "skipClosedPlaces": False
+                "skipClosedPlaces": False,
+                "scrapePlaceDetailPage": False,
+                "includeOpeningHours": True,
+                "maxImages": 0,
+                "maxReviews": 0,
+                # DISABLE EMAIL ENRICHMENT - IT'S TOO EXPENSIVE!
+                "scrapeContacts": False,  # This is for additional contact scraping
+                "maximumLeadsEnrichmentRecords": 0,  # DISABLED - costs way too much!
+                # Filter to businesses with websites (better email hit rate)
+                "website": "allPlaces",  # Can be "allPlaces", "withWebsite", or "withoutWebsite"
+                # Additional parameters
+                "scrapeDirectories": False,
+                "includeWebResults": False,
+                "searchMatching": "all"
             }
+            
+            # Add location if we have one
+            if location:
+                run_input["locationQuery"] = location
             
             # Run the actor and wait for it to finish
             logger.info("Starting Apify actor run...")
@@ -70,6 +92,79 @@ class ApifyProvider(BaseProvider):
         except Exception as e:
             logger.error(f"Error fetching data from Apify: {e}")
             raise
+    
+    def _extract_emails(self, item: Dict[str, Any]) -> str:
+        """
+        Extract emails from all possible field locations in Apify result
+        
+        Args:
+            item: Raw item from Apify
+            
+        Returns:
+            Email address or 'NA' if not found
+        """
+        emails = []
+        
+        # 1. PRIMARY SOURCE: leadsEnrichment field (when maximumLeadsEnrichmentRecords > 0)
+        if 'leadsEnrichment' in item:
+            enrichment = item['leadsEnrichment']
+            
+            # It can be a list of lead records
+            if isinstance(enrichment, list):
+                for lead in enrichment:
+                    if isinstance(lead, dict):
+                        # Check for email field
+                        if lead.get('email'):
+                            emails.append(lead['email'])
+                        # Check for emails field (list or string)
+                        elif lead.get('emails'):
+                            lead_emails = lead['emails']
+                            if isinstance(lead_emails, list):
+                                emails.extend(lead_emails)
+                            elif isinstance(lead_emails, str):
+                                emails.append(lead_emails)
+            
+            # It can be a dict with emails field
+            elif isinstance(enrichment, dict):
+                if enrichment.get('email'):
+                    emails.append(enrichment['email'])
+                if enrichment.get('emails'):
+                    enrichment_emails = enrichment['emails']
+                    if isinstance(enrichment_emails, list):
+                        emails.extend(enrichment_emails)
+                    elif isinstance(enrichment_emails, str):
+                        emails.append(enrichment_emails)
+        
+        # 2. Check top-level email fields (fallback)
+        for field in ('email', 'contactEmail'):
+            if item.get(field):
+                emails.append(item[field])
+        
+        for field in ('emails', 'companyEmails'):
+            value = item.get(field)
+            if isinstance(value, list):
+                emails.extend(value)
+            elif isinstance(value, str):
+                emails.append(value)
+        
+        # 3. Check nested contact info (fallback)
+        contacts = item.get('contactInfo') or item.get('contacts') or {}
+        if isinstance(contacts, dict):
+            for field in ('email', 'emails', 'companyEmails'):
+                value = contacts.get(field)
+                if isinstance(value, list):
+                    emails.extend(value)
+                elif isinstance(value, str):
+                    emails.append(value)
+        
+        # Clean and deduplicate
+        clean_emails = sorted({e for e in emails if isinstance(e, str) and '@' in e})
+        
+        if clean_emails:
+            logger.info(f"Found email(s) for {item.get('title', 'Unknown')}: {clean_emails[0]}")
+            return clean_emails[0]  # Return first email
+        
+        return 'NA'
     
     def _transform_apify_result(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -111,19 +206,8 @@ class ApifyProvider(BaseProvider):
         # Check if business is claimed (this might not always be available)
         claimed = item.get('claimedByOwnerAt') is not None or item.get('isClaimedByOwner', False)
         
-        # Try to extract email from various possible fields
-        email = item.get('email', 'NA')
-        if email == 'NA':
-            # Sometimes email might be in additionalInfo or other fields
-            additional_info = item.get('additionalInfo', {})
-            email = additional_info.get('email', 'NA')
-        
-        # If still no email, it might be in the raw data under different names
-        if email == 'NA':
-            for field in ['contactEmail', 'businessEmail', 'contact']:
-                if field in item and '@' in str(item[field]):
-                    email = item[field]
-                    break
+        # Extract email using comprehensive logic
+        email = self._extract_emails(item)
         
         return {
             'Name': item.get('title', 'NA'),

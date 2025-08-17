@@ -9,10 +9,13 @@ import os
 import json
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from dotenv import load_dotenv
 import logging
+
+# Load environment variables FIRST
+load_dotenv()
 
 # Import our modules
 from src.providers import get_provider
@@ -22,9 +25,9 @@ from src.email_generator import EmailGenerator
 from src.data_normalizer import DataNormalizer
 from src.industry_configs import IndustryConfig
 from src.apollo_lead_processor import ApolloLeadProcessor
-
-# Load environment variables
-load_dotenv()
+from src.email_verifier import MailTesterVerifier, EmailStatus
+from src.scheduler import LeadScheduler
+from src.email_scraper import WebsiteEmailScraper
 
 app = Flask(__name__)
 CORS(app)
@@ -35,13 +38,37 @@ logger = logging.getLogger(__name__)
 
 # Store job status
 jobs = {}
+apollo_jobs = {}
+
+# Initialize scheduler
+scheduler = LeadScheduler()
+
+def process_scheduled_search(query: str, limit: int, verify_emails: bool):
+    """Process a scheduled search"""
+    job_id = f"scheduled_{int(time.time())}"
+    job = LeadGenerationJob(job_id, query, limit, verify_emails=verify_emails)
+    jobs[job_id] = job
+    
+    # Process the job synchronously for scheduler
+    process_leads(job)
+    
+    return {
+        'file_path': job.result_file,
+        'leads_found': job.total_leads,
+        'emails_found': job.emails_verified,
+        'emails_valid': job.valid_emails
+    }
+
+# Start the scheduler with the processing callback
+scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default'):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=False):
         self.job_id = job_id
         self.query = query
         self.limit = limit
         self.industry = industry
+        self.verify_emails = verify_emails
         self.status = "starting"
         self.progress = 0
         self.message = "Initializing..."
@@ -51,6 +78,8 @@ class LeadGenerationJob:
         self.leads_data = []
         self.total_leads = 0
         self.average_score = 0
+        self.emails_verified = 0
+        self.valid_emails = 0
         
     def to_dict(self):
         return {
@@ -65,19 +94,34 @@ class LeadGenerationJob:
             'error': self.error,
             'total_leads': self.total_leads,
             'average_score': self.average_score,
-            'leads_preview': self.leads_data[:5] if self.leads_data else []
+            'emails_verified': self.emails_verified,
+            'valid_emails': self.valid_emails,
+            'leads_preview': self.leads_data[:50] if self.leads_data else []  # Show first 50 leads
         }
 
 def process_leads(job):
     """Background task to process leads"""
+    print(f"DEBUG: Starting process_leads for job {job.job_id}")
     try:
         # Step 1: Fetch leads
         job.status = "fetching"
         job.progress = 10
         job.message = "Fetching leads from Google Maps..."
         
-        provider = get_provider('apify')
-        raw_leads = provider.fetch_places(job.query, job.limit)
+        print(f"DEBUG: Getting provider...")
+        try:
+            provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
+            print(f"DEBUG: Got provider: {provider.__class__.__name__}")
+            logger.info(f"Using provider: {provider.__class__.__name__}")
+            print(f"DEBUG: Fetching places for query: {job.query}, limit: {job.limit}")
+            raw_leads = provider.fetch_places(job.query, job.limit)
+            print(f"DEBUG: Got {len(raw_leads) if raw_leads else 0} leads")
+        except Exception as e:
+            print(f"DEBUG: Provider error: {e}")
+            logger.error(f"Provider error: {e}", exc_info=True)
+            job.status = "error"
+            job.error = f"Provider error: {str(e)}"
+            return
         
         if not raw_leads:
             job.status = "error"
@@ -96,6 +140,77 @@ def process_leads(job):
         normalizer = DataNormalizer()
         normalized_leads = normalizer.normalize(raw_leads)
         
+        # Step 2.3: Scrape emails from websites (FREE!)
+        job.status = "scraping_emails"
+        job.progress = 32
+        job.message = "Scraping emails from websites..."
+        
+        try:
+            scraper = WebsiteEmailScraper()
+            normalized_leads = scraper.scrape_emails_bulk(normalized_leads, max_workers=5)
+            emails_found = sum(1 for lead in normalized_leads 
+                             if lead.get('Email') and lead['Email'] != 'NA')
+            logger.info(f"Found {emails_found} emails from website scraping")
+            job.message = f"Found {emails_found} emails from websites"
+        except Exception as e:
+            logger.error(f"Email scraping failed: {e}")
+        
+        # Step 2.5: Email Verification (if enabled)
+        if job.verify_emails and os.getenv('MAILTESTER_API_KEY'):
+            job.status = "verifying_emails"
+            job.progress = 35
+            job.message = "Verifying email addresses..."
+            
+            try:
+                verifier = MailTesterVerifier()
+                verified_leads = []
+                
+                for i, lead in enumerate(normalized_leads):
+                    email = lead.get('Email', '').strip()
+                    
+                    if email and email != 'NA':
+                        try:
+                            result = verifier.verify_email(email)
+                            
+                            # Add verification data
+                            lead['email_verified'] = result.status == EmailStatus.VALID
+                            lead['email_status'] = result.status.value
+                            lead['email_score'] = result.score
+                            
+                            job.emails_verified += 1
+                            if result.status == EmailStatus.VALID:
+                                job.valid_emails += 1
+                                
+                            # Adjust scoring boost
+                            if result.status == EmailStatus.VALID:
+                                lead['email_quality_boost'] = 20
+                            elif result.status == EmailStatus.CATCH_ALL:
+                                lead['email_quality_boost'] = 10
+                            elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
+                                lead['email_quality_boost'] = -50
+                            else:
+                                lead['email_quality_boost'] = 0
+                        except Exception as e:
+                            logger.warning(f"Email verification failed for {email}: {e}")
+                            lead['email_verified'] = False
+                            lead['email_status'] = 'error'
+                            lead['email_quality_boost'] = 0
+                    else:
+                        lead['email_verified'] = False
+                        lead['email_status'] = 'missing'
+                        lead['email_quality_boost'] = -10
+                    
+                    verified_leads.append(lead)
+                    job.progress = 35 + int((i + 1) / len(normalized_leads) * 5)
+                    job.message = f"Verified {i + 1}/{len(normalized_leads)} emails"
+                
+                normalized_leads = verified_leads
+                logger.info(f"Email verification complete: {job.valid_emails}/{job.emails_verified} valid")
+                
+            except Exception as e:
+                logger.error(f"Email verification service error: {e}")
+                job.message = "Email verification skipped due to error"
+        
         # Step 3: Score leads
         job.status = "scoring"
         job.progress = 40
@@ -108,6 +223,14 @@ def process_leads(job):
         for i, lead in enumerate(normalized_leads):
             try:
                 score, reasoning = scorer.score_lead(lead)
+                
+                # Apply email quality boost if email was verified
+                if 'email_quality_boost' in lead:
+                    original_score = score
+                    score = max(0, min(100, score + lead['email_quality_boost']))
+                    if lead['email_quality_boost'] != 0:
+                        reasoning += f" Email verification: {lead.get('email_status', 'unknown')} (score adjusted by {lead['email_quality_boost']:+d} points)."
+                
                 lead['LeadScore'] = score
                 lead['LeadScoreReasoning'] = reasoning
                 scored_leads.append(lead)
@@ -161,9 +284,16 @@ def process_leads(job):
         filename = f"{date_str}_{safe_query}.csv"
         filepath = os.path.join('output', filename)
         
-        # Create DataFrame with exact column order
-        columns = ['Name', 'Address', 'Phone', 'Website', 'SocialMediaLinks', 
-                  'Reviews', 'Images', 'LeadScore', 'LeadScoreReasoning', 'DraftEmail']
+        # Create DataFrame with exact column order (including email fields)
+        columns = ['Name', 'Address', 'Phone', 'Email', 'Website', 'SocialMediaLinks', 
+                  'Reviews', 'Images', 'LeadScore', 'LeadScoreReasoning']
+        
+        # Add email verification columns if email verification was enabled
+        if job.verify_emails:
+            columns.extend(['email_verified', 'email_status', 'email_quality_boost'])
+        
+        # Add DraftEmail at the end
+        columns.append('DraftEmail')
         
         df = pd.DataFrame(final_leads)
         
@@ -211,13 +341,14 @@ def generate_leads():
     query = data.get('query', '')
     limit = int(data.get('limit', 25))
     industry = data.get('industry', 'default')
+    verify_emails = data.get('verify_emails', False)
     
     if not query:
         return jsonify({'error': 'Query is required'}), 400
     
     # Create job
     job_id = f"job_{int(time.time())}"
-    job = LeadGenerationJob(job_id, query, limit, industry)
+    job = LeadGenerationJob(job_id, query, limit, industry, verify_emails)
     jobs[job_id] = job
     
     # Start processing in background
@@ -408,13 +539,203 @@ def download_apollo(filename):
 @app.route('/api/health')
 def health_check():
     """Health check endpoint"""
+    # Test provider
+    provider = get_provider('auto')
+    provider_name = provider.__class__.__name__
+    
+    # Test fetching
+    test_results = []
+    try:
+        test_results = provider.fetch_places('test query', 1)
+    except:
+        pass
+    
     return jsonify({
         'status': 'healthy',
-        'apify_configured': bool(os.getenv('APIFY_API_KEY')),
+        'provider': provider_name,
+        'google_api_key': bool(os.getenv('GOOGLE_API_KEY')),
+        'google_api_key_value': os.getenv('GOOGLE_API_KEY', '')[:10] + '...' if os.getenv('GOOGLE_API_KEY') else 'None',
+        'test_fetch_worked': len(test_results) > 0,
         'openai_configured': bool(os.getenv('OPENAI_API_KEY')),
-        'drive_configured': os.path.exists('service_account.json') or os.path.exists('credentials.json'),
         'available_industries': IndustryConfig.get_industry_display_names()
     })
+
+# Scheduler endpoints
+@app.route('/api/schedules', methods=['GET'])
+def get_schedules():
+    """Get all scheduled searches"""
+    schedules = scheduler.get_schedules()
+    return jsonify(schedules)
+
+@app.route('/api/schedules', methods=['POST'])
+def create_schedule():
+    """Create a new scheduled search"""
+    data = request.json
+    schedule_id = scheduler.add_schedule(
+        name=data['name'],
+        query=data['query'],
+        limit_leads=data.get('limit_leads', 25),
+        verify_emails=data.get('verify_emails', False),
+        interval_hours=data.get('interval_hours', 24),
+        integrations=data.get('integrations', [])
+    )
+    return jsonify({'id': schedule_id, 'success': True})
+
+@app.route('/api/schedules/<int:schedule_id>', methods=['GET'])
+def get_schedule(schedule_id):
+    """Get a specific schedule"""
+    schedule = scheduler.get_schedule(schedule_id)
+    if schedule:
+        return jsonify(schedule)
+    return jsonify({'error': 'Schedule not found'}), 404
+
+@app.route('/api/schedules/<int:schedule_id>', methods=['PUT'])
+def update_schedule(schedule_id):
+    """Update a schedule"""
+    data = request.json
+    success = scheduler.update_schedule(schedule_id, **data)
+    return jsonify({'success': success})
+
+@app.route('/api/schedules/<int:schedule_id>', methods=['DELETE'])
+def delete_schedule(schedule_id):
+    """Delete a schedule"""
+    success = scheduler.delete_schedule(schedule_id)
+    return jsonify({'success': success})
+
+@app.route('/api/queue', methods=['GET'])
+def get_queue():
+    """Get the search queue"""
+    status = request.args.get('status')
+    queue_items = scheduler.get_queue(status)
+    return jsonify(queue_items)
+
+@app.route('/api/queue', methods=['POST'])
+def add_to_queue():
+    """Add a search to the queue"""
+    data = request.json
+    queue_id = scheduler.add_to_queue(
+        query=data['query'],
+        limit_leads=data.get('limit_leads', 25),
+        verify_emails=data.get('verify_emails', False),
+        priority=data.get('priority', 5)
+    )
+    return jsonify({'id': queue_id, 'success': True})
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    """Get search history"""
+    schedule_id = request.args.get('schedule_id', type=int)
+    limit = request.args.get('limit', 100, type=int)
+    history = scheduler.get_history(schedule_id, limit)
+    return jsonify(history)
+
+@app.route('/api/schedules/bulk-upload', methods=['POST'])
+def bulk_upload_schedules():
+    """Upload multiple schedules from CSV"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '' or not file.filename.endswith('.csv'):
+        return jsonify({'error': 'Please upload a CSV file'}), 400
+    
+    try:
+        # Read CSV
+        df = pd.read_csv(file)
+        
+        # Validate required columns
+        required_cols = ['name', 'query', 'limit_leads']
+        if not all(col in df.columns for col in required_cols):
+            return jsonify({'error': f'CSV must contain columns: {", ".join(required_cols)}'}), 400
+        
+        # Process each row with staggered scheduling
+        added_schedules = []
+        errors = []
+        
+        # Default interval between searches (in minutes)
+        default_interval_minutes = 15
+        base_time = datetime.now()
+        
+        for idx, row in df.iterrows():
+            try:
+                # Get values with defaults
+                name = str(row['name'])
+                query = str(row['query'])
+                
+                # Handle "max" as limit_leads value
+                limit_str = str(row.get('limit_leads', '25')).lower()
+                if limit_str == 'max':
+                    limit_leads = 1000  # Maximum allowed
+                else:
+                    limit_leads = int(limit_str)
+                    
+                verify_emails = str(row.get('verify_emails', 'false')).lower() == 'true'
+                
+                # Get interval from CSV or use default
+                interval_minutes = int(row.get('interval_minutes', default_interval_minutes))
+                
+                # Calculate scheduled time for this search
+                scheduled_time = base_time + timedelta(minutes=interval_minutes * idx)
+                
+                # Check if this should be a recurring schedule or one-time queue item
+                interval_hours = int(row.get('interval_hours', 0))
+                
+                if interval_hours > 0:
+                    schedule_id = scheduler.add_schedule(
+                        name=name,
+                        query=query,
+                        limit_leads=limit_leads,
+                        verify_emails=verify_emails,
+                        interval_hours=interval_hours
+                    )
+                    added_schedules.append({
+                        'row': idx + 1,
+                        'name': name,
+                        'type': 'schedule',
+                        'id': schedule_id
+                    })
+                else:
+                    # Add directly to queue for one-time execution with scheduled time
+                    queue_id = scheduler.add_to_queue(
+                        query=query,
+                        limit_leads=limit_leads,
+                        verify_emails=verify_emails,
+                        priority=1,  # All same priority = process in order
+                        scheduled_time=scheduled_time
+                    )
+                    added_schedules.append({
+                        'row': idx + 1,
+                        'name': name,
+                        'type': 'queue',
+                        'id': queue_id,
+                        'scheduled_time': scheduled_time.strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                    
+            except Exception as e:
+                errors.append({
+                    'row': idx + 1,
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'added': added_schedules,
+            'errors': errors,
+            'total_processed': len(df),
+            'total_added': len(added_schedules),
+            'total_errors': len(errors)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to process CSV: {str(e)}'}), 400
+
+@app.route('/api/schedules/template')
+def download_schedule_template():
+    """Download the CSV template for bulk scheduling"""
+    return send_file('schedule_template.csv', 
+                    as_attachment=True, 
+                    mimetype='text/csv',
+                    download_name='schedule_template.csv')
 
 if __name__ == '__main__':
     print("\n" + "="*50)

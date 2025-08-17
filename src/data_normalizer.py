@@ -44,6 +44,21 @@ class DataNormalizer:
         """
         normalized = {}
         
+        # Map provider fields to normalized fields
+        field_mapping = {
+            'Name': lead.get('name', 'NA'),
+            'Address': lead.get('address', 'NA'), 
+            'Phone': lead.get('phone', 'NA'),
+            'Email': lead.get('email', 'NA'),
+            'Website': lead.get('website', 'NA'),
+            'SocialMediaLinks': 'NA',  # Not provided by Google Maps
+            'Reviews': 'NA',  # TODO: Could extract review text
+            'Images': 'NA',  # TODO: Could get image count
+            'Rating': lead.get('rating', 0),
+            'ReviewCount': lead.get('reviews', 0),
+            'GoogleBusinessClaimed': lead.get('business_status') == 'OPERATIONAL'
+        }
+        
         # Required fields with their defaults
         field_defaults = {
             'Name': 'NA',
@@ -60,7 +75,8 @@ class DataNormalizer:
         }
         
         for field, default in field_defaults.items():
-            value = lead.get(field, default)
+            # Use mapped values first, then defaults
+            value = field_mapping.get(field, default)
             
             # Handle None, empty strings, and NaN
             if value is None or value == '' or (isinstance(value, float) and pd.isna(value)):

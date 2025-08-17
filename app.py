@@ -32,8 +32,15 @@ from src.email_scraper import WebsiteEmailScraper
 app = Flask(__name__)
 CORS(app)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure comprehensive logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/flask_app.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Store job status
@@ -108,24 +115,35 @@ def process_leads(job):
         job.progress = 10
         job.message = "Fetching leads from Google Maps..."
         
-        print(f"DEBUG: Getting provider...")
+        logger.info(f"Getting provider for job {job.job_id}")
         try:
             provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
-            print(f"DEBUG: Got provider: {provider.__class__.__name__}")
             logger.info(f"Using provider: {provider.__class__.__name__}")
-            print(f"DEBUG: Fetching places for query: {job.query}, limit: {job.limit}")
+            
+            # Check API key availability
+            if hasattr(provider, 'api_key') and not provider.api_key:
+                error_msg = "Google API key not configured. Please set GOOGLE_API_KEY environment variable."
+                logger.error(error_msg)
+                job.status = "error"
+                job.error = error_msg
+                return
+            
+            logger.info(f"Fetching places for query: '{job.query}', limit: {job.limit}")
             raw_leads = provider.fetch_places(job.query, job.limit)
-            print(f"DEBUG: Got {len(raw_leads) if raw_leads else 0} leads")
+            logger.info(f"Provider returned {len(raw_leads) if raw_leads else 0} leads")
+            
         except Exception as e:
-            print(f"DEBUG: Provider error: {e}")
-            logger.error(f"Provider error: {e}", exc_info=True)
+            error_msg = f"Provider error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             job.status = "error"
-            job.error = f"Provider error: {str(e)}"
+            job.error = error_msg
             return
         
         if not raw_leads:
+            error_msg = f"No leads found for query: '{job.query}'. This could be due to: 1) Invalid API key, 2) API quota exceeded, 3) No businesses match the query, 4) Geographic restrictions."
+            logger.warning(error_msg)
             job.status = "error"
-            job.error = "No leads found for this query"
+            job.error = error_msg
             return
         
         job.total_leads = len(raw_leads)
@@ -359,11 +377,15 @@ def generate_leads():
 
 @app.route('/api/status/<job_id>')
 def get_status(job_id):
-    """Get job status"""
+    """Get job status with detailed error information"""
     if job_id not in jobs:
+        logger.warning(f"Job {job_id} not found in active jobs")
         return jsonify({'error': 'Job not found'}), 404
     
-    return jsonify(jobs[job_id].to_dict())
+    job_data = jobs[job_id].to_dict()
+    logger.debug(f"Returning status for job {job_id}: {job_data['status']}")
+    
+    return jsonify(job_data)
 
 @app.route('/api/download/<job_id>')
 def download_csv(job_id):
@@ -736,6 +758,51 @@ def download_schedule_template():
                     as_attachment=True, 
                     mimetype='text/csv',
                     download_name='schedule_template.csv')
+
+@app.route('/api/test-provider')
+def test_provider():
+    """Test the provider configuration and API connectivity"""
+    try:
+        logger.info("Testing provider configuration...")
+        provider = get_provider('auto')
+        
+        # Check API key
+        api_key_status = "Not configured"
+        if hasattr(provider, 'api_key') and provider.api_key:
+            api_key_status = f"Configured ({provider.api_key[:10]}...)"
+        
+        # Try a simple test request
+        test_results = None
+        try:
+            logger.info("Running test query...")
+            test_results = provider.fetch_places("coffee shop Austin", 1)
+            test_status = f"Success - found {len(test_results)} results"
+            logger.info(f"Test query successful: {len(test_results)} results")
+        except Exception as e:
+            test_status = f"Failed: {str(e)}"
+            logger.error(f"Test query failed: {e}")
+        
+        response_data = {
+            'provider_class': provider.__class__.__name__,
+            'api_key_status': api_key_status,
+            'test_status': test_status,
+            'test_results': test_results[:1] if test_results else None,
+            'environment_vars': {
+                'GOOGLE_API_KEY': 'Set' if os.getenv('GOOGLE_API_KEY') else 'Not set',
+                'GOOGLE_MAPS_API_KEY': 'Set' if os.getenv('GOOGLE_MAPS_API_KEY') else 'Not set'
+            }
+        }
+        
+        logger.info(f"Provider test completed: {response_data}")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Provider test failed: {e}", exc_info=True)
+        return jsonify({
+            'error': str(e),
+            'provider_class': 'Failed to initialize',
+            'traceback': str(e)
+        }), 500
 
 if __name__ == '__main__':
     print("\n" + "="*50)

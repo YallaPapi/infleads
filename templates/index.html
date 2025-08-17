@@ -596,10 +596,13 @@
 
         document.getElementById('leadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log('Form submitted!');
             
             const query = document.getElementById('query').value;
             const limit = document.getElementById('limit').value;
             const verifyEmails = document.getElementById('verifyEmails').checked;
+            
+            console.log('Form values:', {query, limit, verifyEmails});
             
             // Reset UI
             document.getElementById('errorSection').classList.add('d-none');
@@ -609,12 +612,15 @@
             document.getElementById('spinner').classList.remove('d-none');
             
             try {
+                console.log('Making API request...');
                 // Start job
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({query, limit, verify_emails: verifyEmails})
                 });
+                
+                console.log('API response status:', response.status);
                 
                 if (!response.ok) throw new Error('Failed to start job');
                 

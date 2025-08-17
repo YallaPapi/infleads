@@ -8,7 +8,7 @@ import logging
 import requests
 from typing import List, Dict, Any
 import time
-from serpapi import GoogleSearch
+# from serpapi import Client  # Not needed for DirectGoogleMapsProvider
 import json
 from .base import BaseProvider
 
@@ -97,13 +97,39 @@ class DirectGoogleMapsProvider(BaseProvider):
                 params['pagetoken'] = next_page_token
                 time.sleep(2)  # Required delay for pagination
             
-            response = requests.get(url, params=params)
-            data = response.json()
-            
-            if data.get('status') != 'OK':
-                logger.error(f"Google Maps API error: {data.get('status')}")
-                if data.get('error_message'):
-                    logger.error(f"Error message: {data.get('error_message')}")
+            try:
+                logger.debug(f"Making Google Maps API request: {url} with params: {params}")
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                logger.debug(f"API Response status: {data.get('status')}")
+                
+                if data.get('status') != 'OK':
+                    error_details = {
+                        'status': data.get('status'),
+                        'error_message': data.get('error_message'),
+                        'query': query,
+                        'api_key_present': bool(self.api_key),
+                        'api_key_prefix': self.api_key[:10] + '...' if self.api_key else 'None'
+                    }
+                    logger.error(f"Google Maps API error: {error_details}")
+                    
+                    if data.get('status') == 'REQUEST_DENIED':
+                        logger.error("API request denied. Check: 1) API key is valid, 2) Places API is enabled, 3) Billing is set up")
+                    elif data.get('status') == 'OVER_QUERY_LIMIT':
+                        logger.error("API quota exceeded. Check your billing and quotas.")
+                    elif data.get('status') == 'ZERO_RESULTS':
+                        logger.warning(f"No results found for query: '{query}'")
+                        return []  # Return empty but don't treat as error
+                    
+                    break
+                    
+            except requests.RequestException as e:
+                logger.error(f"Request failed: {e}")
+                break
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON response: {e}")
                 break
             
             # Process results
@@ -136,21 +162,32 @@ class DirectGoogleMapsProvider(BaseProvider):
     
     def _get_place_details(self, place_id: str) -> Dict:
         """Get detailed info for a place"""
+        if not place_id:
+            return {}
+            
         url = "https://maps.googleapis.com/maps/api/place/details/json"
         
         params = {
             'place_id': place_id,
-            'fields': 'formatted_phone_number,website,email',
+            'fields': 'formatted_phone_number,website',
             'key': self.api_key
         }
         
         try:
-            response = requests.get(url, params=params)
+            logger.debug(f"Fetching place details for: {place_id}")
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
             data = response.json()
+            
             if data.get('status') == 'OK':
                 return data.get('result', {})
-        except:
-            pass
+            else:
+                logger.warning(f"Place details failed for {place_id}: {data.get('status')}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Failed to get place details for {place_id}: {e}")
+            return {}
         
         return {}
 

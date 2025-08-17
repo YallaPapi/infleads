@@ -320,13 +320,22 @@ class SmartLeadAnalyzer:
         if idea and 'Problem:' in idea:
             problem_line = idea.split('Problem:')[1].split('\n')[0].strip()
         
+        # Extract solution and impact
+        solution_text = 'handles this automatically'
+        if idea and 'Solution:' in idea:
+            solution_text = idea.split('Solution:')[1].split('\n')[0].strip()
+        
+        impact_text = 'Most clients see results within 30 days'
+        if idea and 'Impact:' in idea:
+            impact_text = idea.split('Impact:')[1].split('\n')[0].strip()
+        
         email = f"""Hi {first_name},
 
 {problem_line}
 
-We could build a system that {idea.split('Solution:')[1].split('\n')[0].strip() if idea and 'Solution:' in idea else 'handles this automatically'}.
+We could build a system that {solution_text}.
 
-{idea.split('Impact:')[1].split('\n')[0].strip() if idea and 'Impact:' in idea else 'Most clients see results within 30 days'}.
+{impact_text}.
 
 Worth exploring?
 

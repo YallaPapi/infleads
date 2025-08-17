@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R27 Infinite AI Leads Agent</title>
+    <!-- Cache buster: {{ cache_buster }} -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -178,7 +179,7 @@
             display: inline-block;
         }
 
-        .status-fetching, .status-normalizing, .status-scoring, .status-generating_emails, .status-creating_csv, .status-uploading {
+        .status-fetching, .status-normalizing, .status-generating_emails, .status-creating_csv, .status-uploading {
             background-color: #ffc107;
             color: #000;
         }
@@ -208,13 +209,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
-        .score-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-        }
+        /* Score badge removed - no longer needed */
 
         .stats-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -290,9 +285,14 @@
                     <div class="row">
                         <div class="col-md-8 mb-3">
                             <label for="query" class="form-label fw-bold">Search Query</label>
-                            <input type="text" class="form-control form-control-lg" id="query" 
-                                   placeholder="e.g., dentists in Miami, coffee shops in Austin Texas" required>
-                            <small class="text-muted">Enter business type and location</small>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-lg" id="query" 
+                                       placeholder="e.g., lawyers in Las Vegas" required>
+                                <button type="button" class="btn btn-outline-secondary" id="expandKeywords">
+                                    <i class="bi bi-magic"></i> Expand
+                                </button>
+                            </div>
+                            <small class="text-muted">Enter business type and location, then click Expand to generate related search terms</small>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="limit" class="form-label fw-bold">Number of Leads</label>
@@ -308,12 +308,69 @@
                             </select>
                         </div>
                     </div>
+                    
+                    <!-- Keyword Expansion Section -->
+                    <div id="keywordExpansionSection" class="row mb-4" style="display: none;">
+                        <div class="col-12">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="bi bi-magic"></i> Expanded Search Terms</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted mb-3">Select the search terms you want to include (all are selected by default):</p>
+                                    <div id="keywordList" class="row">
+                                        <!-- Keywords will be populated here -->
+                                    </div>
+                                    <div class="text-end mt-3">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="toggleAllKeywords(false)">
+                                            Deselect All
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="toggleAllKeywords(true)">
+                                            Select All
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="hideKeywordExpansion()">
+                                            Use Selected Terms
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="verifyEmails">
+                                <input class="form-check-input" type="checkbox" id="verifyEmails" checked>
                                 <label class="form-check-label" for="verifyEmails">
                                     <strong>Verify Emails</strong> - Check email validity and deliverability (adds ~1 second per lead)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="generateEmails">
+                                <label class="form-check-label" for="generateEmails">
+                                    <strong>Generate Emails</strong> - Create personalized outreach emails (adds ~2 seconds per lead)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="exportVerifiedOnly" checked>
+                                <label class="form-check-label" for="exportVerifiedOnly">
+                                    <strong>Export Only Verified Emails</strong> - Filter out leads with invalid or unverified emails from download
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="advancedScraping">
+                                <label class="form-check-label" for="advancedScraping">
+                                    <strong>Advanced Website Scraping</strong> - Extract contact person names, job titles, and other details from team/about pages (adds ~3 seconds per lead)
+                                    <br><small class="text-muted">Finds: First names, Contact person, Job titles, Team member names</small>
                                 </label>
                             </div>
                         </div>
@@ -321,6 +378,9 @@
                     <div class="text-center mt-3">
                         <button type="submit" class="btn btn-generate" id="generateBtn">
                             <i class="bi bi-magic"></i> Generate Leads
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearCacheAndRefresh()">
+                            <i class="bi bi-arrow-clockwise"></i> Clear Cache & Refresh
                         </button>
                     </div>
                         </form>
@@ -554,8 +614,8 @@
                     </div>
                     <div class="col-md-4">
                         <div class="stats-box">
-                            <h3 id="avgScore">0</h3>
-                            <p>Average Score</p>
+                            <h3 id="emailsVerified">0</h3>
+                            <p>Emails Found</p>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -593,16 +653,166 @@
     <script>
         let currentJobId = null;
         let pollInterval = null;
+        
+        // Function to clear cache and refresh page
+        function clearCacheAndRefresh() {
+            // Clear various cache types
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Clear localStorage and sessionStorage
+            if (typeof(Storage) !== "undefined") {
+                localStorage.clear();
+                sessionStorage.clear();
+            }
+            
+            // Force reload with cache bypass
+            window.location.reload(true);
+        }
+        
+        // Global variables for keyword expansion
+        let expandedKeywords = [];
+        let selectedKeywords = new Set();
+        
+        // Keyword expansion functions
+        async function expandKeywords() {
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                alert('Please enter a search query first');
+                return;
+            }
+            
+            const expandBtn = document.getElementById('expandKeywords');
+            const originalText = expandBtn.innerHTML;
+            expandBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Expanding...';
+            expandBtn.disabled = true;
+            
+            try {
+                // Parse query to extract keyword and location
+                const parts = query.toLowerCase().includes(' in ') ? query.split(' in ') : [query, ''];
+                const keyword = parts[0].trim();
+                const location = parts[1] ? parts[1].trim() : '';
+                
+                const response = await fetch('/api/expand-keywords', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({keyword, location})
+                });
+                
+                if (!response.ok) throw new Error('Failed to expand keywords');
+                
+                const data = await response.json();
+                expandedKeywords = data.variants;
+                
+                // Show the expansion section
+                displayExpandedKeywords(data.variants);
+                document.getElementById('keywordExpansionSection').style.display = 'block';
+                
+                // Scroll to the expansion section
+                document.getElementById('keywordExpansionSection').scrollIntoView({behavior: 'smooth'});
+                
+            } catch (error) {
+                console.error('Keyword expansion error:', error);
+                alert('Failed to expand keywords. Please try again.');
+            } finally {
+                expandBtn.innerHTML = originalText;
+                expandBtn.disabled = false;
+            }
+        }
+        
+        function displayExpandedKeywords(variants) {
+            const keywordList = document.getElementById('keywordList');
+            keywordList.innerHTML = '';
+            selectedKeywords.clear();
+            
+            variants.forEach((variant, index) => {
+                const keywordId = `keyword_${index}`;
+                selectedKeywords.add(variant.keyword); // All selected by default
+                
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4 mb-2';
+                
+                col.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input keyword-checkbox" type="checkbox" 
+                               id="${keywordId}" value="${variant.keyword}" checked>
+                        <label class="form-check-label" for="${keywordId}" title="${variant.description}">
+                            <strong>${variant.keyword}</strong>
+                            <br><small class="text-muted">${variant.description}</small>
+                        </label>
+                    </div>
+                `;
+                
+                keywordList.appendChild(col);
+            });
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.keyword-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedKeywords.add(this.value);
+                    } else {
+                        selectedKeywords.delete(this.value);
+                    }
+                });
+            });
+        }
+        
+        function toggleAllKeywords(select) {
+            const checkboxes = document.querySelectorAll('.keyword-checkbox');
+            selectedKeywords.clear();
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = select;
+                if (select) {
+                    selectedKeywords.add(checkbox.value);
+                }
+            });
+        }
+        
+        function hideKeywordExpansion() {
+            document.getElementById('keywordExpansionSection').style.display = 'none';
+            
+            if (selectedKeywords.size > 0) {
+                // Update the main query with selected keywords (just show count)
+                const queryInput = document.getElementById('query');
+                const originalQuery = queryInput.value;
+                queryInput.value = `${selectedKeywords.size} search terms selected (${Array.from(selectedKeywords).slice(0, 2).join(', ')}${selectedKeywords.size > 2 ? '...' : ''})`;
+                queryInput.title = Array.from(selectedKeywords).join(', ');
+            }
+        }
+        
+        // Add event listener for expand button
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('expandKeywords').addEventListener('click', expandKeywords);
+        });
 
         document.getElementById('leadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             console.log('Form submitted!');
             
-            const query = document.getElementById('query').value;
+            // Handle multiple keywords if expanded
+            let searchQueries = [];
+            if (selectedKeywords.size > 0) {
+                searchQueries = Array.from(selectedKeywords);
+            } else {
+                searchQueries = [document.getElementById('query').value];
+            }
+            
             const limit = document.getElementById('limit').value;
             const verifyEmails = document.getElementById('verifyEmails').checked;
+            const generateEmails = document.getElementById('generateEmails').checked;
+            const exportVerifiedOnly = document.getElementById('exportVerifiedOnly').checked;
+            const advancedScraping = document.getElementById('advancedScraping').checked;
             
-            console.log('Form values:', {query, limit, verifyEmails});
+            console.log('Form values:', {searchQueries, limit, verifyEmails, generateEmails, exportVerifiedOnly, advancedScraping});
             
             // Reset UI
             document.getElementById('errorSection').classList.add('d-none');
@@ -617,7 +827,15 @@
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query, limit, verify_emails: verifyEmails})
+                    body: JSON.stringify({
+                        query: searchQueries.length === 1 ? searchQueries[0] : searchQueries.join(' | '),
+                        queries: searchQueries, // Send all queries
+                        limit: parseInt(limit), 
+                        verify_emails: verifyEmails, 
+                        generate_emails: generateEmails, 
+                        export_verified_only: exportVerifiedOnly, 
+                        advanced_scraping: advancedScraping
+                    })
                 });
                 
                 console.log('API response status:', response.status);
@@ -734,6 +952,8 @@
                 
             } catch (error) {
                 console.error('Poll error:', error);
+                clearInterval(pollInterval);
+                showError('Connection error: ' + error.message);
             }
         }
 
@@ -741,22 +961,28 @@
             if (!currentJobId) return;
             
             try {
+                console.log(`Polling status for job: ${currentJobId}`);
                 const response = await fetch(`/api/status/${currentJobId}`);
                 if (!response.ok) throw new Error('Failed to get status');
                 
                 const data = await response.json();
+                console.log('Poll response:', data);
                 updateProgress(data);
                 
                 if (data.status === 'completed') {
+                    console.log('Job completed, showing results...');
                     clearInterval(pollInterval);
                     showResults(data);
                 } else if (data.status === 'error') {
+                    console.log('Job error:', data.error);
                     clearInterval(pollInterval);
                     showError(data.error || 'Job failed');
                 }
                 
             } catch (error) {
                 console.error('Poll error:', error);
+                clearInterval(pollInterval);
+                showError('Connection error: ' + error.message);
             }
         }
 
@@ -775,6 +1001,7 @@
         }
 
         function showResults(data) {
+            console.log('showResults called with:', data);
             document.getElementById('progressSection').classList.add('d-none');
             document.getElementById('resultsSection').classList.remove('d-none');
             document.getElementById('generateBtn').disabled = false;
@@ -782,20 +1009,20 @@
             
             // Update stats
             document.getElementById('totalLeads').textContent = data.total_leads;
-            document.getElementById('avgScore').textContent = data.average_score + '/10';
+            document.getElementById('emailsVerified').textContent = data.emails_verified || 0;
+            
+            // Show message if verified-only filter was applied
+            if (data.message && data.message.includes('verified emails')) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'alert alert-info mt-3';
+                messageDiv.innerHTML = `<i class="bi bi-info-circle"></i> ${data.message}`;
+                document.querySelector('#resultsSection .card-body').insertBefore(messageDiv, document.querySelector('.row'));
+            }
             
             // Add email verification summary if available
             if (data.emails_verified !== undefined && data.emails_verified > 0) {
-                const summaryCard = document.querySelector('.summary-card .card-body');
-                const emailStatsHTML = `
-                    <div class="mt-2 pt-2 border-top">
-                        <small class="text-muted">Email Verification:</small><br>
-                        <span class="badge bg-info">${data.emails_verified} Emails Found</span>
-                        <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
-                    </div>
-                `;
-                // Check if email stats already exist to avoid duplicates
-                if (!summaryCard.querySelector('.email-stats')) {
+                const resultsCard = document.querySelector('#resultsSection .card-body');
+                if (resultsCard && !resultsCard.querySelector('.email-stats')) {
                     const emailDiv = document.createElement('div');
                     emailDiv.className = 'email-stats mt-2 pt-2 border-top';
                     emailDiv.innerHTML = `
@@ -803,14 +1030,31 @@
                         <span class="badge bg-info">${data.emails_verified} Emails Found</span>
                         <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
                     `;
-                    summaryCard.appendChild(emailDiv);
+                    // Insert after the stats boxes
+                    const statsRow = resultsCard.querySelector('.row');
+                    if (statsRow) {
+                        statsRow.parentNode.insertBefore(emailDiv, statsRow.nextSibling);
+                    }
                 }
             }
             
-            // Set up download button
-            document.getElementById('downloadBtn').onclick = () => {
-                window.location.href = `/api/download/${currentJobId}`;
-            };
+            
+            // Set up download button with better error handling
+            console.log('Setting up download button for job:', currentJobId);
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) {
+                downloadBtn.onclick = () => {
+                    console.log('Download button clicked, downloading:', currentJobId);
+                    try {
+                        window.location.href = `/api/download/${currentJobId}`;
+                    } catch (error) {
+                        console.error('Download error:', error);
+                        alert('Download failed: ' + error.message);
+                    }
+                };
+            } else {
+                console.error('Download button not found!');
+            }
             
             // Set up Drive button if available
             if (data.share_link) {
@@ -890,11 +1134,9 @@
                                 </div>
                                 ${lead.Phone && lead.Phone !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-telephone"></i> ${lead.Phone}</small></p>` : ''}
                                 ${lead.Website && lead.Website !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-globe"></i> <a href="${lead.Website}" target="_blank">Website</a></small></p>` : ''}
-                                <p class="mb-1 mt-2"><small class="text-muted">${lead.LeadScoreReasoning}</small></p>
                             </div>
                             <div class="text-end">
-                                <span class="score-badge">${lead.LeadScore}/10</span>
-                                ${lead.email_quality_boost ? `<br><small class="text-muted">Email: ${lead.email_quality_boost > 0 ? '+' : ''}${lead.email_quality_boost}</small>` : ''}
+                                ${lead.email_quality_boost ? `<small class="text-muted">Email Boost: ${lead.email_quality_boost > 0 ? '+' : ''}${lead.email_quality_boost}</small>` : ''}
                             </div>
                         </div>
                     `;
@@ -1187,6 +1429,12 @@
                                             Verify Emails
                                         </label>
                                     </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="scheduleGenerateEmails" checked>
+                                        <label class="form-check-label" for="scheduleGenerateEmails">
+                                            Generate Emails
+                                        </label>
+                                    </div>
                                 </form>
                             </div>
                             <div class="modal-footer">
@@ -1213,6 +1461,7 @@
             const limit = document.getElementById('scheduleLimit').value;
             const interval = document.getElementById('scheduleInterval').value;
             const verifyEmails = document.getElementById('scheduleVerifyEmails').checked;
+            const generateEmails = document.getElementById('scheduleGenerateEmails').checked;
             
             if (!name || !query) {
                 alert('Please fill in all required fields');
@@ -1228,7 +1477,8 @@
                         query: query,
                         limit_leads: parseInt(limit),
                         interval_hours: parseInt(interval),
-                        verify_emails: verifyEmails
+                        verify_emails: verifyEmails,
+                        generate_emails: generateEmails
                     })
                 });
                 

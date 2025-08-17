@@ -7,14 +7,23 @@ from .base import BaseProvider
 from .serp_provider import get_maps_provider, DirectGoogleMapsProvider
 from .google_places_new import GooglePlacesNewProvider
 from .hybrid_scraper import HybridGoogleScraper
+from .multi_provider import MultiProvider
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_provider(provider_name: str = 'auto') -> BaseProvider:
     """Factory function to get the appropriate provider"""
     # NO MORE APIFY - using alternatives
     
+    # Use the multi-provider cascade for high-volume requests
+    if provider_name == 'auto':
+        logger.info("DEBUG: Returning MultiProvider for 'auto' request")
+        return MultiProvider()
+    
     # Use the working Google Maps Legacy API by default!
-    if provider_name == 'auto' and os.getenv('GOOGLE_API_KEY'):
+    if provider_name == 'google' and os.getenv('GOOGLE_API_KEY'):
         return DirectGoogleMapsProvider()
     
     # Try the new Google Places API if specifically requested

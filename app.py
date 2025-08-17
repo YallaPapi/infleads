@@ -19,7 +19,7 @@ load_dotenv()
 
 # Import our modules
 from src.providers import get_provider
-from src.lead_scorer import LeadScorer
+# Lead scoring functionality removed
 from src.email_generator import EmailGenerator
 # from src.drive_uploader import DriveUploader  # Removed - using local downloads instead
 from src.data_normalizer import DataNormalizer
@@ -28,6 +28,7 @@ from src.apollo_lead_processor import ApolloLeadProcessor
 from src.email_verifier import MailTesterVerifier, EmailStatus
 from src.scheduler import LeadScheduler
 from src.email_scraper import WebsiteEmailScraper
+from src.keyword_expander import KeywordExpander
 
 app = Flask(__name__)
 CORS(app)
@@ -50,10 +51,10 @@ apollo_jobs = {}
 # Initialize scheduler
 scheduler = LeadScheduler()
 
-def process_scheduled_search(query: str, limit: int, verify_emails: bool):
+def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = True):
     """Process a scheduled search"""
     job_id = f"scheduled_{int(time.time())}"
-    job = LeadGenerationJob(job_id, query, limit, verify_emails=verify_emails)
+    job = LeadGenerationJob(job_id, query, limit, verify_emails=verify_emails, generate_emails=generate_emails)
     jobs[job_id] = job
     
     # Process the job synchronously for scheduler
@@ -70,12 +71,19 @@ def process_scheduled_search(query: str, limit: int, verify_emails: bool):
 scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default', verify_emails=False):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None):
         self.job_id = job_id
         self.query = query
+        self.queries = queries or [query] if query else []  # Support multiple queries
         self.limit = limit
+        # DEBUG: Print job initialization
+        print(f"FLASK DEBUG: Job created with {len(self.queries)} queries: {self.queries}")
+        print(f"FLASK DEBUG: Limit per query: {self.limit}")
         self.industry = industry
         self.verify_emails = verify_emails
+        self.generate_emails = generate_emails  # New toggle for email generation
+        self.export_verified_only = export_verified_only  # New toggle for verified emails only
+        self.advanced_scraping = advanced_scraping  # New toggle for advanced website scraping
         self.status = "starting"
         self.progress = 0
         self.message = "Initializing..."
@@ -84,7 +92,6 @@ class LeadGenerationJob:
         self.error = None
         self.leads_data = []
         self.total_leads = 0
-        self.average_score = 0
         self.emails_verified = 0
         self.valid_emails = 0
         
@@ -100,7 +107,6 @@ class LeadGenerationJob:
             'share_link': self.share_link,
             'error': self.error,
             'total_leads': self.total_leads,
-            'average_score': self.average_score,
             'emails_verified': self.emails_verified,
             'valid_emails': self.valid_emails,
             'leads_preview': self.leads_data[:50] if self.leads_data else []  # Show first 50 leads
@@ -117,8 +123,14 @@ def process_leads(job):
         
         logger.info(f"Getting provider for job {job.job_id}")
         try:
-            provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
-            logger.info(f"Using provider: {provider.__class__.__name__}")
+            # For multi-query requests, use DirectGoogleMapsProvider for more predictable results
+            if len(job.queries) > 1:
+                from src.providers.serp_provider import DirectGoogleMapsProvider
+                provider = DirectGoogleMapsProvider()
+                logger.info(f"Using DirectGoogleMapsProvider for multi-query request ({len(job.queries)} queries)")
+            else:
+                provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
+                logger.info(f"Using provider: {provider.__class__.__name__}")
             
             # Check API key availability
             if hasattr(provider, 'api_key') and not provider.api_key:
@@ -128,9 +140,57 @@ def process_leads(job):
                 job.error = error_msg
                 return
             
-            logger.info(f"Fetching places for query: '{job.query}', limit: {job.limit}")
-            raw_leads = provider.fetch_places(job.query, job.limit)
-            logger.info(f"Provider returned {len(raw_leads) if raw_leads else 0} leads")
+            all_raw_leads = []
+            seen_places = set()
+            
+            for current_query in job.queries:
+                # When using multiple queries, increase the limit per query to get more total results
+                # This helps overcome individual provider limitations
+                effective_limit = job.limit if len(job.queries) == 1 else min(job.limit * 2, 100)
+                logger.info(f"Fetching places for query: '{current_query}', limit: {effective_limit} (original: {job.limit})")
+                raw_leads_for_query = provider.fetch_places(current_query, effective_limit)
+                logger.info(f"Provider returned {len(raw_leads_for_query) if raw_leads_for_query else 0} leads for '{current_query}'")
+                
+                # Add leads from this query, deduplicating as we go
+                query_leads_added = 0
+                for lead in raw_leads_for_query or []:
+                    place_id = lead.get('place_id')
+                    unique_identifier = None
+                    
+                    if place_id:
+                        unique_identifier = place_id
+                    elif lead.get('name') and lead.get('address'):
+                        # Fallback deduplication for providers without place_id
+                        unique_identifier = (lead['name'], lead['address'])
+                    
+                    if unique_identifier and unique_identifier not in seen_places:
+                        seen_places.add(unique_identifier)
+                        all_raw_leads.append(lead)
+                        query_leads_added += 1
+                
+                logger.info(f"Added {query_leads_added} unique leads from query '{current_query}' (after deduplication)")
+
+            raw_leads = all_raw_leads
+            logger.info(f"Total unique leads from all {len(job.queries)} queries: {len(raw_leads)}")
+            
+            # DEBUG: Log query processing details
+            logger.info(f"DEBUG: Multi-query processing summary:")
+            logger.info(f"  - Number of queries: {len(job.queries)}")
+            logger.info(f"  - Original limit per query: {job.limit}")
+            logger.info(f"  - Total raw leads collected: {len(raw_leads)}")
+            logger.info(f"  - Queries: {job.queries}")
+            print(f"FLASK DEBUG: Multi-query summary - {len(job.queries)} queries, {len(raw_leads)} total leads")
+            print(f"FLASK DEBUG: Job queries list: {job.queries}")
+            print(f"FLASK DEBUG: Using provider: {provider.__class__.__name__}")
+            
+            # DEBUG: Log raw lead data
+            if raw_leads:
+                print(f"FLASK DEBUG: First raw lead keys: {list(raw_leads[0].keys())}")
+                print(f"FLASK DEBUG: First raw lead name: {raw_leads[0].get('name', 'NOT_FOUND')}")
+                print(f"FLASK DEBUG: First raw lead phone: {raw_leads[0].get('phone', 'NOT_FOUND')}")
+                logger.info(f"DEBUG: First raw lead keys: {list(raw_leads[0].keys())}")
+                logger.info(f"DEBUG: First raw lead name: {raw_leads[0].get('name', 'NOT_FOUND')}")
+                logger.info(f"DEBUG: First raw lead phone: {raw_leads[0].get('phone', 'NOT_FOUND')}")
             
         except Exception as e:
             error_msg = f"Provider error: {str(e)}"
@@ -158,20 +218,41 @@ def process_leads(job):
         normalizer = DataNormalizer()
         normalized_leads = normalizer.normalize(raw_leads)
         
-        # Step 2.3: Scrape emails from websites (FREE!)
-        job.status = "scraping_emails"
-        job.progress = 32
-        job.message = "Scraping emails from websites..."
+        # DEBUG: Log normalized data
+        if normalized_leads:
+            print(f"FLASK DEBUG: First normalized lead keys: {list(normalized_leads[0].keys())}")
+            print(f"FLASK DEBUG: First normalized lead Name: {normalized_leads[0].get('Name', 'NOT_FOUND')}")
+            print(f"FLASK DEBUG: First normalized lead Phone: {normalized_leads[0].get('Phone', 'NOT_FOUND')}")
+            logger.info(f"DEBUG: First normalized lead keys: {list(normalized_leads[0].keys())}")
+            logger.info(f"DEBUG: First normalized lead Name: {normalized_leads[0].get('Name', 'NOT_FOUND')}")
+            logger.info(f"DEBUG: First normalized lead Phone: {normalized_leads[0].get('Phone', 'NOT_FOUND')}")
+        
+        # Step 2.3: Scrape emails and contact info from websites (FREE!)
+        if job.advanced_scraping:
+            job.status = "scraping_contacts"
+            job.progress = 32
+            job.message = "Scraping emails and contact info from websites..."
+        else:
+            job.status = "scraping_emails"
+            job.progress = 32
+            job.message = "Scraping emails from websites..."
         
         try:
             scraper = WebsiteEmailScraper()
-            normalized_leads = scraper.scrape_emails_bulk(normalized_leads, max_workers=5)
+            normalized_leads = scraper.scrape_contacts_bulk(normalized_leads, max_workers=5, advanced_scraping=job.advanced_scraping)
             emails_found = sum(1 for lead in normalized_leads 
                              if lead.get('Email') and lead['Email'] != 'NA')
-            logger.info(f"Found {emails_found} emails from website scraping")
-            job.message = f"Found {emails_found} emails from websites"
+            
+            if job.advanced_scraping:
+                names_found = sum(1 for lead in normalized_leads 
+                                if lead.get('FirstName') and lead['FirstName'] != 'NA')
+                logger.info(f"Found {emails_found} emails and {names_found} contact names from website scraping")
+                job.message = f"Found {emails_found} emails and {names_found} names from websites"
+            else:
+                logger.info(f"Found {emails_found} emails from website scraping")
+                job.message = f"Found {emails_found} emails from websites"
         except Exception as e:
-            logger.error(f"Email scraping failed: {e}")
+            logger.error(f"Website scraping failed: {e}")
         
         # Step 2.5: Email Verification (if enabled)
         if job.verify_emails and os.getenv('MAILTESTER_API_KEY'):
@@ -229,64 +310,74 @@ def process_leads(job):
                 logger.error(f"Email verification service error: {e}")
                 job.message = "Email verification skipped due to error"
         
-        # Step 3: Score leads
-        job.status = "scoring"
-        job.progress = 40
-        job.message = "Scoring leads with AI..."
-        
-        scorer = LeadScorer(industry=job.industry)
-        scored_leads = []
-        scores = []
-        
-        for i, lead in enumerate(normalized_leads):
-            try:
-                score, reasoning = scorer.score_lead(lead)
-                
-                # Apply email quality boost if email was verified
-                if 'email_quality_boost' in lead:
-                    original_score = score
-                    score = max(0, min(100, score + lead['email_quality_boost']))
-                    if lead['email_quality_boost'] != 0:
-                        reasoning += f" Email verification: {lead.get('email_status', 'unknown')} (score adjusted by {lead['email_quality_boost']:+d} points)."
-                
-                lead['LeadScore'] = score
-                lead['LeadScoreReasoning'] = reasoning
-                scored_leads.append(lead)
-                scores.append(score)
-                job.progress = 40 + int((i + 1) / len(normalized_leads) * 20)
-                job.message = f"Scored {i + 1}/{len(normalized_leads)} leads"
-            except Exception as e:
-                logger.error(f"Failed to score lead: {e}")
-                lead['LeadScore'] = 'NA'
-                lead['LeadScoreReasoning'] = 'Scoring failed'
-                scored_leads.append(lead)
-        
-        # Calculate average score
-        if scores:
-            job.average_score = round(sum(scores) / len(scores), 1)
-        
-        # Step 4: Generate emails
-        job.status = "generating_emails"
+        # Lead scoring functionality removed - skip directly to email generation
+        scored_leads = normalized_leads
         job.progress = 60
-        job.message = "Generating personalized emails..."
+        job.message = "SCORING REMOVED - Leads processed, preparing for next step..."
+        print("DEBUG: SCORING HAS BEEN REMOVED FROM THIS CODE")
         
-        email_gen = EmailGenerator(industry=job.industry)
-        final_leads = []
+        # Step 4: Generate emails (conditional)
+        logger.info(f"DEBUG: job.generate_emails = {job.generate_emails}")
+        print(f"FLASK DEBUG: job.generate_emails = {job.generate_emails}")
         
-        for i, lead in enumerate(scored_leads):
-            try:
-                email = email_gen.generate_email(lead)
-                lead['DraftEmail'] = email
+        if job.generate_emails:
+            job.status = "generating_emails"
+            job.progress = 60
+            job.message = "Generating personalized emails..."
+            
+            print("FLASK DEBUG: Taking email generation branch")
+            logger.info("DEBUG: Taking email generation branch")
+            
+            email_gen = EmailGenerator(industry=job.industry)
+            final_leads = []
+            
+            for i, lead in enumerate(scored_leads):
+                try:
+                    email = email_gen.generate_email(lead)
+                    lead['DraftEmail'] = email
+                    final_leads.append(lead)
+                    job.progress = 60 + int((i + 1) / len(scored_leads) * 20)
+                    job.message = f"Generated {i + 1}/{len(scored_leads)} emails"
+                except Exception as e:
+                    logger.error(f"Failed to generate email: {e}")
+                    lead['DraftEmail'] = 'Email generation failed'
+                    final_leads.append(lead)
+        else:
+            # Skip email generation - just add empty email field
+            job.status = "finalizing"
+            job.progress = 75
+            job.message = "Finalizing leads data..."
+            
+            print("FLASK DEBUG: Skipping email generation branch")
+            logger.info("DEBUG: Skipping email generation branch")
+            
+            final_leads = []
+            for lead in scored_leads:
+                lead['DraftEmail'] = 'Email generation disabled'
                 final_leads.append(lead)
-                job.progress = 60 + int((i + 1) / len(scored_leads) * 20)
-                job.message = f"Generated {i + 1}/{len(scored_leads)} emails"
-            except Exception as e:
-                logger.error(f"Failed to generate email: {e}")
-                lead['DraftEmail'] = 'Email generation failed'
-                final_leads.append(lead)
+        
+        # Apply verified email filter if requested
+        if job.export_verified_only and job.verify_emails:
+            filtered_leads = []
+            for lead in final_leads:
+                if lead.get('email_verified') == True or lead.get('email_status') == 'valid':
+                    filtered_leads.append(lead)
+            
+            original_count = len(final_leads)
+            final_leads = filtered_leads
+            logger.info(f"Filtered leads: {original_count} -> {len(final_leads)} (verified emails only)")
+            job.message = f"Filtered to {len(final_leads)} leads with verified emails"
         
         # Store leads data for preview
         job.leads_data = final_leads
+        
+        # DEBUG: Log final leads data for preview
+        if final_leads:
+            logger.info(f"DEBUG: Final leads count for preview: {len(final_leads)}")
+            logger.info(f"DEBUG: First final lead keys: {list(final_leads[0].keys())}")
+            logger.info(f"DEBUG: First final lead Name: {final_leads[0].get('Name', 'NOT_FOUND')}")  
+            logger.info(f"DEBUG: First final lead Phone: {final_leads[0].get('Phone', 'NOT_FOUND')}")
+            logger.info(f"DEBUG: First final lead Email: {final_leads[0].get('Email', 'NOT_FOUND')}")
         
         # Step 5: Create CSV
         job.status = "creating_csv"
@@ -298,17 +389,22 @@ def process_leads(job):
         
         # Create filename
         date_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-        safe_query = job.query.replace(' ', '_').replace(',', '')[:30]
+        # Debug: Print the original query
+        print(f"FLASK DEBUG: Original job.query: '{job.query}'")
+        # Sanitize query for filename - remove invalid filename characters
+        import re
+        safe_query = re.sub(r'[<>:"/\\|?*]', '_', job.query.replace(' ', '_'))[:30]
+        print(f"FLASK DEBUG: Sanitized safe_query: '{safe_query}'")
         filename = f"{date_str}_{safe_query}.csv"
+        print(f"FLASK DEBUG: Final filename: '{filename}'")
         filepath = os.path.join('output', filename)
         
-        # Create DataFrame with exact column order (including email fields)
-        columns = ['Name', 'Address', 'Phone', 'Email', 'Website', 'SocialMediaLinks', 
-                  'Reviews', 'Images', 'LeadScore', 'LeadScoreReasoning']
+        # Create DataFrame with simplified column order
+        columns = ['Phone', 'Email', 'Website']
         
-        # Add email verification columns if email verification was enabled
+        # Add email verification column if email verification was enabled
         if job.verify_emails:
-            columns.extend(['email_verified', 'email_status', 'email_quality_boost'])
+            columns.append('email_verified')
         
         # Add DraftEmail at the end
         columns.append('DraftEmail')
@@ -349,24 +445,44 @@ def process_leads(job):
 
 @app.route('/')
 def index():
-    """Render the main page"""
-    return render_template('index.html')
+    """Render the main page with cache-busting headers"""
+    from flask import make_response
+    import time
+    
+    # Create response with cache-busting
+    response = make_response(render_template('index.html', cache_buster=int(time.time())))
+    
+    # Add headers to prevent caching
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
 
 @app.route('/api/generate', methods=['POST'])
 def generate_leads():
     """Start a new lead generation job"""
     data = request.json
     query = data.get('query', '')
+    queries = data.get('queries', [query] if query else [])  # Handle multiple queries
     limit = int(data.get('limit', 25))
     industry = data.get('industry', 'default')
     verify_emails = data.get('verify_emails', False)
+    generate_emails = data.get('generate_emails', True) # Default to True
+    export_verified_only = data.get('export_verified_only', False)
+    advanced_scraping = data.get('advanced_scraping', False)
+    
+    # Debug logging
+    logger.info(f"DEBUG: Request data: {data}")
+    logger.info(f"DEBUG: generate_emails from request: {generate_emails}")
+    logger.info(f"DEBUG: advanced_scraping from request: {advanced_scraping}")
     
     if not query:
         return jsonify({'error': 'Query is required'}), 400
     
     # Create job
     job_id = f"job_{int(time.time())}"
-    job = LeadGenerationJob(job_id, query, limit, industry, verify_emails)
+    job = LeadGenerationJob(job_id, query, limit, industry, verify_emails, generate_emails, export_verified_only, advanced_scraping, queries)
     jobs[job_id] = job
     
     # Start processing in background
@@ -398,6 +514,41 @@ def download_csv(job_id):
         return jsonify({'error': 'File not ready'}), 404
     
     return send_file(job.result_file, as_attachment=True, mimetype='text/csv')
+
+@app.route('/api/expand-keywords', methods=['POST'])
+def expand_keywords():
+    """Expand a keyword into related search terms using LLM"""
+    try:
+        data = request.json
+        base_keyword = data.get('keyword', '').strip()
+        location = data.get('location', '').strip()
+        
+        if not base_keyword:
+            return jsonify({'error': 'Keyword is required'}), 400
+        
+        # Initialize keyword expander
+        expander = KeywordExpander()
+        
+        # Generate keyword variants
+        variants = expander.expand_keywords(base_keyword, location, max_variants=20)
+        
+        # Combine with location if provided
+        if location:
+            variants = expander.combine_with_location(variants, location)
+        
+        logger.info(f"Generated {len(variants)} keyword variants for '{base_keyword}'")
+        
+        return jsonify({
+            'success': True,
+            'base_keyword': base_keyword,
+            'location': location,
+            'variants': variants,
+            'count': len(variants)
+        })
+        
+    except Exception as e:
+        logger.error(f"Keyword expansion failed: {e}", exc_info=True)
+        return jsonify({'error': f'Keyword expansion failed: {str(e)}'}), 500
 
 class ApolloJob:
     def __init__(self, job_id, filename, max_leads=100, service_focus='general_automation'):
@@ -568,7 +719,7 @@ def health_check():
     # Test fetching
     test_results = []
     try:
-        test_results = provider.fetch_places('test query', 1)
+        test_results = provider.fetch_places("coffee shop Austin", 1)
     except:
         pass
     
@@ -598,10 +749,11 @@ def create_schedule():
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
         verify_emails=data.get('verify_emails', False),
+        generate_emails=data.get('generate_emails', True),  # New parameter
         interval_hours=data.get('interval_hours', 24),
         integrations=data.get('integrations', [])
     )
-    return jsonify({'id': schedule_id, 'success': True})
+    return jsonify({'schedule_id': schedule_id})
 
 @app.route('/api/schedules/<int:schedule_id>', methods=['GET'])
 def get_schedule(schedule_id):
@@ -764,33 +916,41 @@ def test_provider():
     """Test the provider configuration and API connectivity"""
     try:
         logger.info("Testing provider configuration...")
+        # Test the MultiProvider directly
         provider = get_provider('auto')
         
-        # Check API key
-        api_key_status = "Not configured"
-        if hasattr(provider, 'api_key') and provider.api_key:
-            api_key_status = f"Configured ({provider.api_key[:10]}...)"
-        
-        # Try a simple test request
-        test_results = None
+        cascade_status = []
+        if hasattr(provider, 'providers'):
+            for p_name, p_instance in provider.providers:
+                p_status = {'name': p_name, 'api_key_configured': False, 'test_fetch_worked': False, 'error': None}
+                
+                if hasattr(p_instance, 'api_key'):
+                    p_status['api_key_configured'] = bool(p_instance.api_key)
+                
+                try:
+                    test_results = p_instance.fetch_places("coffee shop Austin", 1)
+                    p_status['test_fetch_worked'] = len(test_results) > 0
+                except Exception as e:
+                    p_status['error'] = str(e)
+                cascade_status.append(p_status)
+            
+        # Overall test for the main provider
+        overall_test_results = []
         try:
-            logger.info("Running test query...")
-            test_results = provider.fetch_places("coffee shop Austin", 1)
-            test_status = f"Success - found {len(test_results)} results"
-            logger.info(f"Test query successful: {len(test_results)} results")
-        except Exception as e:
-            test_status = f"Failed: {str(e)}"
-            logger.error(f"Test query failed: {e}")
-        
+            overall_test_results = provider.fetch_places("coffee shop Austin", 1)
+            overall_test_worked = len(overall_test_results) > 0
+        except:
+            overall_test_worked = False
+            
         response_data = {
-            'provider_class': provider.__class__.__name__,
-            'api_key_status': api_key_status,
-            'test_status': test_status,
-            'test_results': test_results[:1] if test_results else None,
-            'environment_vars': {
-                'GOOGLE_API_KEY': 'Set' if os.getenv('GOOGLE_API_KEY') else 'Not set',
-                'GOOGLE_MAPS_API_KEY': 'Set' if os.getenv('GOOGLE_MAPS_API_KEY') else 'Not set'
-            }
+            'status': 'healthy',
+            'main_provider': provider.__class__.__name__,
+            'main_provider_test_worked': overall_test_worked,
+            'google_api_key': bool(os.getenv('GOOGLE_API_KEY')),
+            'google_api_key_value': os.getenv('GOOGLE_API_KEY', '')[:10] + '...' if os.getenv('GOOGLE_API_KEY') else 'None',
+            'openai_configured': bool(os.getenv('OPENAI_API_KEY')),
+            'available_industries': IndustryConfig.get_industry_display_names(),
+            'multi_provider_cascade_status': cascade_status if cascade_status else 'N/A'
         }
         
         logger.info(f"Provider test completed: {response_data}")
@@ -806,7 +966,7 @@ def test_provider():
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("R27 Infinite AI Leads Agent - Web Interface")
+    print("🚀 UPDATED - R27 Infinite AI Leads Agent - SCORING REMOVED")
     print("="*50)
     print("\nStarting server at: http://localhost:5000")
     print("\nPress Ctrl+C to stop")

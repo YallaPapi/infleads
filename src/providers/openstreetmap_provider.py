@@ -179,7 +179,8 @@ class OpenStreetMapProvider:
                 'addressdetails': 1
             }
             
-            response = requests.get(nominatim_url, params=params, timeout=10)
+            headers = {'User-Agent': 'R27LeadsAgent/1.0 (Business Directory)'}
+            response = requests.get(nominatim_url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 if data and len(data) > 0:

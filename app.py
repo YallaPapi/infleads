@@ -36,6 +36,8 @@ from src.lead_enrichment import LeadEnricher
 from src.instantly_integration import InstantlyIntegration, CampaignTemplates, convert_r27_leads_to_instantly, create_campaign_from_r27_leads
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 CORS(app)
 
 # Configure comprehensive logging
@@ -79,7 +81,7 @@ def process_scheduled_search(query: str, limit: int, verify_emails: bool, genera
 scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
         self.job_id = job_id
         self.query = query
         self.queries = queries or [query] if query else []  # Support multiple queries
@@ -92,10 +94,13 @@ class LeadGenerationJob:
         self.generate_emails = generate_emails  # New toggle for email generation
         self.export_verified_only = export_verified_only  # New toggle for verified emails only
         self.advanced_scraping = advanced_scraping  # New toggle for advanced website scraping
+        self.add_to_instantly = add_to_instantly  # Auto-add to Instantly campaign
+        self.instantly_campaign = instantly_campaign  # Instantly campaign ID
         self.status = "starting"
         self.progress = 0
         self.message = "Initializing..."
         self.result_file = None
+        self.cancelled = False
         self.share_link = None
         self.error = None
         self.leads_data = []
@@ -288,57 +293,109 @@ def process_leads(job):
         except Exception as e:
             logger.error(f"Website scraping failed: {e}")
         
-        # Step 2.5: Email Verification (if enabled)
+        # Step 2.5: Email Verification (if enabled) - PARALLEL PROCESSING
         if job.verify_emails and os.getenv('MAILTESTER_API_KEY'):
             job.status = "verifying_emails"
             job.progress = 35
             job.message = "Verifying email addresses..."
             
             try:
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                import threading
+                
                 verifier = MailTesterVerifier()
-                verified_leads = []
+                
+                # Prepare emails for verification
+                emails_to_verify = []
+                email_lead_map = {}
                 
                 for i, lead in enumerate(normalized_leads):
                     email = lead.get('Email', '').strip()
-                    
                     if email and email != 'NA':
-                        try:
-                            result = verifier.verify_email(email)
-                            
-                            # Add verification data
-                            lead['email_verified'] = result.status == EmailStatus.VALID
-                            lead['email_status'] = result.status.value
-                            lead['email_score'] = result.score
-                            
+                        emails_to_verify.append((i, email))
+                        email_lead_map[email] = i
+                
+                logger.info(f"Starting parallel verification of {len(emails_to_verify)} emails")
+                
+                # Thread-safe counters
+                completed_count = [0]  # Use list for mutable counter
+                lock = threading.Lock()
+                
+                def verify_single_email(email_data):
+                    """Verify a single email with thread safety"""
+                    idx, email = email_data
+                    try:
+                        result = verifier.verify_email(email)
+                        
+                        with lock:
+                            # Update counters safely
                             job.emails_verified += 1
                             if result.status == EmailStatus.VALID:
                                 job.valid_emails += 1
+                            
+                            # Update progress
+                            completed_count[0] += 1
+                            progress_pct = int((completed_count[0] / len(emails_to_verify)) * 10)
+                            job.progress = 35 + progress_pct
+                            job.message = f"Verified {completed_count[0]}/{len(emails_to_verify)} emails"
+                        
+                        return (idx, email, result, None)
+                    except Exception as e:
+                        logger.warning(f"Email verification failed for {email}: {e}")
+                        return (idx, email, None, str(e))
+                
+                # Use ThreadPoolExecutor for parallel processing
+                # Limit to 5 threads to respect API rate limits while gaining speed
+                max_workers = min(5, len(emails_to_verify))
+                
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all verification tasks
+                    future_to_email = {
+                        executor.submit(verify_single_email, email_data): email_data 
+                        for email_data in emails_to_verify
+                    }
+                    
+                    # Process results as they complete
+                    for future in as_completed(future_to_email):
+                        if job.cancelled:
+                            executor.shutdown(wait=False)
+                            break
+                            
+                        try:
+                            idx, email, result, error = future.result()
+                            lead = normalized_leads[idx]
+                            
+                            if result:
+                                # Add verification data
+                                lead['email_verified'] = result.status == EmailStatus.VALID
+                                lead['email_status'] = result.status.value
+                                lead['email_score'] = result.score
                                 
-                            # Adjust scoring boost
-                            if result.status == EmailStatus.VALID:
-                                lead['email_quality_boost'] = 20
-                            elif result.status == EmailStatus.CATCH_ALL:
-                                lead['email_quality_boost'] = 10
-                            elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
-                                lead['email_quality_boost'] = -50
+                                # Adjust scoring boost
+                                if result.status == EmailStatus.VALID:
+                                    lead['email_quality_boost'] = 20
+                                elif result.status == EmailStatus.CATCH_ALL:
+                                    lead['email_quality_boost'] = 10
+                                elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
+                                    lead['email_quality_boost'] = -50
+                                else:
+                                    lead['email_quality_boost'] = 0
                             else:
+                                # Verification failed
+                                lead['email_verified'] = False
+                                lead['email_status'] = 'error'
                                 lead['email_quality_boost'] = 0
                         except Exception as e:
-                            logger.warning(f"Email verification failed for {email}: {e}")
-                            lead['email_verified'] = False
-                            lead['email_status'] = 'error'
-                            lead['email_quality_boost'] = 0
-                    else:
+                            logger.error(f"Error processing verification result: {e}")
+                
+                # Set default values for leads without emails
+                for lead in normalized_leads:
+                    if not lead.get('Email') or lead.get('Email') == 'NA':
                         lead['email_verified'] = False
                         lead['email_status'] = 'missing'
                         lead['email_quality_boost'] = -10
-                    
-                    verified_leads.append(lead)
-                    job.progress = 35 + int((i + 1) / len(normalized_leads) * 5)
-                    job.message = f"Verified {i + 1}/{len(normalized_leads)} emails"
                 
-                normalized_leads = verified_leads
-                logger.info(f"Email verification complete: {job.valid_emails}/{job.emails_verified} valid")
+                logger.info(f"Parallel email verification complete: {job.valid_emails}/{job.emails_verified} valid")
                 
             except Exception as e:
                 logger.error(f"Email verification service error: {e}")
@@ -493,10 +550,49 @@ def process_leads(job):
         job.share_link = None
         job.message = f"CSV ready for download: {filename}"
         
+        # Step 7: Add to Instantly campaign if enabled
+        if job.add_to_instantly and job.instantly_campaign and final_leads:
+            try:
+                job.status = "adding_to_instantly"
+                job.progress = 95
+                job.message = "Adding leads to Instantly campaign..."
+                
+                api_key = os.getenv('INSTANTLY_API_KEY')
+                if api_key:
+                    # Filter for leads with valid emails
+                    leads_for_instantly = final_leads
+                    if job.verify_emails:
+                        # Use verified leads only
+                        leads_for_instantly = [lead for lead in final_leads if lead.get('Email') and lead.get('email_status') == 'valid']
+                    else:
+                        # Filter leads that have valid emails (not NA or empty)
+                        leads_for_instantly = [lead for lead in final_leads 
+                                             if lead.get('Email') and lead.get('Email') != 'NA' and lead.get('Email') != '']
+                    
+                    if leads_for_instantly:
+                        instantly = InstantlyIntegration(api_key)
+                        instantly_leads = convert_r27_leads_to_instantly(leads_for_instantly)
+                        
+                        result = instantly.add_leads_to_campaign(job.instantly_campaign, instantly_leads)
+                        
+                        logger.info(f"Added {len(instantly_leads)} leads to Instantly campaign {job.instantly_campaign}")
+                        job.message = f"Successfully generated {len(final_leads)} leads and added {len(instantly_leads)} to Instantly!"
+                    else:
+                        logger.warning("No verified leads to add to Instantly campaign")
+                        job.message = f"Successfully generated {len(final_leads)} leads (no verified emails for Instantly)"
+                else:
+                    logger.warning("Instantly API key not configured")
+                    job.message = f"Successfully generated {len(final_leads)} leads (Instantly API key missing)"
+                    
+            except Exception as e:
+                logger.error(f"Failed to add leads to Instantly: {e}")
+                job.message = f"Successfully generated {len(final_leads)} leads (Instantly integration failed)"
+        
         # Complete
         job.status = "completed"
         job.progress = 100
-        job.message = f"Successfully generated {len(final_leads)} leads!"
+        if not hasattr(job, 'message') or 'Instantly' not in job.message:
+            job.message = f"Successfully generated {len(final_leads)} leads!"
         
         # Track in search history
         try:
@@ -546,6 +642,9 @@ def generate_leads():
     generate_emails = data.get('generate_emails', True) # Default to True
     export_verified_only = data.get('export_verified_only', False)
     advanced_scraping = data.get('advanced_scraping', False)
+    providers = data.get('providers', ['google_maps'])  # New provider selection
+    add_to_instantly = data.get('add_to_instantly', False)
+    instantly_campaign = data.get('instantly_campaign', '')
     
     # Debug logging
     logger.info(f"DEBUG: Request data: {data}")
@@ -555,9 +654,16 @@ def generate_leads():
     if not query:
         return jsonify({'error': 'Query is required'}), 400
     
-    # Create job
+    if not providers:
+        return jsonify({'error': 'At least one data source must be selected'}), 400
+    
+    # If multi-provider search is requested, use the multi-provider flow
+    if len(providers) > 1 or (len(providers) == 1 and providers[0] != 'google_maps'):
+        return handle_multi_provider_generate(data)
+    
+    # Create job for Google Maps only
     job_id = f"job_{int(time.time())}"
-    job = LeadGenerationJob(job_id, query, limit, industry, verify_emails, generate_emails, export_verified_only, advanced_scraping, queries)
+    job = LeadGenerationJob(job_id, query, limit, industry, verify_emails, generate_emails, export_verified_only, advanced_scraping, queries, add_to_instantly, instantly_campaign)
     jobs[job_id] = job
     
     # Start processing in background
@@ -565,6 +671,186 @@ def generate_leads():
     thread.start()
     
     return jsonify({'job_id': job_id})
+
+def handle_multi_provider_generate(data):
+    """Handle multi-provider lead generation"""
+    try:
+        query = data.get('query', '')
+        queries = data.get('queries', [query] if query else [])
+        limit = int(data.get('limit', 25))
+        verify_emails = data.get('verify_emails', False)
+        generate_emails = data.get('generate_emails', True)
+        export_verified_only = data.get('export_verified_only', False)
+        providers = data.get('providers', ['google_maps'])
+        add_to_instantly = data.get('add_to_instantly', False)
+        instantly_campaign = data.get('instantly_campaign', '')
+        
+        logger.info(f"Multi-provider search: {providers} for query: {query}")
+        
+        job_id = f"multi_job_{int(time.time())}"
+        
+        # Create a modified job for multi-provider
+        job = LeadGenerationJob(
+            job_id, 
+            query, 
+            limit, 
+            'default', 
+            verify_emails, 
+            generate_emails,
+            export_verified_only,
+            False,  # advanced_scraping not needed for multi-provider
+            queries,
+            add_to_instantly,
+            instantly_campaign
+        )
+        jobs[job_id] = job
+        
+        # Process multi-provider search
+        thread = threading.Thread(target=process_multi_provider_leads, args=(job, providers))
+        thread.start()
+        
+        return jsonify({'job_id': job_id})
+        
+    except Exception as e:
+        logger.error(f"Multi-provider search failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def process_multi_provider_leads(job, providers):
+    """Process leads using multiple providers"""
+    try:
+        job.status = "fetching"
+        job.progress = 10
+        job.message = f"Searching across {len(providers)} data sources..."
+        
+        all_results = []
+        
+        for query in job.queries:
+            logger.info(f"Searching '{query}' across providers: {providers}")
+            
+            # Parse query to extract business type and location
+            if ' in ' in query:
+                business_type, location = query.split(' in ', 1)
+            else:
+                business_type = query
+                location = None
+            
+            # Google Maps
+            if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
+                try:
+                    job.message = "Searching Google Maps..."
+                    google_provider = get_provider('auto')
+                    google_results = google_provider.fetch_places(query, job.limit)
+                    logger.info(f"Google Maps found {len(google_results)} results")
+                    
+                    for result in google_results:
+                        normalized = {
+                            'Name': result.get('name', ''),
+                            'Address': result.get('address', ''),
+                            'Phone': result.get('phone', 'Not available'),
+                            'Website': result.get('website', 'Not available'),
+                            'SearchKeyword': business_type,
+                            'Location': location or 'No location specified',
+                            'data_source': 'Google Maps'
+                        }
+                        all_results.append(normalized)
+                except Exception as e:
+                    logger.error(f"Google Maps provider error: {e}")
+            
+            # OpenStreetMap
+            if 'openstreetmap' in providers:
+                try:
+                    job.message = "Searching OpenStreetMap..."
+                    osm_provider = OpenStreetMapProvider()
+                    osm_results = osm_provider.search_businesses(business_type, location, limit=job.limit)
+                    logger.info(f"OpenStreetMap found {len(osm_results)} results")
+                    
+                    for result in osm_results:
+                        normalized = {
+                            'Name': result.get('name', ''),
+                            'Address': result.get('address', ''),
+                            'Phone': result.get('phone', 'Not available'),
+                            'Website': result.get('website', 'Not available'),
+                            'SearchKeyword': business_type,
+                            'Location': location or 'No location specified',
+                            'data_source': 'OpenStreetMap'
+                        }
+                        all_results.append(normalized)
+                except Exception as e:
+                    logger.error(f"OpenStreetMap provider error: {e}")
+            
+            # Yellow Pages
+            if 'yellowpages' in providers:
+                try:
+                    job.message = "Searching Yellow Pages..."
+                    yp_provider = YellowPagesAPIProvider()
+                    yp_results = yp_provider.search_businesses(business_type, location, limit=job.limit)
+                    logger.info(f"Yellow Pages found {len(yp_results)} results")
+                    
+                    for result in yp_results:
+                        normalized = {
+                            'Name': result.get('name', ''),
+                            'Address': result.get('address', ''),
+                            'Phone': result.get('phone', 'Not available'),
+                            'Website': result.get('website', 'Not available'),
+                            'SearchKeyword': business_type,
+                            'Location': location or 'No location specified',
+                            'data_source': 'Yellow Pages'
+                        }
+                        all_results.append(normalized)
+                except Exception as e:
+                    logger.error(f"Yellow Pages provider error: {e}")
+        
+        job.progress = 50
+        job.message = f"Found {len(all_results)} leads from {len(providers)} sources..."
+        
+        # Deduplicate results
+        seen = set()
+        unique_results = []
+        for result in all_results:
+            name = result.get('Name', '').lower().strip()
+            address = result.get('Address', '').lower().strip()
+            key = (name, address[:50] if address else '')
+            
+            if key not in seen and name and name not in ['unknown business', '']:
+                seen.add(key)
+                unique_results.append(result)
+        
+        job.progress = 70
+        job.message = f"Deduplicated to {len(unique_results)} unique leads..."
+        
+        # Save results to CSV
+        job.progress = 90
+        job.message = "Preparing CSV file..."
+        
+        if unique_results:
+            df = pd.DataFrame(unique_results)
+            timestamp = int(time.time())
+            filename = f'leads_multi_provider_{timestamp}.csv'
+            filepath = os.path.join('downloads', filename)
+            
+            os.makedirs('downloads', exist_ok=True)
+            df.to_csv(filepath, index=False)
+            
+            job.result_file = filename
+            job.leads_data = unique_results
+            job.total_leads = len(unique_results)
+            job.status = "completed"
+            job.progress = 100
+            job.message = f"✅ Found {len(unique_results)} unique leads from {len(providers)} providers!"
+            
+            logger.info(f"Multi-provider search completed: {len(unique_results)} leads saved to {filename}")
+        else:
+            job.status = "completed"
+            job.progress = 100
+            job.message = "No leads found from selected providers"
+            job.total_leads = 0
+            logger.info("Multi-provider search completed with no results")
+            
+    except Exception as e:
+        job.status = "error"
+        job.error = str(e)
+        job.message = f"Multi-provider search failed: {str(e)}"
+        logger.error(f"Multi-provider search error: {e}")
 
 @app.route('/api/status/<job_id>')
 def get_status(job_id):
@@ -577,6 +863,26 @@ def get_status(job_id):
     logger.debug(f"Returning status for job {job_id}: {job_data['status']}")
     
     return jsonify(job_data)
+
+@app.route('/api/cancel/<job_id>', methods=['POST'])
+def cancel_job(job_id):
+    """Cancel a running job"""
+    if job_id not in jobs:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    job = jobs[job_id]
+    
+    # Mark job as cancelled
+    job.cancelled = True
+    job.status = 'cancelled'
+    job.message = 'Job cancelled by user'
+    
+    logger.info(f"Job {job_id} cancelled by user")
+    
+    return jsonify({
+        'success': True,
+        'message': 'Job cancelled successfully'
+    })
 
 @app.route('/api/download/<job_id>')
 def download_csv(job_id):
@@ -1236,6 +1542,79 @@ def create_instantly_campaign():
         
     except Exception as e:
         logger.error(f"Failed to create Instantly campaign: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/configure', methods=['POST'])
+def configure_instantly_account():
+    """Save Instantly API key and test connection"""
+    try:
+        data = request.json
+        api_key = data.get('api_key', '').strip()
+        
+        if not api_key:
+            return jsonify({'error': 'API key is required'}), 400
+        
+        # Test the API key
+        instantly = InstantlyIntegration(api_key)
+        
+        # Try to get account info to validate the key
+        try:
+            accounts = instantly.get_accounts()
+            campaigns = instantly.get_campaigns()
+            
+            # Save the API key to environment (temporarily for this session)
+            # In production, you'd want to save this securely to a database
+            os.environ['INSTANTLY_API_KEY'] = api_key
+            
+            return jsonify({
+                'success': True,
+                'account_info': f"{len(accounts)} email accounts, {len(campaigns)} campaigns",
+                'accounts': len(accounts),
+                'campaigns': len(campaigns)
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid API key or connection failed: {str(e)}'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to configure Instantly account: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/status', methods=['GET'])
+def get_instantly_status():
+    """Check current Instantly connection status"""
+    try:
+        api_key = os.getenv('INSTANTLY_API_KEY')
+        if not api_key or api_key == 'your_instantly_api_key_here':
+            return jsonify({
+                'success': False,
+                'error': 'API key not configured'
+            })
+        
+        # Test the connection
+        instantly = InstantlyIntegration(api_key)
+        try:
+            accounts = instantly.get_accounts()
+            campaigns = instantly.get_campaigns()
+            
+            return jsonify({
+                'success': True,
+                'account_info': f"{len(accounts)} email accounts, {len(campaigns)} campaigns",
+                'accounts': len(accounts),
+                'campaigns': len(campaigns)
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Connection failed: {str(e)}'
+            })
+            
+    except Exception as e:
+        logger.error(f"Failed to check Instantly status: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/instantly/templates', methods=['GET'])

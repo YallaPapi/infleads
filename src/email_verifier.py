@@ -89,9 +89,7 @@ class MailTesterVerifier:
     TOKEN_ENDPOINT = "https://token.mailtester.ninja/token"
     VERIFY_ENDPOINT = "https://happy.mailtester.ninja/ninja"
     
-    # Rate limiting
-    REQUESTS_PER_MINUTE = 100
-    REQUEST_DELAY = 60 / REQUESTS_PER_MINUTE  # ~0.6 seconds
+    # Rate limiting removed for maximum speed
     
     def __init__(self, api_key: Optional[str] = None):
         """
@@ -118,8 +116,7 @@ class MailTesterVerifier:
         # HTTP session with retry strategy
         self.session = self._create_session()
         
-        # Rate limiting
-        self._last_request_time = 0
+        # Rate limiting removed
         
         logger.info("MailTesterVerifier initialized")
     
@@ -187,15 +184,6 @@ class MailTesterVerifier:
         
         return email
     
-    def _rate_limit(self):
-        """Apply rate limiting between requests"""
-        current_time = time.time()
-        time_since_last = current_time - self._last_request_time
-        
-        if time_since_last < self.REQUEST_DELAY:
-            time.sleep(self.REQUEST_DELAY - time_since_last)
-        
-        self._last_request_time = time.time()
     
     def get_token(self, force_refresh: bool = False) -> str:
         """
@@ -216,9 +204,6 @@ class MailTesterVerifier:
                 return self._token
         
         logger.info("Retrieving new authentication token")
-        
-        # Apply rate limiting
-        self._rate_limit()
         
         try:
             response = self.session.get(
@@ -271,9 +256,6 @@ class MailTesterVerifier:
             # Get token
             token = self.get_token()
             
-            # Apply rate limiting
-            self._rate_limit()
-            
             # Make verification request
             response = self.session.get(
                 self.VERIFY_ENDPOINT,
@@ -289,7 +271,6 @@ class MailTesterVerifier:
                 token = self.get_token(force_refresh=True)
                 
                 # Retry with new token
-                self._rate_limit()
                 response = self.session.get(
                     self.VERIFY_ENDPOINT,
                     params={

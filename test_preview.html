@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lead Preview Test</title>
+    <style>
+        .lead-preview { border: 1px solid #ccc; padding: 10px; margin: 10px; }
+        .badge { padding: 5px; margin: 5px; border-radius: 3px; }
+        .bg-success { background-color: green; color: white; }
+        .bg-secondary { background-color: gray; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Testing Lead Preview</h1>
+    <div id="leadPreview"></div>
+    
+    <script>
+        // Simulate the data from our API
+        const testData = {
+            "leads_preview": [
+                {
+                    "Address": "\"111 NE 32nd St, Miami, FL 33137, United States\"",
+                    "Email": "info@ultrasmilemiami.com",
+                    "Name": "Ultra Smile DentaSpa",
+                    "Phone": "(305) 676-5330",
+                    "Rating": 4.8,
+                    "Website": "https://www.ultrasmilemiami.com/"
+                },
+                {
+                    "Address": "\"3120 N Miami Ave, Miami, FL 33127, United States\"",
+                    "Email": "NA",
+                    "Name": "Dentists at Midtown",
+                    "Phone": "(786) 724-0418",
+                    "Rating": 4,
+                    "Website": "https://www.dentistsatmidtown.com/"
+                }
+            ],
+            "total_leads": 2
+        };
+        
+        // Test the lead preview logic
+        const preview = document.getElementById('leadPreview');
+        preview.innerHTML = '';
+        
+        if (testData.leads_preview && testData.leads_preview.length > 0) {
+            const headerDiv = document.createElement('div');
+            headerDiv.innerHTML = `<small>Showing ${testData.leads_preview.length} of ${testData.total_leads} leads</small>`;
+            preview.appendChild(headerDiv);
+            
+            testData.leads_preview.forEach((lead, index) => {
+                let emailStatus = '';
+                let emailBadgeClass = '';
+                
+                if (!lead.Email || lead.Email === 'NA' || lead.Email === '') {
+                    emailStatus = 'No Email';
+                    emailBadgeClass = 'bg-secondary';
+                } else {
+                    emailStatus = 'Has Email';
+                    emailBadgeClass = 'bg-success';
+                }
+                
+                const leadDiv = document.createElement('div');
+                leadDiv.className = 'lead-preview';
+                leadDiv.innerHTML = `
+                    <strong>${lead.Name}</strong><br>
+                    📍 ${lead.Address}<br>
+                    📞 ${lead.Phone}<br>
+                    🌐 ${lead.Website}<br>
+                    <span class="badge ${emailBadgeClass}">${emailStatus}: ${lead.Email}</span>
+                `;
+                preview.appendChild(leadDiv);
+            });
+            
+            console.log('✅ Lead preview rendered successfully');
+        } else {
+            console.log('❌ No leads_preview data');
+        }
+    </script>
+</body>
+</html>

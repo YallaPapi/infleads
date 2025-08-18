@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R27 Infinite AI Leads Agent</title>
-    <!-- Cache buster: {{ cache_buster }} -->
+    <!-- Cache buster: 1755513497 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -309,7 +309,7 @@
         <ul class="nav nav-tabs mb-4" id="leadTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="google-tab" data-bs-toggle="tab" data-bs-target="#google" type="button">
-                    🔍 <i class="bi bi-geo-alt-fill"></i> <strong>SINGLE SEARCH</strong>
+                    🔍 <i class="bi bi-database"></i> <strong>MULTI-SOURCE SEARCH</strong>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -335,9 +335,53 @@
             <div class="tab-pane fade show active" id="google" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <i class="bi bi-search"></i> Google Maps Lead Generation
+                        <i class="bi bi-search"></i> Multi-Source Lead Generation
                     </div>
                     <div class="card-body p-4">
+                        <!-- Data Source Selection -->
+                        <div class="mb-4 p-3" style="background: linear-gradient(135deg, #e8f5e8 0%, #f0f8ff 100%); border-radius: 15px; border: 2px solid #28a745;">
+                            <h6 class="fw-bold text-success mb-3">
+                                <i class="bi bi-database"></i> Choose Your Data Sources
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="singleProviderGoogle" value="google_maps" checked>
+                                        <label class="form-check-label fw-bold" for="singleProviderGoogle">
+                                            <i class="bi bi-geo-alt-fill text-danger"></i> Google Maps
+                                            <span class="badge bg-primary ms-1">PAID</span>
+                                        </label>
+                                        <small class="text-muted d-block">Most comprehensive, requires API key</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="singleProviderOSM" value="openstreetmap">
+                                        <label class="form-check-label fw-bold" for="singleProviderOSM">
+                                            <i class="bi bi-globe text-success"></i> OpenStreetMap
+                                            <span class="badge bg-success ms-1">FREE</span>
+                                        </label>
+                                        <small class="text-muted d-block">Global open-source directory</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="singleProviderYP" value="yellowpages">
+                                        <label class="form-check-label fw-bold" for="singleProviderYP">
+                                            <i class="bi bi-telephone-fill text-warning"></i> Yellow Pages
+                                            <span class="badge bg-success ms-1">FREE</span>
+                                        </label>
+                                        <small class="text-muted d-block">US business directory with phones</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-success fw-bold">
+                                    <i class="bi bi-lightbulb"></i> Pro Tip: Select multiple sources for maximum lead coverage!
+                                </small>
+                            </div>
+                        </div>
+
                         <form id="leadForm">
                     <div class="row">
                         <div class="col-md-8 mb-3">
@@ -431,10 +475,38 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="addToInstantly">
+                                <label class="form-check-label" for="addToInstantly">
+                                    <strong>Auto-Add to Instantly Campaign</strong> - Automatically add verified leads to your Instantly email sequence
+                                    <br><small class="text-muted">Requires Instantly API key and campaign selection</small>
+                                </label>
+                            </div>
+                            <div id="instantlyOptions" class="mt-3 ms-4 d-none">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold">Select Campaign</label>
+                                        <select class="form-select" id="instantlyCampaign">
+                                            <option value="">Configure Instantly account first</option>
+                                        </select>
+                                        <small class="text-muted">Choose which campaign to add verified leads to</small>
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshCampaignList()">
+                                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="text-center mt-3">
                         <button type="submit" class="btn btn-generate" id="generateBtn">
                             <i class="bi bi-magic"></i> Generate Leads
+                        </button>
+                        <button type="button" class="btn btn-danger ms-2 d-none" id="cancelBtn" onclick="cancelJob()">
+                            <i class="bi bi-x-circle"></i> Cancel Generation
                         </button>
                         <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearCacheAndRefresh()">
                             <i class="bi bi-arrow-clockwise"></i> Clear Cache & Refresh
@@ -871,58 +943,52 @@
                     </div>
                 </div>
 
-                <!-- Instantly Campaign Management -->
+                <!-- Instantly Account Management -->
                 <div class="col-md-12 mb-4">
                     <div class="card">
                         <div class="card-header">
-                            <i class="bi bi-envelope-heart"></i> Instantly Campaign Management
-                            <span class="badge bg-warning text-dark ms-2" data-bs-toggle="tooltip" title="Create and manage email campaigns directly from your lead data">CAMPAIGNS</span>
+                            <i class="bi bi-gear-fill"></i> Instantly Account Configuration
+                            <span class="badge bg-info text-white ms-2">SETUP</span>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <h6 class="fw-bold">Create New Campaign</h6>
-                                    <form id="instantlyForm">
+                                    <h6 class="fw-bold">Connect Instantly Account</h6>
+                                    <form id="instantlyAccountForm">
                                         <div class="mb-3">
-                                            <label class="form-label fw-bold">Campaign Name</label>
-                                            <input type="text" class="form-control" id="campaignName" placeholder="e.g., Restaurant Outreach Q1 2024" required>
+                                            <label class="form-label fw-bold">API Key</label>
+                                            <div class="input-group">
+                                                <input type="password" class="form-control" id="instantlyApiKey" placeholder="Enter your Instantly API key">
+                                                <button type="button" class="btn btn-outline-secondary" onclick="toggleApiKeyVisibility()">
+                                                    <i class="bi bi-eye" id="apiKeyToggleIcon"></i>
+                                                </button>
+                                            </div>
+                                            <small class="text-muted">Get your API key from Instantly.ai → Settings → API</small>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Template Type</label>
-                                            <select class="form-select" id="templateType" required>
-                                                <option value="">Select template...</option>
-                                                <option value="real_estate">Real Estate Outreach</option>
-                                                <option value="lawyer">Legal Services</option>
-                                                <option value="restaurant">Restaurant/Hospitality</option>
-                                                <option value="generic">Generic B2B</option>
-                                            </select>
-                                            <small class="text-muted">Pre-built email sequences optimized for different industries</small>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Upload Leads CSV</label>
-                                            <input type="file" class="form-control" id="campaignLeadsFile" accept=".csv" required>
-                                            <small class="text-muted">CSV from your lead generation results</small>
-                                        </div>
-                                        <button type="submit" class="btn btn-gradient">
-                                            <i class="bi bi-rocket"></i> Create Campaign
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-link-45deg"></i> Connect Account
                                         </button>
                                     </form>
                                 </div>
                                 <div class="col-md-6">
-                                    <h6 class="fw-bold">Existing Campaigns</h6>
-                                    <div id="campaignsList">
-                                        <button class="btn btn-outline-primary w-100" onclick="loadInstantlyCampaigns()">
-                                            <i class="bi bi-arrow-clockwise"></i> Load Campaigns
-                                        </button>
+                                    <h6 class="fw-bold">Account Status</h6>
+                                    <div id="instantlyAccountStatus">
+                                        <div class="text-muted">
+                                            <i class="bi bi-circle-fill text-secondary"></i> Not connected
+                                        </div>
+                                    </div>
+                                    <div id="instantlyAccountInfo" class="mt-3 d-none">
+                                        <h6 class="fw-bold">Available Campaigns</h6>
+                                        <div id="instantlyCampaignsList" class="list-group" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;">
+                                            <!-- Campaigns will be loaded here -->
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div id="instantlyResults" class="mt-3 d-none">
-                                <div class="alert alert-success" id="instantlyMessage"></div>
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Provider Status Dashboard -->
                 <div class="col-md-12">
@@ -1094,7 +1160,111 @@
         // Add event listener for expand button
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('expandKeywords').addEventListener('click', expandKeywords);
+            
+            // Handle Instantly campaign checkbox
+            document.getElementById('addToInstantly').addEventListener('change', function() {
+                const instantlyOptions = document.getElementById('instantlyOptions');
+                if (this.checked) {
+                    instantlyOptions.classList.remove('d-none');
+                    loadInstantlyCampaigns();
+                } else {
+                    instantlyOptions.classList.add('d-none');
+                }
+            });
         });
+        
+        // Load Instantly campaigns for main form
+        async function loadInstantlyCampaigns() {
+            console.log('Loading Instantly campaigns...');
+            try {
+                // First check if Instantly is configured
+                const statusResponse = await fetch('/api/instantly/status');
+                const statusResult = await statusResponse.json();
+                console.log('Instantly status:', statusResult);
+                
+                const campaignSelect = document.getElementById('instantlyCampaign');
+                
+                if (!statusResult.success) {
+                    console.log('Instantly not configured');
+                    campaignSelect.innerHTML = '<option value="">Configure Instantly account first</option>';
+                    return;
+                }
+                
+                // Load campaigns
+                console.log('Fetching campaigns...');
+                const response = await fetch('/api/instantly/campaigns');
+                const campaigns = await response.json();
+                console.log('Campaigns received:', campaigns);
+                
+                campaignSelect.innerHTML = '<option value="">Select Campaign</option>';
+                
+                if (response.ok && campaigns.length > 0) {
+                    console.log(`Adding ${campaigns.length} campaigns to dropdown`);
+                    campaigns.forEach(campaign => {
+                        const option = document.createElement('option');
+                        option.value = campaign.id;
+                        option.textContent = campaign.name;
+                        campaignSelect.appendChild(option);
+                        console.log(`Added campaign: ${campaign.name} (${campaign.id})`);
+                    });
+                } else {
+                    console.log('No campaigns found or response not ok');
+                    campaignSelect.innerHTML = '<option value="">No campaigns found</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load campaigns:', error);
+                document.getElementById('instantlyCampaign').innerHTML = '<option value="">Error loading campaigns</option>';
+            }
+        }
+        
+        // Refresh campaign list
+        function refreshCampaignList() {
+            loadInstantlyCampaigns();
+        }
+        
+        // Cancel job function
+        async function cancelJob() {
+            if (!currentJobId) {
+                console.log('No active job to cancel');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/cancel/${currentJobId}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    console.log('Job cancelled successfully');
+                    
+                    // Stop polling
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    }
+                    
+                    // Reset UI
+                    resetUI();
+                    showError('Lead generation cancelled by user');
+                } else {
+                    console.error('Failed to cancel job');
+                    showError('Failed to cancel job');
+                }
+            } catch (error) {
+                console.error('Error cancelling job:', error);
+                showError('Error cancelling job');
+            }
+        }
+        
+        // Reset UI to initial state
+        function resetUI() {
+            document.getElementById('generateBtn').classList.remove('d-none');
+            document.getElementById('cancelBtn').classList.add('d-none');
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('spinner').classList.add('d-none');
+            document.getElementById('progressSection').classList.add('d-none');
+            currentJobId = null;
+        }
 
         document.getElementById('leadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1113,12 +1283,35 @@
             const generateEmails = document.getElementById('generateEmails').checked;
             const exportVerifiedOnly = document.getElementById('exportVerifiedOnly').checked;
             const advancedScraping = document.getElementById('advancedScraping').checked;
+            const addToInstantly = document.getElementById('addToInstantly').checked;
+            const instantlyCampaign = document.getElementById('instantlyCampaign').value;
             
-            console.log('Form values:', {searchQueries, limit, verifyEmails, generateEmails, exportVerifiedOnly, advancedScraping});
+            // Get selected providers
+            const providers = [];
+            if (document.getElementById('singleProviderGoogle').checked) providers.push('google_maps');
+            if (document.getElementById('singleProviderOSM').checked) providers.push('openstreetmap');
+            if (document.getElementById('singleProviderYP').checked) providers.push('yellowpages');
+            
+            if (providers.length === 0) {
+                showError('Please select at least one data source');
+                return;
+            }
+            
+            console.log('Form values:', {searchQueries, limit, verifyEmails, generateEmails, exportVerifiedOnly, advancedScraping, providers, addToInstantly, instantlyCampaign});
+            
+            // Validate Instantly options if enabled
+            if (addToInstantly && !instantlyCampaign) {
+                showError('Please select an Instantly campaign');
+                return;
+            }
             
             // Reset UI
             document.getElementById('errorSection').classList.add('d-none');
             document.getElementById('resultsSection').classList.add('d-none');
+            
+            // Show cancel button, hide generate button
+            document.getElementById('generateBtn').classList.add('d-none');
+            document.getElementById('cancelBtn').classList.remove('d-none');
             document.getElementById('progressSection').classList.remove('d-none');
             document.getElementById('generateBtn').disabled = true;
             document.getElementById('spinner').classList.remove('d-none');
@@ -1136,7 +1329,10 @@
                         verify_emails: verifyEmails, 
                         generate_emails: generateEmails, 
                         export_verified_only: exportVerifiedOnly, 
-                        advanced_scraping: advancedScraping
+                        advanced_scraping: advancedScraping,
+                        providers: providers, // Include selected providers
+                        add_to_instantly: addToInstantly,
+                        instantly_campaign: instantlyCampaign
                     })
                 });
                 
@@ -1274,16 +1470,19 @@
                 if (data.status === 'completed') {
                     console.log('Job completed, showing results...');
                     clearInterval(pollInterval);
+                    resetUI();
                     showResults(data);
                 } else if (data.status === 'error') {
                     console.log('Job error:', data.error);
                     clearInterval(pollInterval);
+                    resetUI();
                     showError(data.error || 'Job failed');
                 }
                 
             } catch (error) {
                 console.error('Poll error:', error);
                 clearInterval(pollInterval);
+                resetUI();
                 showError('Connection error: ' + error.message);
             }
         }
@@ -2140,101 +2339,118 @@
             URL.revokeObjectURL(url);
         });
 
-        // Instantly Campaign Management
-        document.getElementById('instantlyForm').addEventListener('submit', async function(e) {
+        // Instantly Account Management
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('instantlyApiKey');
+            const icon = document.getElementById('apiKeyToggleIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+        
+        document.getElementById('instantlyAccountForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const campaignName = document.getElementById('campaignName').value;
-            const templateType = document.getElementById('templateType').value;
-            const fileInput = document.getElementById('campaignLeadsFile');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a leads CSV file');
+            const apiKey = document.getElementById('instantlyApiKey').value;
+            if (!apiKey) {
+                alert('Please enter your Instantly API key');
                 return;
             }
             
             try {
-                // Read and parse CSV
-                const text = await file.text();
-                const lines = text.split('\n');
-                const headers = lines[0].split(',').map(h => h.trim());
-                
-                const leads = [];
-                for (let i = 1; i < lines.length; i++) {
-                    if (lines[i].trim()) {
-                        const values = lines[i].split(',').map(v => v.trim());
-                        const lead = {};
-                        headers.forEach((header, index) => {
-                            lead[header] = values[index] || '';
-                        });
-                        leads.push(lead);
-                    }
-                }
-                
-                const response = await fetch('/api/instantly/create-campaign', {
+                // Save API key and test connection
+                const response = await fetch('/api/instantly/configure', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        leads: leads,
-                        campaign_name: campaignName,
-                        template_type: templateType
-                    })
+                    body: JSON.stringify({ api_key: apiKey })
                 });
                 
-                const data = await response.json();
-                if (data.success) {
-                    displayInstantlyResults(data);
+                const result = await response.json();
+                if (result.success) {
+                    updateInstantlyAccountStatus(result);
+                    loadInstantlyAccountCampaigns();
                 } else {
-                    alert('Campaign creation failed: ' + data.error);
+                    alert('Failed to connect: ' + result.error);
                 }
             } catch (error) {
-                console.error('Campaign creation error:', error);
-                alert('Campaign creation failed');
+                console.error('Instantly account setup error:', error);
+                alert('Connection failed');
             }
         });
-
-        function displayInstantlyResults(data) {
-            const resultsDiv = document.getElementById('instantlyResults');
-            const messageDiv = document.getElementById('instantlyMessage');
+        
+        function updateInstantlyAccountStatus(result) {
+            const statusDiv = document.getElementById('instantlyAccountStatus');
+            const infoDiv = document.getElementById('instantlyAccountInfo');
             
-            messageDiv.innerHTML = `
-                <h6>Campaign Created Successfully!</h6>
-                <p>Campaign "${data.campaign_created.campaign.name}" has been created with ${data.campaign_created.total_leads} leads.</p>
-                <p><strong>Campaign ID:</strong> ${data.campaign_created.campaign.campaign_id}</p>
-            `;
-            
-            resultsDiv.classList.remove('d-none');
-            loadInstantlyCampaigns(); // Refresh campaigns list
+            if (result.success) {
+                statusDiv.innerHTML = `
+                    <div class="text-success">
+                        <i class="bi bi-circle-fill text-success"></i> Connected
+                    </div>
+                    <small class="text-muted">Account: ${result.account_info || 'Connected successfully'}</small>
+                `;
+                infoDiv.classList.remove('d-none');
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="text-danger">
+                        <i class="bi bi-circle-fill text-danger"></i> Connection failed
+                    </div>
+                    <small class="text-muted">${result.error}</small>
+                `;
+                infoDiv.classList.add('d-none');
+            }
         }
-
-        async function loadInstantlyCampaigns() {
+        
+        async function loadInstantlyAccountCampaigns() {
             try {
                 const response = await fetch('/api/instantly/campaigns');
                 const campaigns = await response.json();
                 
-                const listDiv = document.getElementById('campaignsList');
-                if (campaigns.length === 0) {
-                    listDiv.innerHTML = '<p class="text-muted">No campaigns found. Create one above!</p>';
-                } else {
-                    let html = '<div class="list-group">';
+                const campaignsList = document.getElementById('instantlyCampaignsList');
+                campaignsList.innerHTML = '';
+                
+                if (response.ok && campaigns.length > 0) {
                     campaigns.forEach(campaign => {
-                        html += `
-                            <div class="list-group-item">
-                                <h6 class="fw-bold">${campaign.name}</h6>
-                                <small class="text-muted">Status: ${campaign.status || 'Active'}</small>
+                        const campaignItem = document.createElement('div');
+                        campaignItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        campaignItem.innerHTML = `
+                            <div>
+                                <strong>${campaign.name}</strong>
+                                <br><small class="text-muted">Status: ${campaign.status || 'Active'}</small>
                             </div>
+                            <span class="badge bg-primary rounded-pill">${campaign.id}</span>
                         `;
+                        campaignsList.appendChild(campaignItem);
                     });
-                    html += '</div>';
-                    listDiv.innerHTML = html;
+                } else {
+                    campaignsList.innerHTML = '<div class="text-muted">No campaigns found</div>';
                 }
             } catch (error) {
                 console.error('Failed to load campaigns:', error);
-                document.getElementById('campaignsList').innerHTML = 
-                    '<p class="text-danger">Failed to load campaigns. Check API configuration.</p>';
+                document.getElementById('instantlyCampaignsList').innerHTML = '<div class="text-danger">Error loading campaigns</div>';
             }
         }
+        
+        // Check Instantly connection on page load
+        async function checkInstantlyConnection() {
+            try {
+                const response = await fetch('/api/instantly/status');
+                const result = await response.json();
+                updateInstantlyAccountStatus(result);
+                
+                if (result.success) {
+                    loadInstantlyAccountCampaigns();
+                }
+            } catch (error) {
+                console.error('Failed to check Instantly status:', error);
+            }
+        }
+
 
         // Provider Status Check
         async function checkProviderStatus() {
@@ -2280,6 +2496,9 @@
             
             // Auto-check provider status when tab is shown
             checkProviderStatus();
+            
+            // Auto-check Instantly connection when tab is shown
+            checkInstantlyConnection();
         });
 
         checkHealth();

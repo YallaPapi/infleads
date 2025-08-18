@@ -236,6 +236,32 @@ class LeadScheduler:
         
         return items
         
+    def cancel_queue_item(self, queue_id: int) -> bool:
+        """Cancel a specific queue item"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM queue 
+            WHERE id = ? AND status = 'pending'
+        ''', (queue_id,))
+        conn.commit()
+        deleted = cursor.rowcount > 0
+        conn.close()
+        return deleted
+    
+    def clear_queue(self) -> int:
+        """Clear all pending queue items"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM queue 
+            WHERE status = 'pending'
+        ''')
+        count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return count
+        
     def get_next_queue_item(self) -> Optional[Dict]:
         """Get the next item to process from the queue"""
         conn = sqlite3.connect(self.db_path)

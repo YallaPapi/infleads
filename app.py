@@ -29,6 +29,7 @@ from src.email_verifier import MailTesterVerifier, EmailStatus
 from src.scheduler import LeadScheduler
 from src.email_scraper import WebsiteEmailScraper
 from src.keyword_expander import KeywordExpander
+from src.search_history import SearchHistoryManager
 
 app = Flask(__name__)
 CORS(app)
@@ -50,6 +51,9 @@ apollo_jobs = {}
 
 # Initialize scheduler
 scheduler = LeadScheduler()
+
+# Initialize search history manager
+search_history = SearchHistoryManager()
 
 def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = True):
     """Process a scheduled search"""
@@ -490,6 +494,20 @@ def process_leads(job):
         job.progress = 100
         job.message = f"Successfully generated {len(final_leads)} leads!"
         
+        # Track in search history
+        try:
+            search_history.add_search(
+                query=job.query,
+                limit_leads=job.limit,
+                verify_emails=job.verify_emails,
+                generate_emails=job.generate_emails,
+                export_verified_only=job.export_verified_only,
+                advanced_scraping=job.advanced_scraping,
+                results_count=len(final_leads)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to track search history: {e}")
+        
     except Exception as e:
         logger.error(f"Job failed: {e}", exc_info=True)
         job.status = "error"
@@ -761,6 +779,156 @@ def download_apollo(filename):
         return jsonify({'error': 'File not found'}), 404
     
     return send_file(filepath, as_attachment=True, mimetype='text/csv', download_name=filename)
+
+# Search History & Favorites API
+@app.route('/api/search-history')
+def get_search_history():
+    """Get recent search history"""
+    history = search_history.get_history(limit=50)
+    return jsonify(history)
+
+@app.route('/api/search-suggestions')
+def get_search_suggestions():
+    """Get search suggestions based on prefix"""
+    prefix = request.args.get('q', '')
+    if len(prefix) < 2:
+        return jsonify([])
+    suggestions = search_history.get_suggestions(prefix, limit=10)
+    return jsonify(suggestions)
+
+@app.route('/api/favorites', methods=['GET', 'POST'])
+def handle_favorites():
+    """Get or add favorite searches"""
+    if request.method == 'GET':
+        favorites = search_history.get_favorites()
+        return jsonify(favorites)
+    else:
+        data = request.json
+        favorite_id = search_history.add_favorite(
+            name=data.get('name'),
+            query=data.get('query'),
+            limit_leads=data.get('limit_leads', 25),
+            verify_emails=data.get('verify_emails', False),
+            generate_emails=data.get('generate_emails', False),
+            export_verified_only=data.get('export_verified_only', False),
+            advanced_scraping=data.get('advanced_scraping', False)
+        )
+        return jsonify({'id': favorite_id, 'success': True})
+
+@app.route('/api/favorites/<int:favorite_id>', methods=['DELETE'])
+def delete_favorite(favorite_id):
+    """Delete a favorite search"""
+    search_history.delete_favorite(favorite_id)
+    return jsonify({'success': True})
+
+@app.route('/api/popular-searches')
+def get_popular_searches():
+    """Get most popular searches"""
+    popular = search_history.get_popular_searches(limit=10)
+    return jsonify(popular)
+
+# CSV Template Download
+@app.route('/api/csv-template')
+def download_csv_template():
+    """Download CSV template for bulk upload"""
+    template_data = {
+        'name': ['Search 1', 'Search 2', 'Search 3'],
+        'query': ['dentists in New York', 'lawyers in Los Angeles', 'restaurants in Chicago'],
+        'limit_leads': [100, 50, 25],
+        'verify_emails': [True, True, False],
+        'interval_minutes': [15, 30, 60]
+    }
+    df = pd.DataFrame(template_data)
+    
+    # Create temp file
+    temp_file = 'temp/search_template.csv'
+    os.makedirs('temp', exist_ok=True)
+    df.to_csv(temp_file, index=False)
+    
+    return send_file(temp_file, as_attachment=True, download_name='search_template.csv')
+
+# Export in different formats
+@app.route('/api/export/<job_id>/<format>')
+def export_format(job_id, format):
+    """Export job results in different formats (json, xml, xlsx)"""
+    if job_id not in jobs:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    job = jobs[job_id]
+    if not job.leads_data:
+        return jsonify({'error': 'No data to export'}), 404
+    
+    # Create temp directory
+    os.makedirs('temp', exist_ok=True)
+    
+    if format == 'json':
+        temp_file = f'temp/{job_id}.json'
+        with open(temp_file, 'w') as f:
+            json.dump(job.leads_data, f, indent=2)
+        return send_file(temp_file, as_attachment=True, download_name=f'{job.query}.json')
+    
+    elif format == 'xml':
+        temp_file = f'temp/{job_id}.xml'
+        df = pd.DataFrame(job.leads_data)
+        df.to_xml(temp_file, root_name='leads', row_name='lead')
+        return send_file(temp_file, as_attachment=True, download_name=f'{job.query}.xml')
+    
+    elif format == 'xlsx':
+        temp_file = f'temp/{job_id}.xlsx'
+        df = pd.DataFrame(job.leads_data)
+        df.to_excel(temp_file, index=False, sheet_name='Leads')
+        return send_file(temp_file, as_attachment=True, download_name=f'{job.query}.xlsx')
+    
+    else:
+        return jsonify({'error': 'Invalid format. Use json, xml, or xlsx'}), 400
+
+# Bulk operations for queue
+@app.route('/api/queue/bulk-delete', methods=['POST'])
+def bulk_delete_queue():
+    """Delete multiple queue items"""
+    data = request.json
+    queue_ids = data.get('queue_ids', [])
+    
+    for queue_id in queue_ids:
+        scheduler.cancel_queue_item(queue_id)
+    
+    return jsonify({'success': True, 'deleted': len(queue_ids)})
+
+@app.route('/api/queue/clear', methods=['POST'])
+def clear_queue():
+    """Clear entire queue"""
+    count = scheduler.clear_queue()
+    return jsonify({'success': True, 'cleared': count})
+
+# Provider status
+@app.route('/api/providers/status')
+def get_providers_status():
+    """Get status of all available providers"""
+    from src.providers import get_available_providers
+    
+    providers = get_available_providers()
+    status = []
+    
+    for provider_name in providers:
+        try:
+            provider = get_provider(provider_name)
+            # Test with a simple query
+            test_results = provider.fetch_places("test", 1)
+            status.append({
+                'name': provider_name,
+                'status': 'active',
+                'available': True,
+                'test_success': len(test_results) > 0 if test_results else False
+            })
+        except Exception as e:
+            status.append({
+                'name': provider_name,
+                'status': 'error',
+                'available': False,
+                'error': str(e)
+            })
+    
+    return jsonify(status)
 
 @app.route('/api/health')
 def health_check():

@@ -862,11 +862,145 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Implement API Key Management System",
+        "description": "Create a system to manage Yelp API keys, including storage, validation, and error handling for missing or invalid keys.",
+        "details": "Develop a configuration module that allows users to input their Yelp API key. Store the key securely in the application's configuration. Implement validation by making a test call to the Yelp API. Create clear error messages and setup instructions for users. Implement graceful degradation when the API key is missing or invalid by falling back to Google Maps only.\n\nCode structure:\n```python\nclass YelpAPIConfig:\n    def __init__(self):\n        self.api_key = None\n        self.is_valid = False\n    \n    def set_api_key(self, key):\n        self.api_key = key\n        self.is_valid = self.validate_key()\n        return self.is_valid\n    \n    def validate_key(self):\n        # Make test call to Yelp API\n        # Return True if valid, False otherwise\n        pass\n        \n    def get_setup_instructions(self):\n        # Return formatted instructions for obtaining API key\n        pass\n```",
+        "testStrategy": "Unit tests for key validation logic. Integration test with mock API responses. UI test for key input form. Test cases for valid key, invalid key, and missing key scenarios. Verify graceful degradation when key is missing.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Implement Yelp Business Search API Client",
+        "description": "Create a client for the Yelp Fusion API that handles authentication, request formation, and response parsing for business searches.",
+        "details": "Develop a client class that interfaces with the Yelp Fusion API. Implement authentication using the Bearer token method with the user's API key. Create methods to search businesses by category and location. Handle pagination to support retrieving up to 1000 results (with 50 per request). Implement rate limit handling with exponential backoff for retries. Use the requests library for HTTP calls.\n\nExample implementation:\n```python\nclass YelpAPIClient:\n    def __init__(self, api_key):\n        self.api_key = api_key\n        self.base_url = 'https://api.yelp.com/v3'\n        self.headers = {\n            'Authorization': f'Bearer {self.api_key}'\n        }\n    \n    def search_businesses(self, location, category=None, limit=50, offset=0):\n        endpoint = f'{self.base_url}/businesses/search'\n        params = {\n            'location': location,\n            'categories': category,\n            'limit': min(limit, 50),\n            'offset': offset\n        }\n        \n        response = requests.get(endpoint, headers=self.headers, params=params)\n        \n        if response.status_code == 429:  # Rate limit exceeded\n            # Implement exponential backoff\n            pass\n            \n        return response.json() if response.status_code == 200 else None\n```",
+        "testStrategy": "Unit tests with mocked API responses. Test search with various parameters. Test pagination logic. Test rate limit handling and retries. Integration tests with the actual API using a test key. Performance testing to ensure response times under 3 seconds for 25 businesses.",
+        "priority": "high",
+        "dependencies": [
+          21
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Implement Data Normalization Module",
+        "description": "Create a module to normalize Yelp business data into the R27 schema format, handling data mapping and validation.",
+        "details": "Develop a data normalization module that maps Yelp API response fields to the R27 schema. Implement field extraction and validation for business name, phone, website, address, coordinates, rating, review count, and business type. Handle missing data gracefully by providing default values or placeholders. Implement phone number and website validation.\n\nExample implementation:\n```python\nclass YelpDataNormalizer:\n    def normalize_business(self, yelp_business):\n        normalized = {\n            'Name': yelp_business.get('name', ''),\n            'Phone': self._normalize_phone(yelp_business.get('display_phone', '')),\n            'Website': yelp_business.get('url', ''),  # Yelp URL as fallback\n            'Address': self._format_address(yelp_business.get('location', {}).get('display_address', [])),\n            'Latitude': yelp_business.get('coordinates', {}).get('latitude', None),\n            'Longitude': yelp_business.get('coordinates', {}).get('longitude', None),\n            'YelpRating': yelp_business.get('rating', None),\n            'YelpReviews': yelp_business.get('review_count', 0),\n            'BusinessType': self._get_business_type(yelp_business.get('categories', []))\n        }\n        return normalized\n        \n    def _normalize_phone(self, phone):\n        # Clean and validate phone number\n        pass\n        \n    def _format_address(self, address_parts):\n        # Join address parts into a single string\n        return ' '.join(address_parts) if address_parts else ''\n        \n    def _get_business_type(self, categories):\n        # Extract primary category or map to standard business types\n        return categories[0]['title'] if categories else ''\n```",
+        "testStrategy": "Unit tests for each normalization function. Test with complete data, partial data, and missing data. Verify correct mapping of all fields according to schema. Test phone and website validation. Integration test with sample Yelp API responses.",
+        "priority": "high",
+        "dependencies": [
+          22
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Implement Error Handling and Logging System",
+        "description": "Create a comprehensive error handling and logging system for the Yelp API integration to manage API errors, rate limits, and network issues.",
+        "details": "Develop an error handling system that catches and processes different types of errors: API key validation errors, rate limit exceeded errors, network timeouts, and invalid location errors. Implement appropriate user-facing error messages. Create a logging system to track API usage, errors, and performance metrics. Implement retry logic with exponential backoff for transient errors.\n\nExample implementation:\n```python\nclass YelpErrorHandler:\n    def __init__(self, logger):\n        self.logger = logger\n        \n    def handle_error(self, error_type, details=None):\n        if error_type == 'invalid_key':\n            self.logger.error(f'Invalid API key: {details}')\n            return {\n                'error': 'Invalid Yelp API key',\n                'message': 'Please check your API key and try again.',\n                'setup_instructions': get_setup_instructions()\n            }\n        elif error_type == 'rate_limit':\n            self.logger.warning('Yelp API rate limit exceeded')\n            return {\n                'error': 'Rate limit exceeded',\n                'message': 'Yelp API rate limit reached. Try again later or reduce search frequency.'\n            }\n        # Handle other error types...\n```",
+        "testStrategy": "Unit tests for each error type. Test retry logic with mocked responses. Test logging output for different scenarios. Integration tests with forced error conditions. Verify user-facing error messages are clear and helpful.",
+        "priority": "medium",
+        "dependencies": [
+          22
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Implement Caching System for API Responses",
+        "description": "Create a caching system to store Yelp API responses and reduce API calls to stay within rate limits.",
+        "details": "Develop a caching system that stores Yelp API responses for 1 hour to preserve rate limits. Implement cache key generation based on search parameters. Create cache invalidation logic. Ensure thread-safety for concurrent requests. Implement cache hit/miss metrics.\n\nExample implementation:\n```python\nclass YelpResponseCache:\n    def __init__(self, cache_duration=3600):  # 1 hour in seconds\n        self.cache = {}\n        self.cache_duration = cache_duration\n        self.lock = threading.Lock()\n        self.hits = 0\n        self.misses = 0\n        \n    def get(self, key):\n        with self.lock:\n            if key in self.cache:\n                entry = self.cache[key]\n                if time.time() - entry['timestamp'] < self.cache_duration:\n                    self.hits += 1\n                    return entry['data']\n                else:\n                    # Expired\n                    del self.cache[key]\n            self.misses += 1\n            return None\n            \n    def set(self, key, data):\n        with self.lock:\n            self.cache[key] = {\n                'data': data,\n                'timestamp': time.time()\n            }\n            \n    def generate_key(self, location, category, limit, offset):\n        # Create a unique key based on search parameters\n        return f\"{location}:{category}:{limit}:{offset}\"\n```",
+        "testStrategy": "Unit tests for cache operations (get, set, key generation). Test cache expiration logic. Test concurrent access with multiple threads. Performance tests to verify caching improves response times. Integration tests with the API client to verify reduced API calls.",
+        "priority": "medium",
+        "dependencies": [
+          22
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 26,
+        "title": "Integrate Yelp Provider into Multi-Provider Search System",
+        "description": "Integrate the Yelp API client into the existing multi-provider search system to allow combined searches across Google Maps and Yelp.",
+        "details": "Modify the existing multi-provider search system to include Yelp as a data source. Implement provider selection logic to enable/disable Yelp searches. Create a unified search interface that combines results from both Google Maps and Yelp. Handle duplicate business entries that may appear in both sources. Implement provider status indicators in the search results.\n\nExample implementation:\n```python\nclass MultiProviderSearch:\n    def __init__(self, google_client, yelp_client=None):\n        self.google_client = google_client\n        self.yelp_client = yelp_client\n        self.providers_enabled = {\n            'google': True,\n            'yelp': yelp_client is not None\n        }\n        \n    def search(self, query, location, providers=None):\n        results = []\n        if providers is None:\n            providers = self.providers_enabled\n            \n        if providers.get('google', False):\n            google_results = self.google_client.search(query, location)\n            for result in google_results:\n                result['provider'] = 'google'\n                results.append(result)\n                \n        if providers.get('yelp', False) and self.yelp_client:\n            yelp_results = self.yelp_client.search_businesses(location, category=query)\n            normalized_results = YelpDataNormalizer().normalize_businesses(yelp_results)\n            for result in normalized_results:\n                result['provider'] = 'yelp'\n                results.append(result)\n                \n        # Deduplicate results\n        return self._deduplicate_results(results)\n        \n    def _deduplicate_results(self, results):\n        # Identify and merge duplicate business entries\n        pass\n```",
+        "testStrategy": "Unit tests for provider selection logic. Test result combination and deduplication. Integration tests with both providers enabled/disabled. Test with mock responses from both APIs. UI tests to verify provider status indicators. Performance testing with multiple providers.",
+        "priority": "high",
+        "dependencies": [
+          22,
+          23,
+          24,
+          25
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Implement CSV Export with Yelp Data",
+        "description": "Enhance the existing CSV export functionality to include Yelp-specific data fields and proper field mapping.",
+        "details": "Modify the CSV export module to include Yelp-specific fields such as YelpRating and YelpReviews. Ensure proper field mapping according to the R27 schema. Handle provider-specific data fields gracefully. Implement header customization based on available data sources.\n\nExample implementation:\n```python\nclass CSVExporter:\n    def __init__(self):\n        self.base_fields = ['Name', 'Phone', 'Website', 'Address', 'Latitude', 'Longitude', 'BusinessType']\n        self.provider_fields = {\n            'yelp': ['YelpRating', 'YelpReviews', 'YelpURL'],\n            'google': ['GoogleRating', 'GoogleReviews', 'GoogleURL']\n        }\n        \n    def export_to_csv(self, results, filename, include_provider_fields=True):\n        # Determine which providers are present in the results\n        providers = set(result.get('provider', '') for result in results)\n        \n        # Build header row\n        headers = self.base_fields.copy()\n        if include_provider_fields:\n            for provider in providers:\n                if provider in self.provider_fields:\n                    headers.extend(self.provider_fields[provider])\n        \n        with open(filename, 'w', newline='') as csvfile:\n            writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')\n            writer.writeheader()\n            for result in results:\n                writer.writerow(result)\n```",
+        "testStrategy": "Unit tests for CSV generation with different field combinations. Test with results from different providers. Verify correct headers and field mapping. Test with missing data fields. Integration test with actual search results.",
+        "priority": "medium",
+        "dependencies": [
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Implement UI Components for Yelp Integration",
+        "description": "Create UI components to allow users to enable/disable Yelp searches, display Yelp-specific data, and show provider status.",
+        "details": "Develop UI components for Yelp integration: a checkbox to enable/disable Yelp searches, display elements for Yelp-specific data (ratings, review counts), and provider status indicators. Implement API key setup form with validation feedback. Create help tooltips for Yelp-specific features.\n\nExample implementation:\n```python\nclass YelpUIComponents:\n    def __init__(self, yelp_config):\n        self.yelp_config = yelp_config\n        \n    def render_provider_checkbox(self):\n        # Return HTML/component for Yelp provider checkbox\n        enabled = self.yelp_config.is_valid\n        return f'''\n        <div class=\"provider-checkbox\">\n            <input type=\"checkbox\" id=\"yelp-provider\" name=\"providers\" value=\"yelp\" \n                   {\"checked\" if enabled else \"\"} {\"disabled\" if not enabled else \"\"}>\n            <label for=\"yelp-provider\">Yelp</label>\n            <span class=\"provider-status {\"active\" if enabled else \"inactive\"}\">\n                {\"Active\" if enabled else \"Inactive - API key required\"}\n            </span>\n        </div>\n        '''\n        \n    def render_api_key_setup_form(self):\n        # Return HTML/component for API key setup form\n        pass\n        \n    def render_yelp_result_card(self, business):\n        # Return HTML/component for displaying a Yelp business result\n        pass\n```",
+        "testStrategy": "Unit tests for UI component rendering. Test with different API key states (valid, invalid, missing). UI tests for checkbox functionality. Test result display with various data combinations. User acceptance testing for the setup form.",
+        "priority": "medium",
+        "dependencies": [
+          21,
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Implement Additional Business Data Extraction",
+        "description": "Enhance the data normalization to extract additional business data including hours, photo URLs, and Yelp business URLs.",
+        "details": "Extend the data normalization module to extract and process additional business data: business hours, photo URLs, and Yelp business URLs. Implement proper formatting and validation for these fields. Handle missing data gracefully.\n\nExample implementation:\n```python\nclass EnhancedYelpDataNormalizer(YelpDataNormalizer):\n    def normalize_business(self, yelp_business):\n        # Get base normalized data\n        normalized = super().normalize_business(yelp_business)\n        \n        # Add enhanced data\n        normalized.update({\n            'BusinessHours': self._format_hours(yelp_business.get('hours', [])),\n            'PhotoURLs': self._extract_photo_urls(yelp_business.get('photos', [])),\n            'YelpURL': yelp_business.get('url', '')\n        })\n        \n        return normalized\n        \n    def _format_hours(self, hours_data):\n        if not hours_data:\n            return None\n            \n        formatted_hours = {}\n        for day in hours_data[0].get('open', []):\n            day_name = self._get_day_name(day.get('day'))\n            start = self._format_time(day.get('start'))\n            end = self._format_time(day.get('end'))\n            formatted_hours[day_name] = f\"{start} - {end}\"\n            \n        return formatted_hours\n        \n    def _extract_photo_urls(self, photos):\n        return photos[:5] if photos else []  # Limit to first 5 photos\n        \n    def _get_day_name(self, day_num):\n        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']\n        return days[day_num] if 0 <= day_num < 7 else 'Unknown'\n        \n    def _format_time(self, time_str):\n        # Convert 24-hour format to 12-hour format\n        if not time_str or len(time_str) != 4:\n            return ''\n            \n        hour = int(time_str[:2])\n        minute = time_str[2:]\n        period = 'AM' if hour < 12 else 'PM'\n        hour = hour % 12\n        hour = 12 if hour == 0 else hour\n        \n        return f\"{hour}:{minute} {period}\"\n```",
+        "testStrategy": "Unit tests for each extraction function. Test with complete data, partial data, and missing data. Verify correct formatting of business hours. Test photo URL extraction limits. Integration test with sample Yelp API responses containing these additional fields.",
+        "priority": "low",
+        "dependencies": [
+          23
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 30,
+        "title": "Implement Performance Monitoring and Reporting",
+        "description": "Create a system to monitor and report on Yelp API usage, performance metrics, and success rates.",
+        "details": "Develop a performance monitoring system that tracks: API call counts, response times, success/error rates, cache hit/miss ratios, and rate limit usage. Implement reporting functionality to display these metrics in the UI. Create alerting for approaching rate limits.\n\nExample implementation:\n```python\nclass YelpPerformanceMonitor:\n    def __init__(self):\n        self.metrics = {\n            'api_calls': 0,\n            'successful_calls': 0,\n            'failed_calls': 0,\n            'total_response_time': 0,\n            'cache_hits': 0,\n            'cache_misses': 0,\n            'rate_limit_remaining': 5000,  # Default daily limit\n            'rate_limit_reset': None\n        }\n        self.lock = threading.Lock()\n        \n    def record_api_call(self, success, response_time, rate_limit_remaining=None):\n        with self.lock:\n            self.metrics['api_calls'] += 1\n            if success:\n                self.metrics['successful_calls'] += 1\n            else:\n                self.metrics['failed_calls'] += 1\n            self.metrics['total_response_time'] += response_time\n            if rate_limit_remaining is not None:\n                self.metrics['rate_limit_remaining'] = rate_limit_remaining\n                \n    def record_cache_access(self, hit):\n        with self.lock:\n            if hit:\n                self.metrics['cache_hits'] += 1\n            else:\n                self.metrics['cache_misses'] += 1\n                \n    def get_success_rate(self):\n        total = self.metrics['successful_calls'] + self.metrics['failed_calls']\n        return (self.metrics['successful_calls'] / total) * 100 if total > 0 else 0\n        \n    def get_average_response_time(self):\n        return self.metrics['total_response_time'] / self.metrics['api_calls'] if self.metrics['api_calls'] > 0 else 0\n        \n    def get_cache_hit_ratio(self):\n        total = self.metrics['cache_hits'] + self.metrics['cache_misses']\n        return (self.metrics['cache_hits'] / total) * 100 if total > 0 else 0\n        \n    def get_rate_limit_usage_percent(self):\n        used = 5000 - self.metrics['rate_limit_remaining']\n        return (used / 5000) * 100\n        \n    def generate_report(self):\n        # Return formatted report of all metrics\n        pass\n```",
+        "testStrategy": "Unit tests for metric calculations. Test with simulated API calls and cache accesses. Test thread safety with concurrent updates. Integration test with actual API usage. UI tests for metrics display. Test alerting functionality for rate limit thresholds.",
+        "priority": "low",
+        "dependencies": [
+          22,
+          25,
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-14T14:53:56.536Z",
-      "updated": "2025-08-15T15:16:17.516Z",
+      "updated": "2025-08-18T03:13:50.704Z",
       "description": "Tasks for master context"
     }
   }

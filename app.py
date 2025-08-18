@@ -30,6 +30,10 @@ from src.scheduler import LeadScheduler
 from src.email_scraper import WebsiteEmailScraper
 from src.keyword_expander import KeywordExpander
 from src.search_history import SearchHistoryManager
+from src.providers.openstreetmap_provider import OpenStreetMapProvider
+from src.providers.yellowpages_api_provider import YellowPagesAPIProvider
+from src.lead_enrichment import LeadEnricher
+from src.instantly_integration import InstantlyIntegration, CampaignTemplates, convert_r27_leads_to_instantly, create_campaign_from_r27_leads
 
 app = Flask(__name__)
 CORS(app)
@@ -1131,6 +1135,244 @@ def download_schedule_template():
                     as_attachment=True, 
                     mimetype='text/csv',
                     download_name='schedule_template.csv')
+
+# Enhanced Provider and Enrichment Endpoints
+
+@app.route('/api/providers/available', methods=['GET'])
+def get_provider_status():
+    """Get list of available data providers"""
+    providers = {
+        'google_maps': {
+            'name': 'Google Maps Places API',
+            'configured': bool(os.getenv('GOOGLE_API_KEY')),
+            'description': 'Primary business directory search',
+            'cost': 'Paid API'
+        },
+        'openstreetmap': {
+            'name': 'OpenStreetMap Overpass API',
+            'configured': True,  # Always available
+            'description': 'Free open-source business directory',
+            'cost': 'Completely Free'
+        },
+        'yellowpages': {
+            'name': 'Yellow Pages API',
+            'configured': True,  # Hosted API, no key required
+            'description': 'US business directory via hosted API',
+            'cost': 'Free'
+        }
+    }
+    return jsonify(providers)
+
+
+@app.route('/api/enrich-leads', methods=['POST'])
+def enrich_leads():
+    """Enrich existing leads with additional data"""
+    try:
+        data = request.json
+        leads = data.get('leads', [])
+        
+        if not leads:
+            return jsonify({'error': 'No leads provided'}), 400
+            
+        enrichment = LeadEnricher()
+        enriched_leads = []
+        
+        for lead in leads:
+            enriched = enrichment.enrich_lead(lead)
+            enriched_leads.append(enriched)
+            
+        return jsonify({
+            'success': True,
+            'enriched_leads': enriched_leads,
+            'total_processed': len(leads)
+        })
+        
+    except Exception as e:
+        logger.error(f"Lead enrichment failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/campaigns', methods=['GET'])
+def get_instantly_campaigns():
+    """Get Instantly campaigns"""
+    try:
+        api_key = os.getenv('INSTANTLY_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'Instantly API key not configured'}), 400
+            
+        instantly = InstantlyIntegration(api_key)
+        campaigns = instantly.get_campaigns()
+        
+        return jsonify(campaigns)
+        
+    except Exception as e:
+        logger.error(f"Failed to get Instantly campaigns: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/create-campaign', methods=['POST'])
+def create_instantly_campaign():
+    """Create new Instantly campaign from leads"""
+    try:
+        data = request.json
+        leads = data.get('leads', [])
+        campaign_name = data.get('campaign_name', f"Campaign {datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        template_type = data.get('template_type', 'generic')
+        
+        api_key = os.getenv('INSTANTLY_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'Instantly API key not configured'}), 400
+            
+        if not leads:
+            return jsonify({'error': 'No leads provided'}), 400
+            
+        instantly = InstantlyIntegration(api_key)
+        result = create_campaign_from_r27_leads(
+            instantly, leads, campaign_name, template_type
+        )
+        
+        return jsonify({
+            'success': True,
+            'campaign_created': result
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to create Instantly campaign: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/templates', methods=['GET'])
+def get_campaign_templates():
+    """Get available campaign templates"""
+    templates = {
+        'real_estate': {
+            'name': 'Real Estate Outreach',
+            'description': 'Template for real estate professionals',
+            'emails': 3,
+            'follow_up_days': [3, 5, 7]
+        },
+        'lawyer': {
+            'name': 'Legal Services Outreach', 
+            'description': 'Template for law firms and legal services',
+            'emails': 3,
+            'follow_up_days': [4, 6, 8]
+        },
+        'restaurant': {
+            'name': 'Restaurant Outreach',
+            'description': 'Template for restaurants and hospitality',
+            'emails': 3,
+            'follow_up_days': [2, 4, 6]
+        },
+        'generic': {
+            'name': 'Generic B2B Outreach',
+            'description': 'General business-to-business template',
+            'emails': 3,
+            'follow_up_days': [3, 5, 7]
+        }
+    }
+    return jsonify(templates)
+
+@app.route('/api/multi-provider-search', methods=['POST'])
+def multi_provider_search():
+    """Search across multiple providers simultaneously"""
+    try:
+        data = request.json
+        query = data.get('query', '')
+        location = data.get('location', '')
+        limit = data.get('limit', 25)
+        providers = data.get('providers', ['google_maps'])
+        
+        if not query:
+            return jsonify({'error': 'Query required'}), 400
+            
+        all_results = []
+        provider_results = {}
+        
+        # Google Maps
+        if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
+            try:
+                google_provider = get_provider('auto')
+                google_results = google_provider.fetch_places(f"{query} {location}".strip(), limit)
+                # Normalize Google results to match our schema
+                normalized_google = []
+                for result in google_results:
+                    normalized = {
+                        'name': result.get('name', ''),
+                        'address': result.get('address', ''),
+                        'phone': result.get('phone', 'Not available'),
+                        'website': result.get('website', 'Not available'),
+                        'latitude': result.get('latitude'),
+                        'longitude': result.get('longitude'),
+                        'business_type': result.get('business_type', 'Business'),
+                        'data_source': 'Google Maps'
+                    }
+                    normalized_google.append(normalized)
+                    
+                provider_results['google_maps'] = {
+                    'count': len(normalized_google),
+                    'results': normalized_google
+                }
+                all_results.extend(normalized_google)
+            except Exception as e:
+                logger.error(f"Google Maps provider error: {e}")
+                provider_results['google_maps'] = {'error': str(e), 'count': 0}
+        
+        # OpenStreetMap
+        if 'openstreetmap' in providers:
+            try:
+                osm_provider = OpenStreetMapProvider()
+                osm_results = osm_provider.search_businesses(query, location, limit)
+                provider_results['openstreetmap'] = {
+                    'count': len(osm_results),
+                    'results': osm_results
+                }
+                all_results.extend(osm_results)
+            except Exception as e:
+                logger.error(f"OpenStreetMap provider error: {e}")
+                provider_results['openstreetmap'] = {'error': str(e), 'count': 0}
+        
+        # Yellow Pages
+        if 'yellowpages' in providers:
+            try:
+                yp_provider = YellowPagesAPIProvider()
+                yp_results = yp_provider.search_businesses(query, location, limit)
+                provider_results['yellowpages'] = {
+                    'count': len(yp_results),
+                    'results': yp_results
+                }
+                all_results.extend(yp_results)
+            except Exception as e:
+                logger.error(f"Yellow Pages provider error: {e}")
+                provider_results['yellowpages'] = {'error': str(e), 'count': 0}
+        
+        # Deduplicate by name and address (phone/email might not be available)
+        seen = set()
+        unique_results = []
+        for result in all_results:
+            # Create a more robust deduplication key
+            name = result.get('name', '').lower().strip()
+            address = result.get('address', '').lower().strip()
+            phone = result.get('phone', '').strip()
+            
+            # Skip if no name
+            if not name or name == 'unknown business':
+                continue
+            
+            # Create deduplication key
+            key = (name, address[:50] if address else '')  # First 50 chars of address
+            
+            if key not in seen:
+                seen.add(key)
+                unique_results.append(result)
+        
+        return jsonify({
+            'success': True,
+            'total_results': len(all_results),
+            'unique_results': len(unique_results),
+            'provider_breakdown': provider_results,
+            'results': unique_results
+        })
+        
+    except Exception as e:
+        logger.error(f"Multi-provider search failed: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/test-provider')
 def test_provider():

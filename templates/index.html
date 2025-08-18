@@ -86,6 +86,23 @@
             cursor: not-allowed;
         }
 
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+            color: white;
+        }
+
         .progress {
             height: 30px;
             border-radius: 15px;
@@ -303,6 +320,11 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="scheduler-tab" data-bs-toggle="tab" data-bs-target="#scheduler" type="button">
                     ⏰ <i class="bi bi-calendar-check-fill"></i> <strong>SCHEDULER</strong>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="enhanced-tab" data-bs-toggle="tab" data-bs-target="#enhanced" type="button">
+                    ⚡ <i class="bi bi-stars"></i> <strong>ENHANCED</strong>
                 </button>
             </li>
         </ul>
@@ -742,6 +764,182 @@
                 <h5 class="mb-3"><i class="bi bi-eye"></i> Lead Preview (First 5)</h5>
                 <div id="leadPreview" class="lead-preview">
                     <!-- Leads will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Features Tab -->
+        <div class="tab-pane fade" id="enhanced" role="tabpanel">
+            <div class="row">
+                <!-- Multi-Provider Search -->
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-collection"></i> Multi-Provider Search
+                            <span class="badge bg-primary ms-2" data-bs-toggle="tooltip" title="Search across Google Maps, Yelp, and Yellow Pages simultaneously for maximum coverage">NEW</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="multiProviderForm">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Search Query</label>
+                                    <input type="text" class="form-control" id="multiQuery" placeholder="e.g., restaurants in Miami" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Data Sources</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="providerGoogle" value="google_maps" checked>
+                                        <label class="form-check-label" for="providerGoogle">
+                                            <i class="bi bi-geo-alt-fill text-danger"></i> Google Maps
+                                            <span class="badge bg-success ms-1" data-bs-toggle="tooltip" title="Primary business directory with comprehensive coverage">MAIN</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="providerOSM" value="openstreetmap">
+                                        <label class="form-check-label" for="providerOSM">
+                                            <i class="bi bi-globe text-success"></i> OpenStreetMap
+                                            <span class="badge bg-success ms-1" data-bs-toggle="tooltip" title="Free open-source business directory with global coverage">FREE</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="providerYP" value="yellowpages">
+                                        <label class="form-check-label" for="providerYP">
+                                            <i class="bi bi-telephone-fill text-warning"></i> Yellow Pages
+                                            <span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" title="US business directory with phone numbers and addresses">FREE</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Limit per Source</label>
+                                        <select class="form-select" id="multiLimit">
+                                            <option value="10">10 leads</option>
+                                            <option value="25" selected>25 leads</option>
+                                            <option value="50">50 leads</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Location</label>
+                                        <input type="text" class="form-control" id="multiLocation" placeholder="Optional location filter">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-gradient w-100">
+                                    <i class="bi bi-search"></i> Search All Sources
+                                </button>
+                            </form>
+                            <div id="multiProviderResults" class="mt-3 d-none">
+                                <h6 class="fw-bold">Results Summary</h6>
+                                <div id="multiProviderSummary" class="mb-3"></div>
+                                <div id="multiProviderData"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lead Enrichment -->
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-magic"></i> Lead Enrichment
+                            <span class="badge bg-success ms-2" data-bs-toggle="tooltip" title="Enhance your leads with social media profiles, company size, and technology stack information">AI POWERED</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Upload a CSV of leads to enrich with additional data:</p>
+                            <ul class="list-unstyled mb-3">
+                                <li><i class="bi bi-check-circle text-success"></i> Social Media Discovery</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Company Size Detection</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Technology Stack Analysis</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Business Type Classification</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Phone Number Validation</li>
+                            </ul>
+                            <form id="enrichmentForm">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Upload CSV File</label>
+                                    <input type="file" class="form-control" id="enrichmentFile" accept=".csv" required>
+                                    <small class="text-muted">CSV should contain Name, Email, Website, and/or Phone columns</small>
+                                </div>
+                                <button type="submit" class="btn btn-gradient w-100">
+                                    <i class="bi bi-stars"></i> Enrich Leads
+                                </button>
+                            </form>
+                            <div id="enrichmentResults" class="mt-3 d-none">
+                                <div id="enrichmentSummary" class="alert alert-info"></div>
+                                <button class="btn btn-success" id="downloadEnrichedBtn">
+                                    <i class="bi bi-download"></i> Download Enriched CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instantly Campaign Management -->
+                <div class="col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-envelope-heart"></i> Instantly Campaign Management
+                            <span class="badge bg-warning text-dark ms-2" data-bs-toggle="tooltip" title="Create and manage email campaigns directly from your lead data">CAMPAIGNS</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Create New Campaign</h6>
+                                    <form id="instantlyForm">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Campaign Name</label>
+                                            <input type="text" class="form-control" id="campaignName" placeholder="e.g., Restaurant Outreach Q1 2024" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Template Type</label>
+                                            <select class="form-select" id="templateType" required>
+                                                <option value="">Select template...</option>
+                                                <option value="real_estate">Real Estate Outreach</option>
+                                                <option value="lawyer">Legal Services</option>
+                                                <option value="restaurant">Restaurant/Hospitality</option>
+                                                <option value="generic">Generic B2B</option>
+                                            </select>
+                                            <small class="text-muted">Pre-built email sequences optimized for different industries</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Upload Leads CSV</label>
+                                            <input type="file" class="form-control" id="campaignLeadsFile" accept=".csv" required>
+                                            <small class="text-muted">CSV from your lead generation results</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-gradient">
+                                            <i class="bi bi-rocket"></i> Create Campaign
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Existing Campaigns</h6>
+                                    <div id="campaignsList">
+                                        <button class="btn btn-outline-primary w-100" onclick="loadInstantlyCampaigns()">
+                                            <i class="bi bi-arrow-clockwise"></i> Load Campaigns
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="instantlyResults" class="mt-3 d-none">
+                                <div class="alert alert-success" id="instantlyMessage"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Provider Status Dashboard -->
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-speedometer2"></i> Provider Status Dashboard
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="providerStatus">
+                                <div class="col-md-12 text-center">
+                                    <button class="btn btn-outline-primary" onclick="checkProviderStatus()">
+                                        <i class="bi bi-arrow-clockwise"></i> Check All Providers
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1754,6 +1952,335 @@
                 loadHistory();
             }
         }, 30000);
+
+        // Enhanced Features Functions
+
+        // Multi-Provider Search
+        document.getElementById('multiProviderForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const query = document.getElementById('multiQuery').value;
+            const location = document.getElementById('multiLocation').value;
+            const limit = document.getElementById('multiLimit').value;
+            
+            const providers = [];
+            if (document.getElementById('providerGoogle').checked) providers.push('google_maps');
+            if (document.getElementById('providerOSM').checked) providers.push('openstreetmap');
+            if (document.getElementById('providerYP').checked) providers.push('yellowpages');
+            
+            if (providers.length === 0) {
+                alert('Please select at least one data source');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/multi-provider-search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: query,
+                        location: location,
+                        limit: parseInt(limit),
+                        providers: providers
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    displayMultiProviderResults(data);
+                } else {
+                    alert('Search failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Multi-provider search error:', error);
+                alert('Search failed');
+            }
+        });
+
+        function displayMultiProviderResults(data) {
+            const resultsDiv = document.getElementById('multiProviderResults');
+            const summaryDiv = document.getElementById('multiProviderSummary');
+            const dataDiv = document.getElementById('multiProviderData');
+            
+            // Display summary
+            let summaryHtml = '<div class="row">';
+            for (const [provider, result] of Object.entries(data.provider_breakdown)) {
+                const status = result.error ? 'danger' : 'success';
+                const count = result.count || 0;
+                summaryHtml += `
+                    <div class="col-md-4 mb-2">
+                        <div class="alert alert-${status} mb-0 py-2">
+                            <strong>${provider.replace('_', ' ').toUpperCase()}</strong><br>
+                            ${result.error ? result.error : count + ' results'}
+                        </div>
+                    </div>
+                `;
+            }
+            summaryHtml += '</div>';
+            summaryDiv.innerHTML = summaryHtml;
+            
+            // Display first 10 results
+            if (data.results && data.results.length > 0) {
+                let dataHtml = `<p><strong>Total Unique Results: ${data.unique_results}</strong></p>`;
+                dataHtml += '<div class="list-group" style="max-height: 400px; overflow-y: auto;">';
+                
+                data.results.slice(0, 10).forEach((result, index) => {
+                    dataHtml += `
+                        <div class="list-group-item">
+                            <h6 class="fw-bold">${index + 1}. ${result.name || 'Unknown'}</h6>
+                            <p class="mb-1 text-muted">${result.address || 'No address'}</p>
+                            <small>
+                                ${result.phone ? '📞 ' + result.phone : ''} 
+                                ${result.email ? '📧 ' + result.email : ''}
+                                ${result.website ? '🌐 Website' : ''}
+                            </small>
+                        </div>
+                    `;
+                });
+                
+                dataHtml += '</div>';
+                if (data.results.length > 10) {
+                    dataHtml += `<p class="mt-2 text-muted">Showing first 10 of ${data.results.length} results...</p>`;
+                }
+                dataDiv.innerHTML = dataHtml;
+            }
+            
+            resultsDiv.classList.remove('d-none');
+        }
+
+        // Lead Enrichment
+        document.getElementById('enrichmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('enrichmentFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+            
+            try {
+                // Read CSV and parse it
+                const text = await file.text();
+                const lines = text.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                
+                const leads = [];
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim()) {
+                        const values = lines[i].split(',').map(v => v.trim());
+                        const lead = {};
+                        headers.forEach((header, index) => {
+                            lead[header] = values[index] || '';
+                        });
+                        leads.push(lead);
+                    }
+                }
+                
+                const response = await fetch('/api/enrich-leads', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({leads: leads})
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    displayEnrichmentResults(data);
+                } else {
+                    alert('Enrichment failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Enrichment error:', error);
+                alert('Enrichment failed');
+            }
+        });
+
+        function displayEnrichmentResults(data) {
+            const resultsDiv = document.getElementById('enrichmentResults');
+            const summaryDiv = document.getElementById('enrichmentSummary');
+            
+            summaryDiv.innerHTML = `
+                <h6>Enrichment Complete!</h6>
+                <p>Successfully enriched ${data.total_processed} leads with additional data including social media profiles, company size estimates, and technology stack information.</p>
+            `;
+            
+            // Store enriched data for download
+            window.enrichedLeadsData = data.enriched_leads;
+            
+            resultsDiv.classList.remove('d-none');
+        }
+
+        // Download enriched leads
+        document.getElementById('downloadEnrichedBtn').addEventListener('click', function() {
+            if (!window.enrichedLeadsData) {
+                alert('No enriched data available');
+                return;
+            }
+            
+            // Convert to CSV
+            const headers = Object.keys(window.enrichedLeadsData[0]);
+            let csv = headers.join(',') + '\n';
+            
+            window.enrichedLeadsData.forEach(lead => {
+                const row = headers.map(header => {
+                    const value = lead[header] || '';
+                    return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
+                });
+                csv += row.join(',') + '\n';
+            });
+            
+            // Download
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `enriched_leads_${new Date().getTime()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Instantly Campaign Management
+        document.getElementById('instantlyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const campaignName = document.getElementById('campaignName').value;
+            const templateType = document.getElementById('templateType').value;
+            const fileInput = document.getElementById('campaignLeadsFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a leads CSV file');
+                return;
+            }
+            
+            try {
+                // Read and parse CSV
+                const text = await file.text();
+                const lines = text.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                
+                const leads = [];
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim()) {
+                        const values = lines[i].split(',').map(v => v.trim());
+                        const lead = {};
+                        headers.forEach((header, index) => {
+                            lead[header] = values[index] || '';
+                        });
+                        leads.push(lead);
+                    }
+                }
+                
+                const response = await fetch('/api/instantly/create-campaign', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        leads: leads,
+                        campaign_name: campaignName,
+                        template_type: templateType
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    displayInstantlyResults(data);
+                } else {
+                    alert('Campaign creation failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Campaign creation error:', error);
+                alert('Campaign creation failed');
+            }
+        });
+
+        function displayInstantlyResults(data) {
+            const resultsDiv = document.getElementById('instantlyResults');
+            const messageDiv = document.getElementById('instantlyMessage');
+            
+            messageDiv.innerHTML = `
+                <h6>Campaign Created Successfully!</h6>
+                <p>Campaign "${data.campaign_created.campaign.name}" has been created with ${data.campaign_created.total_leads} leads.</p>
+                <p><strong>Campaign ID:</strong> ${data.campaign_created.campaign.campaign_id}</p>
+            `;
+            
+            resultsDiv.classList.remove('d-none');
+            loadInstantlyCampaigns(); // Refresh campaigns list
+        }
+
+        async function loadInstantlyCampaigns() {
+            try {
+                const response = await fetch('/api/instantly/campaigns');
+                const campaigns = await response.json();
+                
+                const listDiv = document.getElementById('campaignsList');
+                if (campaigns.length === 0) {
+                    listDiv.innerHTML = '<p class="text-muted">No campaigns found. Create one above!</p>';
+                } else {
+                    let html = '<div class="list-group">';
+                    campaigns.forEach(campaign => {
+                        html += `
+                            <div class="list-group-item">
+                                <h6 class="fw-bold">${campaign.name}</h6>
+                                <small class="text-muted">Status: ${campaign.status || 'Active'}</small>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    listDiv.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Failed to load campaigns:', error);
+                document.getElementById('campaignsList').innerHTML = 
+                    '<p class="text-danger">Failed to load campaigns. Check API configuration.</p>';
+            }
+        }
+
+        // Provider Status Check
+        async function checkProviderStatus() {
+            try {
+                const response = await fetch('/api/providers/available');
+                const providers = await response.json();
+                
+                const statusDiv = document.getElementById('providerStatus');
+                let html = '';
+                
+                for (const [key, provider] of Object.entries(providers)) {
+                    const status = provider.configured ? 'success' : 'warning';
+                    const icon = provider.configured ? '✅' : '⚠️';
+                    
+                    html += `
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6>${icon} ${provider.name}</h6>
+                                    <p class="text-muted small">${provider.description}</p>
+                                    <span class="badge bg-${status}">
+                                        ${provider.configured ? 'Configured' : 'Not Configured'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                statusDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to check provider status:', error);
+                document.getElementById('providerStatus').innerHTML = 
+                    '<div class="col-12"><p class="text-danger">Failed to check provider status</p></div>';
+            }
+        }
+
+        // Initialize tooltips for enhanced features
+        document.getElementById('enhanced-tab').addEventListener('shown.bs.tab', function() {
+            // Initialize Bootstrap tooltips
+            const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(tooltip => new bootstrap.Tooltip(tooltip));
+            
+            // Auto-check provider status when tab is shown
+            checkProviderStatus();
+        });
 
         checkHealth();
     </script>

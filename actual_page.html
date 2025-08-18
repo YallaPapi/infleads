@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R27 Infinite AI Leads Agent</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #06ffa5;
+            --danger-color: #ff006e;
+            --dark-bg: #0a0e27;
+            --card-bg: #1a1f3a;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            background: white;
+            margin-bottom: 2rem;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0 !important;
+            padding: 1.5rem;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-generate:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress {
+            height: 30px;
+            border-radius: 15px;
+            background-color: #f0f0f0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Apollo Tab Styling - Make it VISIBLE */
+        #apollo-tab {
+            background: linear-gradient(45deg, #00ff00, #32cd32) !important;
+            color: #000 !important;
+            font-weight: 900 !important;
+            font-size: 1.2rem !important;
+            border: 3px solid #00ff00 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            padding: 12px 20px !important;
+            animation: pulse 2s infinite !important;
+        }
+
+        #apollo-tab:hover {
+            background: linear-gradient(45deg, #32cd32, #00ff00) !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5) !important;
+        }
+
+        #apollo-tab.active {
+            background: linear-gradient(45deg, #00ff00, #32cd32) !important;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.7) !important;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+            }
+            100% {
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            }
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-fetching, .status-normalizing, .status-scoring, .status-generating_emails, .status-creating_csv, .status-uploading {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .status-completed {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .status-error {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .lead-preview {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .lead-item {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .score-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .stats-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .stats-box h3 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .stats-box p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinner-border {
+            width: 1.5rem;
+            height: 1.5rem;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header">
+            <h1><i class="bi bi-graph-up-arrow"></i> R27 Infinite AI Leads Agent</h1>
+            <p>Generate high-quality business leads with AI-powered scoring and personalized outreach</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-4" id="leadTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="google-tab" data-bs-toggle="tab" data-bs-target="#google" type="button">
+                    <i class="bi bi-geo-alt"></i> Google Maps Search
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="apollo-tab" data-bs-toggle="tab" data-bs-target="#apollo" type="button">
+                    <i class="bi bi-rocket-takeoff-fill"></i> 🔥 APOLLO CSV UPLOAD 🔥
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="scheduler-tab" data-bs-toggle="tab" data-bs-target="#scheduler" type="button">
+                    <i class="bi bi-clock-history"></i> Scheduler & Queue
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="leadTabContent">
+            <!-- Google Maps Tab -->
+            <div class="tab-pane fade show active" id="google" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-search"></i> Google Maps Lead Generation
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="leadForm">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="query" class="form-label fw-bold">Search Query</label>
+                            <input type="text" class="form-control form-control-lg" id="query" 
+                                   placeholder="e.g., dentists in Miami, coffee shops in Austin Texas" required>
+                            <small class="text-muted">Enter business type and location</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="limit" class="form-label fw-bold">Number of Leads</label>
+                            <select class="form-select form-select-lg" id="limit">
+                                <option value="5">5 leads (Demo)</option>
+                                <option value="10">10 leads</option>
+                                <option value="25" selected>25 leads</option>
+                                <option value="50">50 leads</option>
+                                <option value="100">100 leads</option>
+                                <option value="250">250 leads</option>
+                                <option value="500">500 leads</option>
+                                <option value="1000">1000 leads (Max)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="verifyEmails">
+                                <label class="form-check-label" for="verifyEmails">
+                                    <strong>Verify Emails</strong> - Check email validity and deliverability (adds ~1 second per lead)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button type="submit" class="btn btn-generate" id="generateBtn">
+                            <i class="bi bi-magic"></i> Generate Leads
+                        </button>
+                    </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apollo CSV Tab -->
+            <div class="tab-pane fade" id="apollo" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Apollo CSV Personalization
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="apolloForm">
+                            <div class="mb-4">
+                                <label for="apolloFile" class="form-label fw-bold">Upload Apollo CSV</label>
+                                <input type="file" class="form-control form-control-lg" id="apolloFile" accept=".csv" required>
+                                <small class="text-muted">Upload your Apollo export with columns: first_name, title, email, organization_name, etc.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="serviceFocus" class="form-label fw-bold">Service Focus</label>
+                                <input type="text" class="form-control form-control-lg" id="serviceFocus" 
+                                       placeholder="e.g., 'lead generation and database reactivation' or 'AI chatbots for customer service'"
+                                       value="general AI automation">
+                                <small class="text-muted">Describe what services you want to focus on - GPT will adapt the messaging</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="maxLeads" class="form-label fw-bold">Max Leads to Process</label>
+                                <input type="number" class="form-control form-control-lg" id="maxLeads" value="100" min="1" max="1000">
+                                <small class="text-muted">Processing time: ~2-3 seconds per lead</small>
+                            </div>
+                            <div class="text-center mt-3">
+                                <button type="submit" class="btn btn-generate" id="apolloBtn">
+                                    <i class="bi bi-envelope"></i> Generate Personalized Emails
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Apollo Progress Section -->
+                        <div class="d-none mt-4" id="apolloProgressSection">
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">
+                                    <span class="spinner-border spinner-border-sm text-primary" id="apolloSpinner"></span>
+                                    <span id="apolloStatusMessage">Processing...</span>
+                                </h5>
+                                <button class="btn btn-danger" id="apolloCancelBtn">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     id="apolloProgressBar" style="width: 0%">0%</div>
+                            </div>
+                            <div class="mt-3 text-center d-none" id="apolloDownloadSection">
+                                <a href="#" class="btn btn-success btn-lg" id="apolloDownloadBtn">
+                                    <i class="bi bi-download"></i> Download CSV
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scheduler Tab -->
+            <div class="tab-pane fade" id="scheduler" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-clock-history"></i> Scheduled Searches & Queue</span>
+                        <button class="btn btn-sm btn-primary" onclick="showAddScheduleModal()">
+                            <i class="bi bi-plus-circle"></i> Add Schedule
+                        </button>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Quick Add to Queue -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Quick Add to Queue</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="quickQuery" placeholder="e.g., dentists in Miami">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="number" class="form-control" id="quickLimit" value="25" min="5" max="1000">
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" id="quickPriority">
+                                        <option value="1">Low</option>
+                                        <option value="5" selected>Normal</option>
+                                        <option value="10">High</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-success w-100" onclick="addToQueue()">
+                                        <i class="bi bi-plus"></i> Add to Queue
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedules List -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Active Schedules</h6>
+                            <div id="schedulesList" class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Interval</th>
+                                            <th>Next Run</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="schedulesTableBody">
+                                        <tr><td colspan="6" class="text-center text-muted">Loading schedules...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Queue Status -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Queue Status</h6>
+                            <div id="queueList" class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="queueTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading queue...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Search History -->
+                        <div>
+                            <h6 class="fw-bold">Recent History</h6>
+                            <div id="historyList" class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Emails</th>
+                                            <th>Status</th>
+                                            <th>Completed</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="card d-none" id="progressSection">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <span class="spinner-border text-primary d-none" id="spinner"></span>
+                        <span id="statusMessage">Initializing...</span>
+                    </h5>
+                    <span class="status-badge" id="statusBadge">Starting</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         id="progressBar" style="width: 0%">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card d-none" id="resultsSection">
+            <div class="card-header">
+                <i class="bi bi-check-circle"></i> Results
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="stats-box">
+                            <h3 id="totalLeads">0</h3>
+                            <p>Total Leads</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-box">
+                            <h3 id="avgScore">0</h3>
+                            <p>Average Score</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-box">
+                            <h3><i class="bi bi-download"></i></h3>
+                            <p>Download Ready</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mb-4">
+                    <button class="btn btn-success btn-lg me-2" id="downloadBtn">
+                        <i class="bi bi-download"></i> Download CSV
+                    </button>
+                    <button class="btn btn-primary btn-lg d-none" id="driveBtn">
+                        <i class="bi bi-cloud"></i> Open in Drive
+                    </button>
+                </div>
+
+                <h5 class="mb-3"><i class="bi bi-eye"></i> Lead Preview (First 5)</h5>
+                <div id="leadPreview" class="lead-preview">
+                    <!-- Leads will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Section -->
+        <div class="alert alert-danger d-none" id="errorSection">
+            <h5><i class="bi bi-exclamation-triangle"></i> Error</h5>
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentJobId = null;
+        let pollInterval = null;
+
+        document.getElementById('leadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = document.getElementById('query').value;
+            const limit = document.getElementById('limit').value;
+            const verifyEmails = document.getElementById('verifyEmails').checked;
+            
+            // Reset UI
+            document.getElementById('errorSection').classList.add('d-none');
+            document.getElementById('resultsSection').classList.add('d-none');
+            document.getElementById('progressSection').classList.remove('d-none');
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('spinner').classList.remove('d-none');
+            
+            try {
+                // Start job
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query, limit, verify_emails: verifyEmails})
+                });
+                
+                if (!response.ok) throw new Error('Failed to start job');
+                
+                const data = await response.json();
+                currentJobId = data.job_id;
+                
+                // Start polling for status
+                pollStatus();
+                pollInterval = setInterval(pollStatus, 1000);
+                
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        // Apollo Form Handler
+        // Apollo form handling
+        let apolloJobId = null;
+        let apolloPollInterval = null;
+        
+        document.getElementById('apolloForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('apolloFile');
+            const serviceFocus = document.getElementById('serviceFocus').value;
+            const maxLeads = document.getElementById('maxLeads').value;
+            
+            if (!fileInput.files[0]) {
+                showError('Please select a CSV file');
+                return;
+            }
+            
+            // Show progress section
+            document.getElementById('apolloProgressSection').classList.remove('d-none');
+            document.getElementById('apolloDownloadSection').classList.add('d-none');
+            document.getElementById('apolloBtn').disabled = true;
+            document.getElementById('apolloStatusMessage').textContent = 'Uploading file...';
+            document.getElementById('apolloProgressBar').style.width = '0%';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('service_focus', serviceFocus);
+                formData.append('max_leads', maxLeads);
+                
+                const response = await fetch('/api/process-apollo', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to process file');
+                }
+                
+                const data = await response.json();
+                apolloJobId = data.job_id;
+                
+                // Start polling for status
+                apolloPollInterval = setInterval(pollApolloStatus, 1000);
+                
+            } catch (error) {
+                showError(error.message);
+                document.getElementById('apolloProgressSection').classList.add('d-none');
+                document.getElementById('apolloBtn').disabled = false;
+            }
+        });
+        
+        // Cancel button
+        document.getElementById('apolloCancelBtn').addEventListener('click', async () => {
+            if (!apolloJobId) return;
+            
+            try {
+                await fetch(`/api/apollo-cancel/${apolloJobId}`, { method: 'POST' });
+                clearInterval(apolloPollInterval);
+                document.getElementById('apolloProgressSection').classList.add('d-none');
+                document.getElementById('apolloBtn').disabled = false;
+                showError('Processing cancelled');
+            } catch (error) {
+                console.error('Cancel error:', error);
+            }
+        });
+        
+        async function pollApolloStatus() {
+            if (!apolloJobId) return;
+            
+            try {
+                const response = await fetch(`/api/apollo-status/${apolloJobId}`);
+                if (!response.ok) throw new Error('Failed to get status');
+                
+                const data = await response.json();
+                
+                // Update progress
+                document.getElementById('apolloProgressBar').style.width = `${data.progress}%`;
+                document.getElementById('apolloProgressBar').textContent = `${data.progress}%`;
+                document.getElementById('apolloStatusMessage').textContent = data.message;
+                
+                if (data.status === 'completed') {
+                    clearInterval(apolloPollInterval);
+                    document.getElementById('apolloSpinner').classList.add('d-none');
+                    document.getElementById('apolloCancelBtn').classList.add('d-none');
+                    document.getElementById('apolloDownloadSection').classList.remove('d-none');
+                    document.getElementById('apolloDownloadBtn').href = `/api/download-apollo/${data.result_file}`;
+                    document.getElementById('apolloBtn').disabled = false;
+                } else if (data.status === 'error' || data.status === 'cancelled') {
+                    clearInterval(apolloPollInterval);
+                    showError(data.error || data.message);
+                    document.getElementById('apolloProgressSection').classList.add('d-none');
+                    document.getElementById('apolloBtn').disabled = false;
+                }
+                
+            } catch (error) {
+                console.error('Poll error:', error);
+            }
+        }
+
+        async function pollStatus() {
+            if (!currentJobId) return;
+            
+            try {
+                const response = await fetch(`/api/status/${currentJobId}`);
+                if (!response.ok) throw new Error('Failed to get status');
+                
+                const data = await response.json();
+                updateProgress(data);
+                
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    showResults(data);
+                } else if (data.status === 'error') {
+                    clearInterval(pollInterval);
+                    showError(data.error || 'Job failed');
+                }
+                
+            } catch (error) {
+                console.error('Poll error:', error);
+            }
+        }
+
+        function updateProgress(data) {
+            const progressBar = document.getElementById('progressBar');
+            const statusMessage = document.getElementById('statusMessage');
+            const statusBadge = document.getElementById('statusBadge');
+            
+            progressBar.style.width = `${data.progress}%`;
+            progressBar.textContent = `${data.progress}%`;
+            statusMessage.textContent = data.message;
+            
+            // Update status badge
+            statusBadge.className = `status-badge status-${data.status}`;
+            statusBadge.textContent = data.status.replace('_', ' ').toUpperCase();
+        }
+
+        function showResults(data) {
+            document.getElementById('progressSection').classList.add('d-none');
+            document.getElementById('resultsSection').classList.remove('d-none');
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('spinner').classList.add('d-none');
+            
+            // Update stats
+            document.getElementById('totalLeads').textContent = data.total_leads;
+            document.getElementById('avgScore').textContent = data.average_score + '/10';
+            
+            // Add email verification summary if available
+            if (data.emails_verified !== undefined && data.emails_verified > 0) {
+                const summaryCard = document.querySelector('.summary-card .card-body');
+                const emailStatsHTML = `
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted">Email Verification:</small><br>
+                        <span class="badge bg-info">${data.emails_verified} Emails Found</span>
+                        <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
+                    </div>
+                `;
+                // Check if email stats already exist to avoid duplicates
+                if (!summaryCard.querySelector('.email-stats')) {
+                    const emailDiv = document.createElement('div');
+                    emailDiv.className = 'email-stats mt-2 pt-2 border-top';
+                    emailDiv.innerHTML = `
+                        <small class="text-muted">Email Verification:</small><br>
+                        <span class="badge bg-info">${data.emails_verified} Emails Found</span>
+                        <span class="badge bg-success ms-1">${data.valid_emails || 0} Valid</span>
+                    `;
+                    summaryCard.appendChild(emailDiv);
+                }
+            }
+            
+            // Set up download button
+            document.getElementById('downloadBtn').onclick = () => {
+                window.location.href = `/api/download/${currentJobId}`;
+            };
+            
+            // Set up Drive button if available
+            if (data.share_link) {
+                const driveBtn = document.getElementById('driveBtn');
+                driveBtn.classList.remove('d-none');
+                driveBtn.onclick = () => {
+                    window.open(data.share_link, '_blank');
+                };
+            }
+            
+            // Show lead preview with proper email verification status
+            const preview = document.getElementById('leadPreview');
+            preview.innerHTML = '';
+            
+            if (data.leads_preview && data.leads_preview.length > 0) {
+                // Add a header showing how many leads are displayed
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'mb-3 text-muted';
+                headerDiv.innerHTML = `<small>Showing ${data.leads_preview.length} of ${data.total_leads} leads</small>`;
+                preview.appendChild(headerDiv);
+                
+                data.leads_preview.forEach((lead, index) => {
+                    // Determine email status display
+                    let emailStatus = '';
+                    let emailBadgeClass = '';
+                    let emailIcon = '';
+                    
+                    // Debug logging
+                    console.log(`Lead ${index + 1}:`, lead.Name);
+                    console.log('  Email:', lead.Email);
+                    console.log('  email_verified:', lead.email_verified);
+                    console.log('  email_status:', lead.email_status);
+                    
+                    if (!lead.Email || lead.Email === 'NA' || lead.Email === '') {
+                        emailStatus = 'No Email';
+                        emailBadgeClass = 'bg-secondary';
+                        emailIcon = '📧❌';
+                    } else {
+                        // Email exists, check verification status
+                        if (lead.email_verified === true || lead.email_verified === 'True' || lead.email_verified === 'true') {
+                            emailStatus = 'Valid Email';
+                            emailBadgeClass = 'bg-success';
+                            emailIcon = '✅';
+                        } else if (lead.email_status === 'catch-all' || lead.email_status === 'catch_all') {
+                            emailStatus = 'Catch-All';
+                            emailBadgeClass = 'bg-warning text-dark';
+                            emailIcon = '⚠️';
+                        } else if (lead.email_status === 'invalid') {
+                            emailStatus = 'Invalid Email';
+                            emailBadgeClass = 'bg-danger';
+                            emailIcon = '❌';
+                        } else if (lead.email_status === 'error') {
+                            emailStatus = 'Verification Error';
+                            emailBadgeClass = 'bg-warning text-dark';
+                            emailIcon = '⚠️';
+                        } else if (lead.email_status === 'missing') {
+                            emailStatus = 'No Email';
+                            emailBadgeClass = 'bg-secondary';
+                            emailIcon = '📧❌';
+                        } else {
+                            emailStatus = 'Unverified';
+                            emailBadgeClass = 'bg-info';
+                            emailIcon = '❓';
+                        }
+                    }
+                    
+                    const leadDiv = document.createElement('div');
+                    leadDiv.className = 'lead-item fade-in';
+                    leadDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div style="flex: 1;">
+                                <h6 class="fw-bold">${index + 1}. ${lead.Name}</h6>
+                                <p class="text-muted mb-1"><i class="bi bi-geo-alt"></i> ${lead.Address}</p>
+                                <div class="mb-1">
+                                    <span class="badge ${emailBadgeClass} me-2">${emailIcon} ${emailStatus}</span>
+                                    ${lead.Email && lead.Email !== 'NA' ? `<small class="text-muted">${lead.Email}</small>` : ''}
+                                </div>
+                                ${lead.Phone && lead.Phone !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-telephone"></i> ${lead.Phone}</small></p>` : ''}
+                                ${lead.Website && lead.Website !== 'NA' ? `<p class="mb-0"><small><i class="bi bi-globe"></i> <a href="${lead.Website}" target="_blank">Website</a></small></p>` : ''}
+                                <p class="mb-1 mt-2"><small class="text-muted">${lead.LeadScoreReasoning}</small></p>
+                            </div>
+                            <div class="text-end">
+                                <span class="score-badge">${lead.LeadScore}/10</span>
+                                ${lead.email_quality_boost ? `<br><small class="text-muted">Email: ${lead.email_quality_boost > 0 ? '+' : ''}${lead.email_quality_boost}</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    preview.appendChild(leadDiv);
+                });
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('progressSection').classList.add('d-none');
+            document.getElementById('errorSection').classList.remove('d-none');
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('spinner').classList.add('d-none');
+            clearInterval(pollInterval);
+        }
+
+        // Check system health on load
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                console.log('System health:', data);
+            } catch (error) {
+                console.error('Health check failed:', error);
+            }
+        }
+
+        checkHealth();
+
+        // Scheduler functions
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedules');
+                const schedules = await response.json();
+                
+                const tbody = document.getElementById('schedulesTableBody');
+                if (schedules.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No scheduled searches</td></tr>';
+                } else {
+                    tbody.innerHTML = schedules.map(schedule => `
+                        <tr>
+                            <td>${schedule.name}</td>
+                            <td>${schedule.query}</td>
+                            <td>${schedule.limit_leads}</td>
+                            <td>${schedule.interval_hours}h</td>
+                            <td>${new Date(schedule.next_run).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-${schedule.enabled ? 'warning' : 'success'}" 
+                                        onclick="toggleSchedule(${schedule.id}, ${!schedule.enabled})">
+                                    ${schedule.enabled ? 'Disable' : 'Enable'}
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSchedule(${schedule.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+            }
+        }
+
+        async function loadQueue() {
+            try {
+                const response = await fetch('/api/queue');
+                const queue = await response.json();
+                
+                const tbody = document.getElementById('queueTableBody');
+                if (queue.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Queue is empty</td></tr>';
+                } else {
+                    tbody.innerHTML = queue.map(item => `
+                        <tr>
+                            <td>${item.query}</td>
+                            <td>${item.limit_leads}</td>
+                            <td>${item.priority}</td>
+                            <td><span class="badge bg-${getStatusColor(item.status)}">${item.status}</span></td>
+                            <td>${new Date(item.created_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading queue:', error);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history?limit=10');
+                const history = await response.json();
+                
+                const tbody = document.getElementById('historyTableBody');
+                if (history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No history</td></tr>';
+                } else {
+                    tbody.innerHTML = history.map(item => `
+                        <tr>
+                            <td>${item.query}</td>
+                            <td>${item.leads_found}</td>
+                            <td>${item.emails_found}/${item.emails_valid}</td>
+                            <td><span class="badge bg-${getStatusColor(item.status)}">${item.status}</span></td>
+                            <td>${new Date(item.completed_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'completed': return 'success';
+                case 'processing': return 'warning';
+                case 'error': return 'danger';
+                case 'pending': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        async function addToQueue() {
+            const query = document.getElementById('quickQuery').value;
+            const limit = document.getElementById('quickLimit').value;
+            const priority = document.getElementById('quickPriority').value;
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/queue', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: query,
+                        limit_leads: parseInt(limit),
+                        priority: parseInt(priority),
+                        verify_emails: true
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('quickQuery').value = '';
+                    loadQueue();
+                    alert('Added to queue successfully!');
+                }
+            } catch (error) {
+                console.error('Error adding to queue:', error);
+                alert('Failed to add to queue');
+            }
+        }
+
+        async function toggleSchedule(id, enabled) {
+            try {
+                const response = await fetch(`/api/schedules/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: enabled})
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                }
+            } catch (error) {
+                console.error('Error toggling schedule:', error);
+            }
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('Are you sure you want to delete this schedule?')) return;
+            
+            try {
+                const response = await fetch(`/api/schedules/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                }
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+            }
+        }
+
+        function showAddScheduleModal() {
+            const modal = `
+                <div class="modal fade" id="addScheduleModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Add Scheduled Search</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="scheduleForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="scheduleName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Search Query</label>
+                                        <input type="text" class="form-control" id="scheduleQuery" 
+                                               placeholder="e.g., dentists in Miami" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Number of Leads</label>
+                                        <input type="number" class="form-control" id="scheduleLimit" 
+                                               value="25" min="5" max="1000">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Run Every (hours)</label>
+                                        <select class="form-select" id="scheduleInterval">
+                                            <option value="1">Every hour</option>
+                                            <option value="6">Every 6 hours</option>
+                                            <option value="12">Every 12 hours</option>
+                                            <option value="24" selected>Daily</option>
+                                            <option value="168">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="scheduleVerifyEmails" checked>
+                                        <label class="form-check-label" for="scheduleVerifyEmails">
+                                            Verify Emails
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createSchedule()">Create Schedule</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to page if not exists
+            if (!document.getElementById('addScheduleModal')) {
+                document.body.insertAdjacentHTML('beforeend', modal);
+            }
+            
+            const modalEl = new bootstrap.Modal(document.getElementById('addScheduleModal'));
+            modalEl.show();
+        }
+
+        async function createSchedule() {
+            const name = document.getElementById('scheduleName').value;
+            const query = document.getElementById('scheduleQuery').value;
+            const limit = document.getElementById('scheduleLimit').value;
+            const interval = document.getElementById('scheduleInterval').value;
+            const verifyEmails = document.getElementById('scheduleVerifyEmails').checked;
+            
+            if (!name || !query) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/schedules', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        query: query,
+                        limit_leads: parseInt(limit),
+                        interval_hours: parseInt(interval),
+                        verify_emails: verifyEmails
+                    })
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addScheduleModal')).hide();
+                    loadSchedules();
+                    alert('Schedule created successfully!');
+                }
+            } catch (error) {
+                console.error('Error creating schedule:', error);
+                alert('Failed to create schedule');
+            }
+        }
+
+        // Load scheduler data when tab is shown
+        document.getElementById('scheduler-tab').addEventListener('shown.bs.tab', function() {
+            loadSchedules();
+            loadQueue();
+            loadHistory();
+        });
+
+        // Refresh scheduler data every 30 seconds when tab is active
+        setInterval(() => {
+            if (document.getElementById('scheduler').classList.contains('active')) {
+                loadQueue();
+                loadHistory();
+            }
+        }, 30000);
+
+        checkHealth();
+    </script>
+</body>
+</html>

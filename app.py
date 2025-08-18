@@ -570,14 +570,32 @@ def process_leads(job):
                                              if lead.get('Email') and lead.get('Email') != 'NA' and lead.get('Email') != '']
                     
                     if leads_for_instantly:
+                        print(f"\n{'#'*60}")
+                        print(f"FLASK: Preparing to send {len(leads_for_instantly)} leads to Instantly")
+                        print(f"FLASK: Campaign ID: {job.instantly_campaign}")
+                        print(f"FLASK: API Key present: {bool(api_key)}")
+                        
                         instantly = InstantlyIntegration(api_key)
                         instantly_leads = convert_r27_leads_to_instantly(leads_for_instantly)
                         
+                        print(f"FLASK: Converted to {len(instantly_leads)} Instantly lead objects")
+                        
                         result = instantly.add_leads_to_campaign(job.instantly_campaign, instantly_leads)
                         
-                        logger.info(f"Added {len(instantly_leads)} leads to Instantly campaign {job.instantly_campaign}")
-                        job.message = f"Successfully generated {len(final_leads)} leads and added {len(instantly_leads)} to Instantly!"
+                        print(f"FLASK: Result from Instantly: {result}")
+                        
+                        if result.get('success'):
+                            added_count = result.get('added', 0)
+                            failed_count = result.get('failed', 0)
+                            logger.info(f"Successfully added {added_count} leads to Instantly, {failed_count} failed")
+                            job.message = f"Successfully generated {len(final_leads)} leads and added {added_count} to Instantly!"
+                        else:
+                            logger.warning(f"Instantly returned failure: {result}")
+                            job.message = f"Successfully generated {len(final_leads)} leads (Instantly integration had issues)"
+                        
+                        print(f"{'#'*60}\n")
                     else:
+                        print("FLASK: No verified leads to send to Instantly")
                         logger.warning("No verified leads to add to Instantly campaign")
                         job.message = f"Successfully generated {len(final_leads)} leads (no verified emails for Instantly)"
                 else:
@@ -585,8 +603,14 @@ def process_leads(job):
                     job.message = f"Successfully generated {len(final_leads)} leads (Instantly API key missing)"
                     
             except Exception as e:
-                logger.error(f"Failed to add leads to Instantly: {e}")
-                job.message = f"Successfully generated {len(final_leads)} leads (Instantly integration failed)"
+                # Handle unicode encoding errors in exception message
+                try:
+                    error_msg = str(e)
+                except:
+                    error_msg = "Response encoding error (but check Instantly - leads may have been added successfully)"
+                
+                logger.error(f"Failed to add leads to Instantly: {error_msg}")
+                job.message = f"Successfully generated {len(final_leads)} leads (Instantly status: {error_msg})"
         
         # Complete
         job.status = "completed"
@@ -1808,7 +1832,7 @@ def test_provider():
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("🚀 UPDATED - R27 Infinite AI Leads Agent - SCORING REMOVED")
+    print("UPDATED - R27 Infinite AI Leads Agent - SCORING REMOVED")
     print("="*50)
     print("\nStarting server at: http://localhost:5000")
     print("\nPress Ctrl+C to stop")

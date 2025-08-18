@@ -85,8 +85,10 @@ class LeadEnricher:
             if not social_links['twitter']:
                 social_links['twitter'] = self._search_twitter(business_name)
             
+        except requests.exceptions.RequestException as e:
+            logger.debug(f"Network error finding social media for {business_name}: {e}")
         except Exception as e:
-            logger.debug(f"Error finding social media: {e}")
+            logger.debug(f"Unexpected error finding social media for {business_name}: {e}", exc_info=True)
         
         return social_links
     
@@ -106,26 +108,30 @@ class LeadEnricher:
         
         try:
             response = self.session.get(website, timeout=self.timeout)
-            if response.status_code == 200:
-                content = response.text
-                
-                for platform, pattern in social_patterns.items():
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        username = match.group(1)
-                        if platform == 'linkedin':
-                            social_links[platform] = f"https://linkedin.com/company/{username}"
-                        elif platform == 'facebook':
-                            social_links[platform] = f"https://facebook.com/{username}"
-                        elif platform == 'twitter':
-                            social_links[platform] = f"https://twitter.com/{username}"
-                        elif platform == 'instagram':
-                            social_links[platform] = f"https://instagram.com/{username}"
-                        elif platform == 'youtube':
-                            social_links[platform] = f"https://youtube.com/c/{username}"
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            content = response.text
+            
+            for platform, pattern in social_patterns.items():
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    username = match.group(1)
+                    if platform == 'linkedin':
+                        social_links[platform] = f"https://linkedin.com/company/{username}"
+                    elif platform == 'facebook':
+                        social_links[platform] = f"https://facebook.com/{username}"
+                    elif platform == 'twitter':
+                        social_links[platform] = f"https://twitter.com/{username}"
+                    elif platform == 'instagram':
+                        social_links[platform] = f"https://instagram.com/{username}"
+                    elif platform == 'youtube':
+                        social_links[platform] = f"https://youtube.com/c/{username}"
         
+        except requests.exceptions.HTTPError as e:
+            logger.debug(f"HTTP error extracting social from {website}: {e}")
+        except requests.exceptions.RequestException as e:
+            logger.debug(f"Network error extracting social from {website}: {e}")
         except Exception as e:
-            logger.debug(f"Error extracting social from website: {e}")
+            logger.debug(f"Unexpected error extracting social from {website}: {e}", exc_info=True)
         
         return social_links
     
@@ -236,7 +242,7 @@ class LeadEnricher:
                 location_indicators = ['locations', 'offices', 'branches']
                 for indicator in location_indicators:
                     if indicator in content:
-                        match = re.search(f'(\d+)\s*{indicator}', content)
+                        match = re.search(rf'(\d+)\s*{indicator}', content)
                         if match and int(match.group(1)) > 3:
                             size_data['company_type'] = 'Multi-location Business'
                             if size_data['estimated_employees'] == 'Unknown':

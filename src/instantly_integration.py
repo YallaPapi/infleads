@@ -48,7 +48,12 @@ class InstantlyLead:
         if self.job_title:
             data["job_title"] = self.job_title
             
-        return {k: v for k, v in data.items() if v}  # Remove empty values
+        # Keep email field even if empty (required by API)
+        result = {}
+        for k, v in data.items():
+            if k == 'email' or v:  # Always include email
+                result[k] = v if v else ''
+        return result
 
 
 @dataclass
@@ -73,8 +78,18 @@ class InstantlyIntegration:
         }
         
     def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict:
-        """Make API request to Instantly V1"""
+        """Make API request to Instantly V2"""
         url = f"{self.base_url}/{endpoint}"
+        
+        # LOG EVERYTHING
+        print(f"\n{'='*60}")
+        print(f"INSTANTLY API CALL:")
+        print(f"Method: {method}")
+        print(f"URL: {url}")
+        print(f"Headers: {self.headers}")
+        if data:
+            print(f"Data: {json.dumps(data, indent=2)[:1000]}")
+        print(f"{'='*60}\n")
         
         try:
             if method.upper() == "GET":
@@ -87,7 +102,11 @@ class InstantlyIntegration:
                 response = requests.delete(url, headers=self.headers, json=data)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
-                
+            
+            print(f"RESPONSE Status: {response.status_code}")
+            print(f"RESPONSE Headers: {dict(response.headers)}")
+            print(f"RESPONSE Body: {response.text[:500]}")
+            
             response.raise_for_status()
             
             # Handle empty responses
@@ -97,9 +116,12 @@ class InstantlyIntegration:
             return response.json()
             
         except requests.exceptions.RequestException as e:
-            print(f"Instantly API error: {e}")
-            if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                print(f"Response: {e.response.text}")
+            print(f"\n!!!!! INSTANTLY API ERROR !!!!!")
+            print(f"Error: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response Status: {e.response.status_code}")
+                print(f"Response Body: {e.response.text}")
+            print(f"!!!!! END ERROR !!!!!\n")
             raise
             
     def get_accounts(self) -> List[Dict]:
@@ -109,9 +131,17 @@ class InstantlyIntegration:
     def get_campaigns(self) -> List[Dict]:
         """Get all campaigns"""
         result = self._make_request("GET", "campaigns")
-        # V2 API returns campaigns in 'items' array
-        if isinstance(result, dict) and 'items' in result:
-            return result['items']
+        # V2 API returns campaigns directly as array or in 'data' field
+        if isinstance(result, dict):
+            if 'data' in result:
+                return result['data']
+            elif 'items' in result:
+                return result['items']
+            elif 'campaigns' in result:
+                return result['campaigns']
+            # If dict but no known field, return empty
+            print(f"DEBUG: Unexpected campaigns response structure: {list(result.keys())}")
+            return []
         return result if isinstance(result, list) else []
         
     def create_campaign(self, name: str, template: CampaignTemplate, 
@@ -165,22 +195,86 @@ class InstantlyIntegration:
         return self._make_request("POST", "campaigns", campaign_data)
         
     def add_leads_to_campaign(self, campaign_id: str, leads: List[InstantlyLead]) -> Dict:
-        """Add leads to existing campaign using bulk import"""
+        """Add leads to campaign using Instantly v2 API"""
         
         # Convert leads to Instantly format
         instantly_leads = []
         for lead in leads:
             lead_data = lead.to_dict()
+            
+            # CRITICAL: Ensure email field exists (required by API)
+            if 'email' not in lead_data or not lead_data.get('email'):
+                print(f"WARNING: Skipping lead without email: {lead_data.get('first_name', 'Unknown')}")
+                continue
+                
+            # Remove problematic fields
+            lead_data.pop('draft_email', None)
+            lead_data.pop('DraftEmail', None)
+            lead_data.pop('campaign_id', None)  # Don't use campaign_id
+            
+            # Add the campaign using the correct field name
+            lead_data['campaign'] = campaign_id
+            
             instantly_leads.append(lead_data)
         
-        # Debug: Print what we're sending
-        print(f"DEBUG: Sending {len(instantly_leads)} leads to Instantly campaign {campaign_id}")
+        if not instantly_leads:
+            print("WARNING: No leads with valid emails to send to Instantly")
+            return {"success": False, "message": "No valid email addresses found"}
+        
+        print(f"DEBUG: Sending {len(instantly_leads)} leads to campaign {campaign_id}")
         if instantly_leads:
             print(f"DEBUG: First lead data: {instantly_leads[0]}")
         
-        # Use campaign-specific endpoint for adding leads
-        endpoint = f"campaigns/{campaign_id}/leads/add"
-        return self._make_request("POST", endpoint, {"leads": instantly_leads})
+        # Send to Instantly with campaign assignment
+        print(f"\n{'*'*60}")
+        print(f"ADDING {len(instantly_leads)} LEADS TO INSTANTLY CAMPAIGN")
+        print(f"Campaign ID: {campaign_id}")
+        print(f"{'*'*60}\n")
+        
+        results = []
+        failed = []
+        
+        for i, lead_data in enumerate(instantly_leads, 1):
+            print(f"\n--- Lead {i}/{len(instantly_leads)} ---")
+            print(f"Email: {lead_data.get('email')}")
+            print(f"Name: {lead_data.get('first_name')} {lead_data.get('last_name')}")
+            print(f"Campaign: {lead_data.get('campaign')}")
+            
+            try:
+                # Send lead with campaign assignment
+                result = self._make_request("POST", "leads", lead_data)
+                
+                if isinstance(result, dict) and 'id' in result:
+                    results.append(result)
+                    print(f"[SUCCESS] Lead added to campaign")
+                    print(f"Lead ID: {result.get('id')}")
+                    
+                    # Check if campaign was assigned
+                    if 'campaign' in result:
+                        print(f"Campaign confirmed: {result.get('campaign')}")
+                else:
+                    print(f"[WARNING] Unexpected response format")
+                    print(f"Response: {json.dumps(result, indent=2)[:200]}")
+                    
+            except Exception as e:
+                print(f"[FAILED] Could not add lead")
+                print(f"Error: {str(e)}")
+                failed.append(lead_data.get('email'))
+                continue
+        
+        print(f"\n{'='*60}")
+        print(f"FINAL RESULTS:")
+        print(f"Total leads processed: {len(instantly_leads)}")
+        print(f"Successfully added: {len(results)}")
+        print(f"Failed: {len(failed)}")
+        if failed:
+            print(f"Failed emails: {failed}")
+        print(f"{'='*60}\n")
+        
+        if results:
+            return {"success": True, "added": len(results), "failed": len(failed)}
+        else:
+            raise Exception(f"ALL {len(instantly_leads)} leads failed to add to Instantly!")
         
     def bulk_import_leads(self, leads: List[InstantlyLead], 
                          campaign_name: str = None) -> Dict:
@@ -525,6 +619,7 @@ def convert_r27_leads_to_instantly(leads_data: List[Dict]) -> List[InstantlyLead
         custom_vars = {}
         
         # Map selected fields from the lead data as custom variables
+        # REMOVED DraftEmail to avoid encoding issues
         field_mapping = {
             'SocialMediaLinks': 'social_media_links', 
             'Reviews': 'reviews',
@@ -534,7 +629,7 @@ def convert_r27_leads_to_instantly(leads_data: List[Dict]) -> List[InstantlyLead
             'GoogleBusinessClaimed': 'google_business_claimed',
             'email_source': 'email_source',
             'email_quality_boost': 'email_quality_boost',
-            'DraftEmail': 'draft_email',
+            # 'DraftEmail': 'draft_email',  # REMOVED - causes encoding issues
             'SearchKeyword': 'search_term',  # Keep original search term
             'Location': 'search_location',
             'LeadScore': 'lead_score'

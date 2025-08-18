@@ -2,1005 +2,210 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
-        "title": "Initialize Python Project and Environment",
-        "description": "Set up the project repository, Python virtual environment, and install all required dependencies for the Infinite AI Leads Agent.",
-        "details": "Create a new Git repository. Use Python 3.10+ for best compatibility. Set up a virtual environment (venv or poetry). Install dependencies: requests (>=2.31), pandas (>=2.2), google-api-python-client (>=2.125), google-auth (>=2.29), openai (>=1.30) and/or anthropic (latest), python-dotenv (for config). Add .env template for API keys and credentials. Structure the repo with folders for prompts, config, and main script. Add a README.md with setup instructions.",
-        "testStrategy": "Verify that all dependencies install without errors and that the environment loads variables from .env. Run a sample script to confirm imports and environment variable access.",
+        "id": 31,
+        "title": "Fix Invalid Escape Sequence in lead_enrichment.py",
+        "description": "Fix the SyntaxWarning caused by invalid escape sequence '\\d' in src/lead_enrichment.py line 239",
+        "details": "1. Open src/lead_enrichment.py and navigate to line 239\n2. Identify the regex pattern with the invalid escape sequence '\\d'\n3. Fix the pattern by either:\n   - Converting it to a raw string by prefixing with 'r' (e.g., r'\\d+' instead of '\\d+')\n   - Or using proper double escaping (e.g., '\\\\d+' instead of '\\d+')\n4. Test the regex pattern to ensure it still functions correctly\n5. Verify no SyntaxWarning is generated when running the file",
+        "testStrategy": "1. Run the Python interpreter with the -W error flag to convert warnings to errors\n2. Execute the specific file: `python -W error src/lead_enrichment.py`\n3. Verify no SyntaxWarning is raised\n4. Test the functionality that uses this regex pattern to ensure it still works correctly\n5. Run unit tests if available for this module",
         "priority": "high",
         "dependencies": [],
         "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Create Git Repository and Initialize Project Structure",
-            "description": "Set up a new Git repository and organize the project folder with subdirectories for prompts, config, and the main script.",
-            "dependencies": [],
-            "details": "Initialize a Git repository in the project root. Create folders: 'prompts/', 'config/', and place the main script in the root or a 'src/' folder. Add a .gitignore file to exclude virtual environment and sensitive files.",
-            "status": "done",
-            "testStrategy": "Verify that the repository is initialized, folders are present, and .gitignore excludes venv and .env files."
-          },
-          {
-            "id": 2,
-            "title": "Set Up Python Virtual Environment",
-            "description": "Create and activate a Python virtual environment using venv or poetry, ensuring Python 3.10+ is used.",
-            "dependencies": [
-              "1.1"
-            ],
-            "details": "Use 'python3.10 -m venv venv' or 'poetry init' to create the environment. Activate it and confirm the Python version is 3.10 or higher.",
-            "status": "done",
-            "testStrategy": "Run 'python --version' inside the environment to confirm the correct version. Ensure activation and deactivation work as expected."
-          },
-          {
-            "id": 3,
-            "title": "Install Required Dependencies",
-            "description": "Install all specified Python packages into the virtual environment and record them in requirements.txt or poetry.lock.",
-            "dependencies": [
-              "1.2"
-            ],
-            "details": "Install requests (>=2.31), pandas (>=2.2), google-api-python-client (>=2.125), google-auth (>=2.29), openai (>=1.30) and/or anthropic (latest), python-dotenv. Use pip or poetry to install and freeze dependencies.",
-            "status": "done",
-            "testStrategy": "Run 'pip freeze' or 'poetry show' to confirm all packages are installed with correct versions. Attempt to import each package in a Python shell."
-          },
-          {
-            "id": 4,
-            "title": "Add .env Template and Configuration Files",
-            "description": "Create a .env template file for API keys and credentials, and add example configuration files in the config folder.",
-            "dependencies": [
-              "1.3"
-            ],
-            "details": "Draft a .env.example file listing required environment variables (GOOGLE_MAPS_API_KEY, AI provider key, Google Drive credentials). Place it in the config folder and reference it in README.md.",
-            "status": "done",
-            "testStrategy": "Check that .env.example contains all necessary keys. Validate loading with python-dotenv in a sample script."
-          },
-          {
-            "id": 5,
-            "title": "Write README.md with Setup Instructions",
-            "description": "Document the setup process, environment activation, dependency installation, and configuration requirements in README.md.",
-            "dependencies": [
-              "1.4"
-            ],
-            "details": "Include step-by-step instructions for cloning the repo, creating the virtual environment, installing dependencies, and configuring .env. Reference project structure and usage.",
-            "status": "done",
-            "testStrategy": "Have a new user follow the README to set up the project from scratch and confirm all steps work as described."
-          }
-        ]
+        "subtasks": []
       },
       {
-        "id": 2,
-        "title": "Implement User Input and Configuration Loader",
-        "description": "Create CLI prompts for user input and load environment variables for API keys and configuration.",
-        "details": "Use argparse or click for CLI input: prompt for search_query and results_limit. Load environment variables using python-dotenv. Validate presence of GOOGLE_MAPS_API_KEY (or MCP vendor key), AI provider key, and Google Drive credentials. Fail gracefully with clear error messages if any config is missing.",
-        "testStrategy": "Test with missing and present environment variables. Confirm CLI prompts work and variables are loaded correctly.",
-        "priority": "high",
-        "dependencies": [
-          1
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design CLI Interface for User Input",
-            "description": "Define and implement command-line prompts for required user inputs: search_query and results_limit, using either argparse or Click.",
-            "dependencies": [],
-            "details": "Evaluate argparse and Click for CLI development. Implement CLI to accept search_query and results_limit as arguments or options, ensuring user-friendly help and error messages.",
-            "status": "done",
-            "testStrategy": "Test CLI with various argument combinations, including missing and invalid inputs, to confirm correct parsing and help output."
-          },
-          {
-            "id": 2,
-            "title": "Load Environment Variables Using python-dotenv",
-            "description": "Integrate python-dotenv to load environment variables from a .env file at runtime.",
-            "dependencies": [
-              "2.1"
-            ],
-            "details": "Ensure .env file is read at application startup. Make loaded variables accessible throughout the application for configuration and API keys.",
-            "status": "done",
-            "testStrategy": "Test with present and missing .env files. Confirm variables are loaded and accessible in the application context."
-          },
-          {
-            "id": 3,
-            "title": "Validate Required Configuration and API Keys",
-            "description": "Check for the presence of all required environment variables: GOOGLE_MAPS_API_KEY (or MCP vendor key), AI provider key, and Google Drive credentials.",
-            "dependencies": [
-              "2.2"
-            ],
-            "details": "Implement logic to verify that each required key is present and non-empty. Support alternative keys where specified (e.g., GOOGLE_MAPS_API_KEY or MCP vendor key).",
-            "status": "done",
-            "testStrategy": "Test with each variable missing in turn and with all present. Confirm validation logic correctly identifies missing or invalid configurations."
-          },
-          {
-            "id": 4,
-            "title": "Implement Graceful Failure and Clear Error Messaging",
-            "description": "Ensure the application exits gracefully with clear, actionable error messages if any required configuration or input is missing.",
-            "dependencies": [
-              "2.3"
-            ],
-            "details": "Design error handling to catch missing or invalid configurations and display user-friendly messages indicating what is missing and how to fix it.",
-            "status": "done",
-            "testStrategy": "Simulate missing configurations and verify that error messages are clear, specific, and the application exits without crashing."
-          },
-          {
-            "id": 5,
-            "title": "Integrate and Test End-to-End Input and Configuration Loader",
-            "description": "Combine CLI input, environment loading, validation, and error handling into a cohesive module. Verify the complete workflow.",
-            "dependencies": [
-              "2.4"
-            ],
-            "details": "Ensure all components interact correctly: CLI prompts, environment loading, validation, and error handling. Refactor as needed for maintainability.",
-            "status": "done",
-            "testStrategy": "Perform end-to-end tests with various scenarios: all configs present, some missing, invalid inputs, and correct operation. Confirm expected behavior in each case."
-          }
-        ]
-      },
-      {
-        "id": 3,
-        "title": "Integrate Google Maps (or MCP Vendor) API for Lead Collection",
-        "description": "Fetch business leads from Google Maps Places API or a modular MCP vendor API (e.g., Apify, Outscraper) based on user query and limit.",
-        "details": "Implement fetch_places(query, limit) using requests. Prefer Google Maps Places API v3 for direct access; if using a vendor, abstract API calls for modularity. Collect all required fields: name, formatted_address, international_phone_number, website, social_media_links (if available), rating, review_count, image_count, google_business_claimed. Handle pagination and API rate limits. Use config to switch providers easily.",
-        "testStrategy": "Mock API responses for unit tests. Validate correct field extraction and handling of missing data. Test with real API for integration.",
-        "priority": "high",
-        "dependencies": [
-          2
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design Provider-Agnostic API Abstraction",
-            "description": "Define an interface for fetching place data that abstracts over Google Maps Places API and MCP vendor APIs, enabling easy provider switching via configuration.",
-            "dependencies": [],
-            "details": "Specify required methods and data structures for the abstraction. Ensure the interface supports all required fields and can be extended for new providers.",
-            "status": "done",
-            "testStrategy": "Unit test with mock implementations for both Google Maps and a sample MCP vendor to verify interface compliance and provider switching."
-          },
-          {
-            "id": 2,
-            "title": "Implement Google Maps Places API v3 Integration",
-            "description": "Develop the provider module for Google Maps Places API v3, handling authentication, query construction, pagination, and rate limits.",
-            "dependencies": [
-              "3.1"
-            ],
-            "details": "Use the official Python client or direct HTTP requests as appropriate. Ensure all required fields are extracted, including handling of missing or unavailable data.",
-            "status": "done",
-            "testStrategy": "Mock API responses for unit tests. Integration test with real API key to validate field extraction, pagination, and rate limit handling."
-          },
-          {
-            "id": 3,
-            "title": "Implement MCP Vendor API Integration",
-            "description": "Develop the provider module for a modular MCP vendor (e.g., Apify, Outscraper), abstracting API calls to match the unified interface.",
-            "dependencies": [
-              "3.1"
-            ],
-            "details": "Map vendor-specific fields to the required schema. Handle authentication, pagination, and rate limits according to vendor documentation.",
-            "status": "done",
-            "testStrategy": "Mock vendor API responses for unit tests. Integration test with real vendor API key to validate field mapping and error handling."
-          },
-          {
-            "id": 4,
-            "title": "Develop fetch_places(query, limit) Core Logic",
-            "description": "Implement the main fetch_places function that uses the configured provider to fetch and aggregate business leads, handling pagination and limits.",
-            "dependencies": [
-              "3.2",
-              "3.3"
-            ],
-            "details": "Ensure the function respects the results limit, merges paginated results, and returns all required fields in a consistent format.",
-            "status": "done",
-            "testStrategy": "Unit test with both providers using mocks. Validate correct aggregation, limit enforcement, and handling of missing fields."
-          },
-          {
-            "id": 5,
-            "title": "Validate and Normalize Output Data",
-            "description": "Ensure all returned place data is validated, normalized, and includes all required fields, with sensible defaults for missing values.",
-            "dependencies": [
-              "3.4"
-            ],
-            "details": "Implement data normalization and validation logic. Document field requirements and default behaviors for missing or partial data.",
-            "status": "done",
-            "testStrategy": "Unit test with edge cases (missing fields, malformed data). Integration test to confirm output schema consistency across providers."
-          }
-        ]
-      },
-      {
-        "id": 4,
-        "title": "Normalize and Clean Lead Data",
-        "description": "Process raw API data to ensure all fields are present, missing values are 'NA', and CSV formatting is safe.",
-        "details": "Implement normalization: replace null/missing with 'NA', quote fields containing commas, trim whitespace. Use pandas DataFrame for processing. Ensure all output fields match the required CSV schema and order.",
-        "testStrategy": "Unit test with edge cases (missing fields, special characters, extra whitespace). Validate output DataFrame matches schema.",
-        "priority": "high",
-        "dependencies": [
-          3
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Load Raw API Data into DataFrame",
-            "description": "Import the raw lead data from the API response into a pandas DataFrame for processing.",
-            "dependencies": [],
-            "details": "Ensure all raw fields are captured and the DataFrame structure matches the expected schema.",
-            "status": "done",
-            "testStrategy": "Verify DataFrame loads correctly with sample API data, including cases with missing fields and extra whitespace."
-          },
-          {
-            "id": 2,
-            "title": "Replace Null and Missing Values with 'NA'",
-            "description": "Identify all null or missing values in the DataFrame and replace them with the string 'NA'.",
-            "dependencies": [
-              "4.1"
-            ],
-            "details": "Use pandas functions to detect NaN, None, or empty strings and standardize them as 'NA' across all columns.",
-            "status": "done",
-            "testStrategy": "Unit test with rows containing various types of missing values to confirm all are replaced with 'NA'."
-          },
-          {
-            "id": 3,
-            "title": "Trim Whitespace from All Fields",
-            "description": "Remove leading and trailing whitespace from every field in the DataFrame to ensure clean data.",
-            "dependencies": [
-              "4.2"
-            ],
-            "details": "Apply string trimming functions to all object-type columns, handling edge cases such as fields with only whitespace.",
-            "status": "done",
-            "testStrategy": "Test with fields containing extra spaces, tabs, and newlines to confirm all are trimmed."
-          },
-          {
-            "id": 4,
-            "title": "Quote Fields Containing Commas for CSV Safety",
-            "description": "Detect fields containing commas and wrap them in double quotes to prevent CSV parsing errors.",
-            "dependencies": [
-              "4.3"
-            ],
-            "details": "Scan all string fields for commas and apply quoting only where necessary, ensuring compatibility with CSV readers.",
-            "status": "done",
-            "testStrategy": "Validate with fields containing commas, quotes, and other special characters to ensure correct CSV output."
-          },
-          {
-            "id": 5,
-            "title": "Reorder and Validate Output Fields Against CSV Schema",
-            "description": "Ensure the DataFrame columns match the required CSV schema in both presence and order before export.",
-            "dependencies": [
-              "4.4"
-            ],
-            "details": "Check for missing or extra columns, reorder as specified, and confirm all output fields are present and correctly named.",
-            "status": "done",
-            "testStrategy": "Compare output DataFrame against schema definition; test with mismatched and incomplete schemas."
-          }
-        ]
-      },
-      {
-        "id": 5,
-        "title": "Implement AI-Powered Lead Scoring",
-        "description": "Use Claude or GPT to score each lead and generate a rationale based on R27 rules.",
-        "details": "Prepare a prompt template (prompts/lead_score.txt) with explicit scoring logic. Use the openai or anthropic SDK to call the LLM for each lead. Pass normalized lead data, receive LeadScore (0–10) and LeadScoreReasoning (1–3 sentences). Use Claude Opus 4 or GPT-4o for best results. Rate limit API calls and handle failures gracefully.",
-        "testStrategy": "Mock LLM responses for unit tests. Validate scoring logic with known inputs. Integration test with real LLM for a sample batch.",
-        "priority": "high",
-        "dependencies": [
-          4
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design Lead Scoring Prompt Template",
-            "description": "Create a prompt template (prompts/lead_score.txt) that explicitly encodes the R27 scoring rules and specifies the required output format: LeadScore (0–10) and LeadScoreReasoning (1–3 sentences).",
-            "dependencies": [],
-            "details": "Ensure the template provides clear instructions for the LLM to follow the R27 rules and return both a numeric score and concise rationale. Include examples for clarity.",
-            "status": "done",
-            "testStrategy": "Review the template for completeness and clarity. Validate with sample inputs to ensure the prompt yields the desired structured output."
-          },
-          {
-            "id": 2,
-            "title": "Integrate LLM API for Lead Scoring",
-            "description": "Implement code to call Claude Opus 4 or GPT-4o using the openai or anthropic SDK, passing normalized lead data and receiving structured scoring responses.",
-            "dependencies": [
-              "5.1"
-            ],
-            "details": "Configure the SDK for secure API access. Ensure the request payload matches the prompt template requirements and handles both input and output formats.",
-            "status": "done",
-            "testStrategy": "Mock API responses for unit tests. Confirm that the integration correctly sends data and parses the LLM's response."
-          },
-          {
-            "id": 3,
-            "title": "Implement Rate Limiting and Error Handling",
-            "description": "Add logic to rate limit API calls and gracefully handle failures, including retries and fallback mechanisms.",
-            "dependencies": [
-              "5.2"
-            ],
-            "details": "Set appropriate rate limits based on provider guidelines. Implement retry logic for transient errors and log failures for later review. Ensure the workflow continues processing other leads if one fails.",
-            "status": "done",
-            "testStrategy": "Simulate API rate limit and failure scenarios. Verify that errors are logged and processing continues without crashing."
-          },
-          {
-            "id": 4,
-            "title": "Process and Store Lead Scores and Rationales",
-            "description": "Parse the LLM responses to extract LeadScore and LeadScoreReasoning, and store them with the corresponding lead records.",
-            "dependencies": [
-              "5.3"
-            ],
-            "details": "Ensure data is stored in the required format for downstream tasks, such as CSV or database. Validate that each lead has both a score and rationale.",
-            "status": "done",
-            "testStrategy": "Test with sample and edge-case responses to confirm correct extraction and storage. Validate output schema matches requirements."
-          },
-          {
-            "id": 5,
-            "title": "Validate and Test End-to-End Lead Scoring Workflow",
-            "description": "Conduct end-to-end tests using both mocked and real LLM responses to ensure the entire lead scoring pipeline functions as intended.",
-            "dependencies": [
-              "5.4"
-            ],
-            "details": "Run integration tests with a batch of sample leads. Compare results against expected outputs and known scoring logic. Ensure the system handles errors and edge cases gracefully.",
-            "status": "done",
-            "testStrategy": "Use unit tests with mocked responses and integration tests with real API calls. Validate accuracy, robustness, and compliance with R27 rules."
-          }
-        ]
-      },
-      {
-        "id": 6,
-        "title": "Implement AI-Powered Draft Email Generation",
-        "description": "Generate a personalized outreach email for each lead using the LLM, leveraging the lead's weaknesses.",
-        "details": "Prepare a prompt template (prompts/draft_email.txt) that takes LeadScoreReasoning and business details. Use the same LLM provider as scoring. Ensure output is a casual, relevant email. Rate limit and handle errors as above.",
-        "testStrategy": "Mock LLM responses for unit tests. Validate email content for personalization and relevance. Integration test with real LLM.",
-        "priority": "high",
-        "dependencies": [
-          5
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design Prompt Template for Draft Email Generation",
-            "description": "Create a prompt template (prompts/draft_email.txt) that incorporates LeadScoreReasoning and business details, ensuring it guides the LLM to generate personalized outreach emails leveraging each lead's weaknesses.",
-            "dependencies": [],
-            "details": "Template should include placeholders for lead-specific reasoning and business context, and provide clear instructions for a casual, relevant tone.",
-            "status": "done",
-            "testStrategy": "Review template for completeness and clarity. Validate with sample inputs to ensure correct prompt structure."
-          },
-          {
-            "id": 2,
-            "title": "Integrate LLM Provider for Email Generation",
-            "description": "Implement the logic to call the same LLM provider used for lead scoring, passing the prepared prompt and receiving the generated email draft.",
-            "dependencies": [
-              "6.1"
-            ],
-            "details": "Reuse provider configuration and authentication from lead scoring. Ensure compatibility with prompt format and output requirements.",
-            "status": "done",
-            "testStrategy": "Mock LLM responses for unit tests. Confirm integration with real LLM provider for sample prompts."
-          },
-          {
-            "id": 3,
-            "title": "Implement Rate Limiting and Error Handling",
-            "description": "Apply rate limiting to LLM API calls and handle errors gracefully, following the same approach as in lead scoring.",
-            "dependencies": [
-              "6.2"
-            ],
-            "details": "Wrap LLM calls in try/except blocks, log errors, and retry or skip failed requests as appropriate. Enforce API rate limits to avoid throttling.",
-            "status": "done",
-            "testStrategy": "Simulate API failures and rate limit breaches. Verify error logging and system stability under stress."
-          },
-          {
-            "id": 4,
-            "title": "Format and Personalize Email Output",
-            "description": "Post-process the LLM output to ensure the email is casual, relevant, and includes all necessary business and lead details.",
-            "dependencies": [
-              "6.3"
-            ],
-            "details": "Check for correct tone, inclusion of lead weaknesses, and proper formatting (subject line, signature, etc.).",
-            "status": "done",
-            "testStrategy": "Validate email drafts for personalization, relevance, and formatting. Review with stakeholders for tone and content quality."
-          },
-          {
-            "id": 5,
-            "title": "Test and Validate End-to-End Email Generation Workflow",
-            "description": "Conduct unit and integration tests using mocked and real LLM responses to ensure the workflow generates high-quality, personalized emails for each lead.",
-            "dependencies": [
-              "6.4"
-            ],
-            "details": "Test with various lead scenarios and business contexts. Validate output against requirements for personalization and relevance.",
-            "status": "done",
-            "testStrategy": "Run unit tests with mock data. Perform integration tests with real LLM and sample leads. Review email outputs for correctness and quality."
-          }
-        ]
-      },
-      {
-        "id": 7,
-        "title": "Assemble Final CSV Output",
-        "description": "Compile all processed data into a CSV file with the exact required schema and formatting.",
-        "details": "Use pandas to assemble columns: Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail. Ensure correct order and quoting. Filename format: YYYY-MM-DD_<search_query>.csv. Store in a temp directory before upload.",
-        "testStrategy": "Validate CSV output against schema. Open in Excel/Google Sheets to check formatting. Test with edge cases (commas, quotes, missing data).",
-        "priority": "high",
-        "dependencies": [
-          6
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Prepare DataFrame with Required Columns",
-            "description": "Create a pandas DataFrame containing the columns: Name, Address, Phone, Website, SocialMediaLinks, Reviews, Images, LeadScore, LeadScoreReasoning, DraftEmail, ensuring correct order and data types.",
-            "dependencies": [],
-            "details": "Verify that all processed data is present and columns are ordered as specified. Use efficient datatypes for memory optimization if needed.",
-            "status": "done",
-            "testStrategy": "Check DataFrame schema and column order. Validate with sample data for completeness and type consistency."
-          },
-          {
-            "id": 2,
-            "title": "Format Data for CSV Output",
-            "description": "Ensure all fields are properly quoted, handle special characters (commas, quotes), and replace missing values with 'NA' to meet CSV formatting requirements.",
-            "dependencies": [
-              "7.1"
-            ],
-            "details": "Use pandas options to quote fields as needed and sanitize data for CSV compatibility.",
-            "status": "done",
-            "testStrategy": "Test with edge cases including fields containing commas, quotes, and missing data. Open output in Excel/Google Sheets to verify formatting."
-          },
-          {
-            "id": 3,
-            "title": "Generate Filename According to Specification",
-            "description": "Create the output filename in the format YYYY-MM-DD_<search_query>.csv using the current date and search query.",
-            "dependencies": [
-              "7.2"
-            ],
-            "details": "Programmatically generate filename string using datetime and search query variables.",
-            "status": "done",
-            "testStrategy": "Validate filename format for various queries and dates. Ensure no illegal characters are present."
-          },
-          {
-            "id": 4,
-            "title": "Write DataFrame to Temporary Directory as CSV",
-            "description": "Save the formatted DataFrame as a CSV file in a designated temporary directory using the generated filename.",
-            "dependencies": [
-              "7.3"
-            ],
-            "details": "Use pandas to_csv() method to write the file, specifying the temp directory path.",
-            "status": "done",
-            "testStrategy": "Confirm file is written to the correct location. Check file accessibility and integrity."
-          },
-          {
-            "id": 5,
-            "title": "Validate CSV Output Against Schema and Formatting",
-            "description": "Open the generated CSV file and verify that it matches the required schema, formatting, and handles edge cases correctly.",
-            "dependencies": [
-              "7.4"
-            ],
-            "details": "Perform schema validation and manual inspection in spreadsheet software. Test with sample and edge case data.",
-            "status": "done",
-            "testStrategy": "Compare CSV columns and order to specification. Open in Excel/Google Sheets to check for formatting issues. Test with cases including special characters and missing data."
-          }
-        ]
-      },
-      {
-        "id": 8,
-        "title": "Integrate Google Drive API for File Upload",
-        "description": "Upload the generated CSV to Google Drive and return a public share link.",
-        "details": "Use google-api-python-client and google-auth to authenticate with OAuth JSON. Upload file to the configured folder. Set permissions to generate a public share link. Handle token refresh and errors robustly. Store Drive folder ID in config.",
-        "testStrategy": "Integration test with Google Drive: upload, verify file presence, and test share link. Handle permission errors and invalid credentials.",
-        "priority": "high",
-        "dependencies": [
-          7
-        ],
-        "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Authenticate with Google Drive API using OAuth",
-            "description": "Implement authentication using google-api-python-client and google-auth, loading credentials from OAuth JSON and handling token refresh automatically.",
-            "dependencies": [],
-            "details": "Set up OAuth 2.0 flow, store and refresh tokens as needed, and ensure credentials are securely loaded from the configured location.",
-            "status": "done",
-            "testStrategy": "Test with valid and expired tokens to confirm authentication and automatic refresh. Verify error handling for missing or invalid credentials."
-          },
-          {
-            "id": 2,
-            "title": "Upload CSV File to Specified Google Drive Folder",
-            "description": "Upload the generated CSV file to the Google Drive folder specified by the folder ID in the configuration.",
-            "dependencies": [
-              "8.1"
-            ],
-            "details": "Use the files.create method with uploadType=media, set the parent folder ID, and ensure the file is uploaded with correct metadata.",
-            "status": "done",
-            "testStrategy": "Upload a sample CSV and verify its presence in the target folder. Confirm correct file name and type."
-          },
-          {
-            "id": 3,
-            "title": "Set Public Sharing Permissions for Uploaded File",
-            "description": "Configure the uploaded file's permissions to allow public access and generate a shareable link.",
-            "dependencies": [
-              "8.2"
-            ],
-            "details": "Use the permissions.create method to set 'anyone with the link' can view. Retrieve and return the public share link.",
-            "status": "done",
-            "testStrategy": "Access the share link from an unauthenticated browser to confirm public availability. Test permission errors and link validity."
-          },
-          {
-            "id": 4,
-            "title": "Implement Robust Error Handling and Token Refresh Logic",
-            "description": "Ensure all API interactions handle errors gracefully, including token expiration, permission issues, and network failures.",
-            "dependencies": [
-              "8.1",
-              "8.2",
-              "8.3"
-            ],
-            "details": "Wrap API calls in try/except blocks, log errors, and retry token refresh or failed uploads as appropriate.",
-            "status": "done",
-            "testStrategy": "Simulate token expiration, permission denial, and network errors. Confirm errors are logged and handled without crashing."
-          },
-          {
-            "id": 5,
-            "title": "Store and Load Google Drive Folder ID from Configuration",
-            "description": "Persist the Google Drive folder ID in a configuration file and load it dynamically during upload operations.",
-            "dependencies": [],
-            "details": "Update configuration loader to read and validate the folder ID. Ensure the folder ID is used in upload requests and can be changed without code modification.",
-            "status": "done",
-            "testStrategy": "Change the folder ID in config and verify uploads go to the correct folder. Test with missing or invalid folder IDs."
-          }
-        ]
-      },
-      {
-        "id": 9,
-        "title": "Implement Error Handling, Logging, and Partial Results Support",
-        "description": "Ensure the workflow handles API failures gracefully, logs errors, and can return partial results if needed.",
-        "details": "Use Python logging module for structured logs. Wrap all API calls in try/except blocks. If a step fails, log the error and continue processing remaining leads. If the workflow cannot complete, return a partial CSV with available data and a warning.",
-        "testStrategy": "Simulate API failures and verify logs and partial output. Confirm that the script never crashes and always produces a CSV.",
+        "id": 32,
+        "title": "Scan Codebase for Similar Regex Issues",
+        "description": "Perform a comprehensive scan of the entire codebase to identify and fix any other regex patterns with improper escape sequences",
+        "details": "1. Use grep or similar tool to find all regex patterns in the codebase: `grep -r \"re\\.\" --include=\"*.py\" ./src`\n2. Also search for common regex indicators: `grep -r \"[^r]'\\\\[^']\" --include=\"*.py\" ./src`\n3. Review each identified pattern for proper escaping\n4. Fix each pattern by either:\n   - Converting to raw strings (r'')\n   - Using proper double escaping (\\\\)\n5. Focus on patterns using \\d, \\w, \\s, and other common regex escape sequences\n6. Document all changes made for future reference",
+        "testStrategy": "1. Run the Python interpreter with warnings enabled on all modified files\n2. Create a simple test script that imports and exercises each modified module\n3. Run static analysis tools like flake8 or pylint to verify no warnings remain\n4. Execute existing unit tests to ensure functionality is preserved\n5. Manually test regex patterns with sample inputs to verify correct behavior",
         "priority": "medium",
         "dependencies": [
-          8
+          31
         ],
         "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design Structured Logging Framework",
-            "description": "Set up the Python logging module for structured, timestamped logs. Define log levels and formats to capture errors, warnings, and workflow events.",
-            "dependencies": [],
-            "details": "Configure logging to output to both console and file. Ensure logs include context such as lead ID, API endpoint, and error details.",
-            "status": "done",
-            "testStrategy": "Verify logs are generated for normal operations and error scenarios. Check log format and completeness for simulated failures."
-          },
-          {
-            "id": 2,
-            "title": "Implement Granular Exception Handling for API Calls",
-            "description": "Wrap all API calls in focused try/except blocks, catching specific exceptions relevant to each API and operation.",
-            "dependencies": [
-              "9.1"
-            ],
-            "details": "Avoid broad except clauses; handle exceptions like ConnectionError, TimeoutError, and API-specific errors. Log each exception with meaningful messages and context.",
-            "status": "done",
-            "testStrategy": "Simulate various API failures (e.g., network issues, invalid responses) and confirm correct exception handling and logging."
-          },
-          {
-            "id": 3,
-            "title": "Continue Processing Remaining Leads After Failure",
-            "description": "Ensure that if an API call fails for a lead, the workflow logs the error and continues processing subsequent leads without interruption.",
-            "dependencies": [
-              "9.2"
-            ],
-            "details": "Implement loop logic to skip failed leads and proceed with others. Track which leads failed and which succeeded for partial result reporting.",
-            "status": "done",
-            "testStrategy": "Test with batches containing both valid and invalid leads. Confirm that failures do not halt the workflow and all possible leads are processed."
-          },
-          {
-            "id": 4,
-            "title": "Generate Partial CSV Output with Warning",
-            "description": "If the workflow cannot complete for all leads, output a CSV containing only successfully processed leads and include a warning about partial results.",
-            "dependencies": [
-              "9.3"
-            ],
-            "details": "Design CSV export logic to exclude failed leads. Add a warning message in the CSV or as a separate log entry indicating incomplete results.",
-            "status": "done",
-            "testStrategy": "Force partial failures and verify that the resulting CSV contains only successful leads and a clear warning."
-          },
-          {
-            "id": 5,
-            "title": "Simulate and Validate Error Handling and Partial Results",
-            "description": "Create automated tests that simulate API failures, verify error logging, and confirm that partial results are correctly generated and reported.",
-            "dependencies": [
-              "9.4"
-            ],
-            "details": "Develop test cases for different failure scenarios, including total and partial API outages. Validate that the script never crashes and always produces a CSV.",
-            "status": "done",
-            "testStrategy": "Run integration tests with mocked API failures. Check logs, CSV output, and workflow resilience under stress."
-          }
-        ]
+        "subtasks": []
       },
       {
-        "id": 10,
-        "title": "Write Documentation and Provide Example Prompts",
-        "description": "Document setup, configuration, usage, and provide example prompt files for scoring and email generation.",
-        "details": "Write a comprehensive README.md with setup, environment variables, and run instructions. Include sample config.env and example prompts in prompts/lead_score.txt and prompts/draft_email.txt. Document how to swap API providers and LLMs for future extensibility.",
-        "testStrategy": "Have a new user follow the README to set up and run the project from scratch. Validate clarity and completeness.",
+        "id": 33,
+        "title": "Run Static Analysis on Codebase",
+        "description": "Run comprehensive static analysis tools to identify other potential code quality issues beyond regex patterns",
+        "details": "1. Install necessary static analysis tools if not already available:\n   ```\n   pip install flake8 pylint mypy bandit\n   ```\n2. Run flake8 for PEP 8 compliance and basic error checking:\n   ```\n   flake8 ./src\n   ```\n3. Run pylint for more comprehensive analysis:\n   ```\n   pylint ./src\n   ```\n4. Run mypy for type checking if type hints are used:\n   ```\n   mypy ./src\n   ```\n5. Run bandit for security issues:\n   ```\n   bandit -r ./src\n   ```\n6. Generate a report of all identified issues\n7. Categorize issues by severity (critical, high, medium, low)",
+        "testStrategy": "1. Review the output of each static analysis tool\n2. Verify the tools ran successfully on all files\n3. Compare results with previous static analysis runs if available\n4. Ensure no false positives are included in the report\n5. Validate that critical issues are correctly identified",
         "priority": "medium",
-        "dependencies": [
-          9
-        ],
+        "dependencies": [],
         "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Draft Comprehensive README.md",
-            "description": "Create a README.md that covers project overview, setup instructions, environment variables, configuration, usage, and extensibility for API providers and LLMs.",
-            "dependencies": [],
-            "details": "Include sections for project introduction, prerequisites, installation steps, configuration details, usage examples, and instructions for swapping API providers and LLMs. Ensure Markdown formatting and clarity for new users.",
-            "status": "done",
-            "testStrategy": "Have a new user follow the README to set up and run the project from scratch. Collect feedback on clarity and completeness."
-          },
-          {
-            "id": 2,
-            "title": "Document Environment Variables and Configuration",
-            "description": "Provide detailed documentation for all required environment variables and configuration options.",
-            "dependencies": [
-              "10.1"
-            ],
-            "details": "List and explain each environment variable (e.g., API keys, Google Drive credentials) in the README. Include a sample config.env file with placeholder values and comments.",
-            "status": "done",
-            "testStrategy": "Verify that all variables are documented and that the sample config.env enables successful setup when populated."
-          },
-          {
-            "id": 3,
-            "title": "Create Example Prompt Files for Lead Scoring",
-            "description": "Develop and document an example prompt file for lead scoring in prompts/lead_score.txt.",
-            "dependencies": [
-              "10.1"
-            ],
-            "details": "Write a clear, well-structured example prompt for lead scoring. Add comments or documentation within the file as needed to explain its structure and usage.",
-            "status": "done",
-            "testStrategy": "Test the prompt file with the scoring workflow to ensure it produces expected results and is understandable to users."
-          },
-          {
-            "id": 4,
-            "title": "Create Example Prompt Files for Email Generation",
-            "description": "Develop and document an example prompt file for draft email generation in prompts/draft_email.txt.",
-            "dependencies": [
-              "10.1"
-            ],
-            "details": "Write a sample prompt for generating draft emails. Include inline comments or a brief header explaining its intended use and customization points.",
-            "status": "done",
-            "testStrategy": "Validate that the prompt file works with the email generation workflow and is clear for users to adapt."
-          },
-          {
-            "id": 5,
-            "title": "Document Extensibility for API Providers and LLMs",
-            "description": "Add a dedicated section in the documentation explaining how to swap or extend API providers and LLMs.",
-            "dependencies": [
-              "10.1"
-            ],
-            "details": "Describe the architecture and configuration steps required to change or add new API providers and LLMs. Provide examples or references to relevant code/config sections.",
-            "status": "done",
-            "testStrategy": "Review documentation for accuracy and completeness. Confirm that a user can follow the instructions to swap providers without additional guidance."
-          }
-        ]
+        "subtasks": []
       },
       {
-        "id": 11,
-        "title": "Create Email Verifier Module",
-        "description": "Develop the core module `src/email_verifier.py` to interface with MailTester.ninja API for email validation.",
-        "details": "Use Python 3.11+ and the latest `requests` (v2.31.0) for HTTP calls. Structure the module with a class `MailTesterVerifier` encapsulating API interactions. Implement methods for token retrieval, email verification, and error handling. Ensure all API calls use HTTPS and sanitize email inputs before requests. Follow single-responsibility principle for maintainability.",
-        "testStrategy": "Write unit tests for each method using pytest. Mock API responses for token and email verification endpoints. Validate input sanitization and HTTPS enforcement.",
+        "id": 34,
+        "title": "Fix Import Errors and Missing Dependencies",
+        "description": "Identify and resolve any import errors or missing dependencies resulting from the recent GitHub pull",
+        "details": "1. Attempt to run the application and note any import errors\n2. Check for any missing packages in requirements.txt compared to imports in the code\n3. Install any missing dependencies:\n   ```\n   pip install -r requirements.txt\n   ```\n4. Fix any circular imports by restructuring the code if necessary\n5. Resolve any import path issues by ensuring proper package structure\n6. Check for version conflicts between dependencies and resolve them\n7. Update requirements.txt if any new dependencies are added",
+        "testStrategy": "1. Run the application to verify no import errors occur\n2. Create a fresh virtual environment and install only the dependencies in requirements.txt\n3. Verify the application runs correctly in the fresh environment\n4. Test startup of all major application components\n5. Verify imports work in both development and production environments if applicable",
         "priority": "high",
         "dependencies": [],
         "status": "done",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Design MailTesterVerifier Class Structure",
-            "description": "Define the MailTesterVerifier class in src/email_verifier.py, ensuring clear separation of responsibilities for token management, email verification, and error handling.",
-            "dependencies": [],
-            "details": "Establish the class skeleton with method stubs for token retrieval, email verification, input sanitization, and error handling. Ensure adherence to the single-responsibility principle for maintainability.",
-            "status": "done",
-            "testStrategy": "Review class and method structure for clarity and separation of concerns. Confirm that each method has a distinct, well-defined purpose."
-          },
-          {
-            "id": 2,
-            "title": "Implement Token Retrieval Method",
-            "description": "Develop a method to securely retrieve and cache the authentication token from MailTester.ninja API using HTTPS.",
-            "dependencies": [
-              "11.1"
-            ],
-            "details": "Use Python 3.11+ and requests v2.31.0 to make a GET request to the token endpoint. Parse and store the token for subsequent API calls. Handle token expiration and errors gracefully.",
-            "status": "done",
-            "testStrategy": "Write unit tests to mock token endpoint responses, including success, failure, and expiration scenarios. Validate HTTPS enforcement and error handling."
-          },
-          {
-            "id": 3,
-            "title": "Implement Email Input Sanitization",
-            "description": "Create a method to sanitize and validate email addresses before making API requests.",
-            "dependencies": [
-              "11.1"
-            ],
-            "details": "Ensure emails conform to RFC standards, strip whitespace, and reject invalid formats. Prevent injection or malformed requests.",
-            "status": "done",
-            "testStrategy": "Unit test with valid, invalid, and edge-case email inputs. Confirm only sanitized emails are sent to the API."
-          },
-          {
-            "id": 4,
-            "title": "Implement Email Verification Method",
-            "description": "Develop a method to verify emails using the MailTester.ninja API, utilizing the retrieved token and sanitized input.",
-            "dependencies": [
-              "11.2",
-              "11.3"
-            ],
-            "details": "Make a GET request to the verification endpoint with the token and sanitized email. Parse and return the verification result. Handle API errors and unexpected responses.",
-            "status": "done",
-            "testStrategy": "Mock API responses for various verification outcomes (valid, invalid, error). Test integration with token retrieval and input sanitization."
-          },
-          {
-            "id": 5,
-            "title": "Implement Robust Error Handling",
-            "description": "Add comprehensive error handling for all API interactions and input validation steps.",
-            "dependencies": [
-              "11.2",
-              "11.3",
-              "11.4"
-            ],
-            "details": "Catch and log exceptions, provide clear error messages, and ensure the module fails gracefully on network, authentication, or validation errors.",
-            "status": "done",
-            "testStrategy": "Unit test error scenarios for token retrieval, email verification, and input sanitization. Confirm appropriate exceptions and messages are raised for each failure mode."
-          }
-        ]
-      },
-      {
-        "id": 12,
-        "title": "Implement Token Management System",
-        "description": "Design and implement robust token management for MailTester.ninja API authentication.",
-        "details": "Store API token and expiration timestamp securely in memory (use Redis v7.2.0 for distributed caching if scaling is required). Auto-refresh token every 23 hours using a background scheduler (recommend `APScheduler` v4.0.0). Handle token failures gracefully with fallback and exponential backoff. Store API key in environment variables using `python-dotenv` v1.0.0.",
-        "testStrategy": "Unit test token retrieval, refresh logic, and failure scenarios. Simulate token expiry and validate auto-refresh. Ensure API key is never logged or exposed.",
-        "priority": "high",
-        "dependencies": [
-          11
-        ],
-        "status": "pending",
         "subtasks": []
       },
       {
-        "id": 13,
-        "title": "Integrate Email Verification Pipeline",
-        "description": "Integrate email verification into the R27 Infinite AI Leads Agent pipeline after data normalization.",
-        "details": "Modify the pipeline to invoke the verifier for each normalized email. Implement batch processing (recommend batch size of 100, adjustable via config). Use async requests with `httpx` v0.27.0 for concurrency. Cache results in Redis to avoid duplicate API calls. Ensure pipeline skips invalid emails from further processing.",
-        "testStrategy": "Integration tests with mock pipeline data. Validate batch processing, concurrency, and cache hit ratio. End-to-end tests for pipeline flow.",
-        "priority": "high",
-        "dependencies": [
-          12
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 14,
-        "title": "Update Lead Data Schema",
-        "description": "Extend lead data structure to include email verification fields as specified in PRD.",
-        "details": "Update ORM models (SQLAlchemy v2.0+) and database schema to add fields: `email_verified`, `email_status`, `email_score`, `mx_valid`, `smtp_valid`, `verification_date`. Ensure backward compatibility and migration scripts using Alembic v1.13.0.",
-        "testStrategy": "Database migration tests. Validate schema updates and data integrity. Unit tests for model serialization/deserialization.",
-        "priority": "high",
-        "dependencies": [
-          13
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 15,
-        "title": "Integrate Lead Scoring Logic",
-        "description": "Adjust lead scoring algorithm to incorporate email verification results.",
-        "details": "Update scoring logic to apply PRD-specified point adjustments based on email status. Ensure invalid/disposable emails are excluded from further processing. Refactor scoring code for clarity and maintainability. Document scoring rules in code comments and developer docs.",
-        "testStrategy": "Unit tests for scoring logic. Test all email status scenarios. Validate exclusion of invalid emails from downstream processes.",
-        "priority": "high",
-        "dependencies": [
-          14
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 16,
-        "title": "Enhance CSV Export Functionality",
-        "description": "Update CSV export to include verification fields and summary statistics. Generate quarantine CSV for invalid emails.",
-        "details": "Modify export logic to add new fields and summary stats. Use `pandas` v2.2.0 for efficient CSV handling. Implement separate export for invalid emails. Ensure sensitive data (API keys, raw emails) are never exported.",
-        "testStrategy": "Unit and integration tests for CSV exports. Validate field inclusion, summary stats, and quarantine list accuracy.",
+        "id": 35,
+        "title": "Enhance Error Handling in Modified Files",
+        "description": "Review and improve error handling in all files that were modified in the recent GitHub pull",
+        "details": "1. Identify all files modified in the recent GitHub pull\n2. Review each file for proper exception handling\n3. Add try-except blocks around critical operations, especially:\n   - File operations\n   - Network requests\n   - Database queries\n   - External API calls\n4. Ensure exceptions are properly logged with context information\n5. Add specific exception types rather than catching generic Exception\n6. Implement graceful degradation for non-critical failures\n7. Add user-friendly error messages where appropriate\n8. Consider adding custom exception classes for application-specific errors",
+        "testStrategy": "1. Simulate failure conditions for each error handling case\n2. Verify exceptions are caught and handled appropriately\n3. Check that error messages are clear and helpful\n4. Ensure critical operations fail gracefully\n5. Verify logs contain sufficient information for debugging\n6. Test that the application continues functioning after recoverable errors\n7. Verify that unrecoverable errors are reported clearly",
         "priority": "medium",
         "dependencies": [
-          15
+          34
         ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 17,
-        "title": "Update GUI Dashboard",
-        "description": "Display real-time email verification status and statistics in the dashboard. Add filtering options for email status.",
-        "details": "Update frontend (React v18.2.0) to show verification status, valid/invalid ratios, and success rates. Implement filter controls for email status. Use WebSocket or polling for real-time updates. Ensure UI/UX accessibility and responsiveness.",
-        "testStrategy": "UI tests for display accuracy and filter functionality. End-to-end tests for real-time updates. Accessibility audits.",
-        "priority": "medium",
-        "dependencies": [
-          16
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 18,
-        "title": "Implement Configuration Management",
-        "description": "Add environment variable support and configuration options for verification thresholds, toggling, and rate limiting.",
-        "details": "Use `python-dotenv` for env vars. Create config files (YAML or JSON) for thresholds and toggles. Implement rate limiting using `ratelimit` v2.2.1 or Redis-based counters. Ensure secure handling of sensitive configs.",
-        "testStrategy": "Unit tests for config loading and toggling. Validate rate limiting under load. Security review for sensitive data handling.",
-        "priority": "medium",
-        "dependencies": [
-          11
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 19,
-        "title": "Advanced Error Handling and Recovery",
-        "description": "Implement robust error handling for API failures, rate limits, and network issues with retry and backoff.",
-        "details": "Use exponential backoff for 429/500 errors. Queue failed requests for retry using Redis or in-memory queue. Log errors securely (never log raw emails or API keys). Document error codes and recovery logic.",
-        "testStrategy": "Simulate API errors and validate recovery. Unit tests for retry logic and queue handling. Security tests for logging.",
-        "priority": "medium",
-        "dependencies": [
-          13
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 20,
-        "title": "Documentation and Developer Guides",
-        "description": "Produce comprehensive documentation covering API integration, configuration, troubleshooting, and performance tuning.",
-        "details": "Write Markdown docs for integration steps, config options, error handling, and rollback plan. Include code samples and test instructions. Use Sphinx v7.2.0 for API docs generation. Ensure docs are clear, up-to-date, and accessible.",
-        "testStrategy": "Peer review of documentation. Validate code samples and instructions. Ensure docs cover all PRD requirements.",
-        "priority": "low",
-        "dependencies": [
-          11,
-          12,
-          13,
-          14,
-          15,
-          16,
-          17,
-          18,
-          19
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 21,
-        "title": "Implement API Key Management System",
-        "description": "Create a system to manage Yelp API keys, including storage, validation, and error handling for missing or invalid keys.",
-        "details": "Develop a configuration module that allows users to input their Yelp API key. Store the key securely in the application's configuration. Implement validation by making a test call to the Yelp API. Create clear error messages and setup instructions for users. Implement graceful degradation when the API key is missing or invalid by falling back to Google Maps only.\n\nCode structure:\n```python\nclass YelpAPIConfig:\n    def __init__(self):\n        self.api_key = None\n        self.is_valid = False\n    \n    def set_api_key(self, key):\n        self.api_key = key\n        self.is_valid = self.validate_key()\n        return self.is_valid\n    \n    def validate_key(self):\n        # Make test call to Yelp API\n        # Return True if valid, False otherwise\n        pass\n        \n    def get_setup_instructions(self):\n        # Return formatted instructions for obtaining API key\n        pass\n```",
-        "testStrategy": "Unit tests for key validation logic. Integration test with mock API responses. UI test for key input form. Test cases for valid key, invalid key, and missing key scenarios. Verify graceful degradation when key is missing.",
-        "priority": "high",
-        "dependencies": [],
         "status": "in-progress",
         "subtasks": []
       },
       {
-        "id": 22,
-        "title": "Implement Yelp Business Search API Client",
-        "description": "Create a client for the Yelp Fusion API that handles authentication, request formation, and response parsing for business searches.",
-        "details": "Develop a client class that interfaces with the Yelp Fusion API. Implement authentication using the Bearer token method with the user's API key. Create methods to search businesses by category and location. Handle pagination to support retrieving up to 1000 results (with 50 per request). Implement rate limit handling with exponential backoff for retries. Use the requests library for HTTP calls.\n\nExample implementation:\n```python\nclass YelpAPIClient:\n    def __init__(self, api_key):\n        self.api_key = api_key\n        self.base_url = 'https://api.yelp.com/v3'\n        self.headers = {\n            'Authorization': f'Bearer {self.api_key}'\n        }\n    \n    def search_businesses(self, location, category=None, limit=50, offset=0):\n        endpoint = f'{self.base_url}/businesses/search'\n        params = {\n            'location': location,\n            'categories': category,\n            'limit': min(limit, 50),\n            'offset': offset\n        }\n        \n        response = requests.get(endpoint, headers=self.headers, params=params)\n        \n        if response.status_code == 429:  # Rate limit exceeded\n            # Implement exponential backoff\n            pass\n            \n        return response.json() if response.status_code == 200 else None\n```",
-        "testStrategy": "Unit tests with mocked API responses. Test search with various parameters. Test pagination logic. Test rate limit handling and retries. Integration tests with the actual API using a test key. Performance testing to ensure response times under 3 seconds for 25 businesses.",
+        "id": 36,
+        "title": "Implement Enhanced Logging System",
+        "description": "Improve the logging system throughout the application for better debugging and error tracking",
+        "details": "1. Review current logging implementation\n2. Standardize logging format across all modules\n3. Add logging configuration to allow different log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n4. Implement context-specific logging with relevant information\n5. Add request IDs to logs for tracing requests through the system\n6. Ensure sensitive information is not logged (passwords, tokens, etc.)\n7. Add timestamps and source information to log entries\n8. Consider implementing structured logging (JSON format) for easier parsing\n9. Add log rotation to prevent log files from growing too large",
+        "testStrategy": "1. Generate logs at different severity levels\n2. Verify logs contain all necessary context information\n3. Check that log files are created and rotated correctly\n4. Ensure sensitive information is properly redacted\n5. Verify logs are helpful for debugging real issues\n6. Test log parsing if automated log analysis is used\n7. Verify logging performance impact is minimal",
+        "priority": "medium",
+        "dependencies": [
+          35
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 37,
+        "title": "Test Critical Lead Generation Functionality",
+        "description": "Thoroughly test the critical lead generation functionality to ensure it works correctly after all fixes",
+        "details": "1. Identify all critical lead generation workflows\n2. Create test cases for each workflow, including:\n   - Normal operation with valid inputs\n   - Edge cases with unusual but valid inputs\n   - Error cases with invalid inputs\n3. Test the lead enrichment process end-to-end\n4. Verify data processing and transformation is correct\n5. Check integration with external services if applicable\n6. Test performance with various load levels\n7. Verify results match expected outputs\n8. Document any discrepancies or issues found",
+        "testStrategy": "1. Create automated tests for each critical workflow\n2. Perform manual testing of end-to-end processes\n3. Use mock objects for external dependencies during testing\n4. Compare results with known good outputs\n5. Measure performance metrics during testing\n6. Test with real-world data samples if available\n7. Verify all acceptance criteria are met",
         "priority": "high",
         "dependencies": [
-          21
+          31,
+          32,
+          34,
+          35
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 23,
-        "title": "Implement Data Normalization Module",
-        "description": "Create a module to normalize Yelp business data into the R27 schema format, handling data mapping and validation.",
-        "details": "Develop a data normalization module that maps Yelp API response fields to the R27 schema. Implement field extraction and validation for business name, phone, website, address, coordinates, rating, review count, and business type. Handle missing data gracefully by providing default values or placeholders. Implement phone number and website validation.\n\nExample implementation:\n```python\nclass YelpDataNormalizer:\n    def normalize_business(self, yelp_business):\n        normalized = {\n            'Name': yelp_business.get('name', ''),\n            'Phone': self._normalize_phone(yelp_business.get('display_phone', '')),\n            'Website': yelp_business.get('url', ''),  # Yelp URL as fallback\n            'Address': self._format_address(yelp_business.get('location', {}).get('display_address', [])),\n            'Latitude': yelp_business.get('coordinates', {}).get('latitude', None),\n            'Longitude': yelp_business.get('coordinates', {}).get('longitude', None),\n            'YelpRating': yelp_business.get('rating', None),\n            'YelpReviews': yelp_business.get('review_count', 0),\n            'BusinessType': self._get_business_type(yelp_business.get('categories', []))\n        }\n        return normalized\n        \n    def _normalize_phone(self, phone):\n        # Clean and validate phone number\n        pass\n        \n    def _format_address(self, address_parts):\n        # Join address parts into a single string\n        return ' '.join(address_parts) if address_parts else ''\n        \n    def _get_business_type(self, categories):\n        # Extract primary category or map to standard business types\n        return categories[0]['title'] if categories else ''\n```",
-        "testStrategy": "Unit tests for each normalization function. Test with complete data, partial data, and missing data. Verify correct mapping of all fields according to schema. Test phone and website validation. Integration test with sample Yelp API responses.",
-        "priority": "high",
-        "dependencies": [
-          22
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 24,
-        "title": "Implement Error Handling and Logging System",
-        "description": "Create a comprehensive error handling and logging system for the Yelp API integration to manage API errors, rate limits, and network issues.",
-        "details": "Develop an error handling system that catches and processes different types of errors: API key validation errors, rate limit exceeded errors, network timeouts, and invalid location errors. Implement appropriate user-facing error messages. Create a logging system to track API usage, errors, and performance metrics. Implement retry logic with exponential backoff for transient errors.\n\nExample implementation:\n```python\nclass YelpErrorHandler:\n    def __init__(self, logger):\n        self.logger = logger\n        \n    def handle_error(self, error_type, details=None):\n        if error_type == 'invalid_key':\n            self.logger.error(f'Invalid API key: {details}')\n            return {\n                'error': 'Invalid Yelp API key',\n                'message': 'Please check your API key and try again.',\n                'setup_instructions': get_setup_instructions()\n            }\n        elif error_type == 'rate_limit':\n            self.logger.warning('Yelp API rate limit exceeded')\n            return {\n                'error': 'Rate limit exceeded',\n                'message': 'Yelp API rate limit reached. Try again later or reduce search frequency.'\n            }\n        # Handle other error types...\n```",
-        "testStrategy": "Unit tests for each error type. Test retry logic with mocked responses. Test logging output for different scenarios. Integration tests with forced error conditions. Verify user-facing error messages are clear and helpful.",
+        "id": 38,
+        "title": "Fix Issues Identified by Static Analysis",
+        "description": "Address and fix the high and medium priority issues identified during the static analysis task",
+        "details": "1. Review the report generated by the static analysis task\n2. Prioritize issues by severity and impact\n3. Fix high-priority issues first, including:\n   - Potential security vulnerabilities\n   - Performance bottlenecks\n   - Code that could lead to runtime errors\n4. Address medium-priority issues next:\n   - Code style violations\n   - Maintainability concerns\n   - Minor performance issues\n5. Document all changes made\n6. Re-run static analysis to verify issues are resolved\n7. Focus on issues in critical code paths first",
+        "testStrategy": "1. Re-run static analysis tools after fixes to verify issues are resolved\n2. Run unit tests to ensure functionality is preserved\n3. Perform manual testing of affected components\n4. Verify no new issues were introduced during fixes\n5. Compare before/after metrics for code quality\n6. Test performance impact of changes if applicable",
         "priority": "medium",
         "dependencies": [
-          22
+          33
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 25,
-        "title": "Implement Caching System for API Responses",
-        "description": "Create a caching system to store Yelp API responses and reduce API calls to stay within rate limits.",
-        "details": "Develop a caching system that stores Yelp API responses for 1 hour to preserve rate limits. Implement cache key generation based on search parameters. Create cache invalidation logic. Ensure thread-safety for concurrent requests. Implement cache hit/miss metrics.\n\nExample implementation:\n```python\nclass YelpResponseCache:\n    def __init__(self, cache_duration=3600):  # 1 hour in seconds\n        self.cache = {}\n        self.cache_duration = cache_duration\n        self.lock = threading.Lock()\n        self.hits = 0\n        self.misses = 0\n        \n    def get(self, key):\n        with self.lock:\n            if key in self.cache:\n                entry = self.cache[key]\n                if time.time() - entry['timestamp'] < self.cache_duration:\n                    self.hits += 1\n                    return entry['data']\n                else:\n                    # Expired\n                    del self.cache[key]\n            self.misses += 1\n            return None\n            \n    def set(self, key, data):\n        with self.lock:\n            self.cache[key] = {\n                'data': data,\n                'timestamp': time.time()\n            }\n            \n    def generate_key(self, location, category, limit, offset):\n        # Create a unique key based on search parameters\n        return f\"{location}:{category}:{limit}:{offset}\"\n```",
-        "testStrategy": "Unit tests for cache operations (get, set, key generation). Test cache expiration logic. Test concurrent access with multiple threads. Performance tests to verify caching improves response times. Integration tests with the API client to verify reduced API calls.",
-        "priority": "medium",
-        "dependencies": [
-          22
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 26,
-        "title": "Integrate Yelp Provider into Multi-Provider Search System",
-        "description": "Integrate the Yelp API client into the existing multi-provider search system to allow combined searches across Google Maps and Yelp.",
-        "details": "Modify the existing multi-provider search system to include Yelp as a data source. Implement provider selection logic to enable/disable Yelp searches. Create a unified search interface that combines results from both Google Maps and Yelp. Handle duplicate business entries that may appear in both sources. Implement provider status indicators in the search results.\n\nExample implementation:\n```python\nclass MultiProviderSearch:\n    def __init__(self, google_client, yelp_client=None):\n        self.google_client = google_client\n        self.yelp_client = yelp_client\n        self.providers_enabled = {\n            'google': True,\n            'yelp': yelp_client is not None\n        }\n        \n    def search(self, query, location, providers=None):\n        results = []\n        if providers is None:\n            providers = self.providers_enabled\n            \n        if providers.get('google', False):\n            google_results = self.google_client.search(query, location)\n            for result in google_results:\n                result['provider'] = 'google'\n                results.append(result)\n                \n        if providers.get('yelp', False) and self.yelp_client:\n            yelp_results = self.yelp_client.search_businesses(location, category=query)\n            normalized_results = YelpDataNormalizer().normalize_businesses(yelp_results)\n            for result in normalized_results:\n                result['provider'] = 'yelp'\n                results.append(result)\n                \n        # Deduplicate results\n        return self._deduplicate_results(results)\n        \n    def _deduplicate_results(self, results):\n        # Identify and merge duplicate business entries\n        pass\n```",
-        "testStrategy": "Unit tests for provider selection logic. Test result combination and deduplication. Integration tests with both providers enabled/disabled. Test with mock responses from both APIs. UI tests to verify provider status indicators. Performance testing with multiple providers.",
-        "priority": "high",
-        "dependencies": [
-          22,
-          23,
-          24,
-          25
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 27,
-        "title": "Implement CSV Export with Yelp Data",
-        "description": "Enhance the existing CSV export functionality to include Yelp-specific data fields and proper field mapping.",
-        "details": "Modify the CSV export module to include Yelp-specific fields such as YelpRating and YelpReviews. Ensure proper field mapping according to the R27 schema. Handle provider-specific data fields gracefully. Implement header customization based on available data sources.\n\nExample implementation:\n```python\nclass CSVExporter:\n    def __init__(self):\n        self.base_fields = ['Name', 'Phone', 'Website', 'Address', 'Latitude', 'Longitude', 'BusinessType']\n        self.provider_fields = {\n            'yelp': ['YelpRating', 'YelpReviews', 'YelpURL'],\n            'google': ['GoogleRating', 'GoogleReviews', 'GoogleURL']\n        }\n        \n    def export_to_csv(self, results, filename, include_provider_fields=True):\n        # Determine which providers are present in the results\n        providers = set(result.get('provider', '') for result in results)\n        \n        # Build header row\n        headers = self.base_fields.copy()\n        if include_provider_fields:\n            for provider in providers:\n                if provider in self.provider_fields:\n                    headers.extend(self.provider_fields[provider])\n        \n        with open(filename, 'w', newline='') as csvfile:\n            writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')\n            writer.writeheader()\n            for result in results:\n                writer.writerow(result)\n```",
-        "testStrategy": "Unit tests for CSV generation with different field combinations. Test with results from different providers. Verify correct headers and field mapping. Test with missing data fields. Integration test with actual search results.",
-        "priority": "medium",
-        "dependencies": [
-          26
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 28,
-        "title": "Implement UI Components for Yelp Integration",
-        "description": "Create UI components to allow users to enable/disable Yelp searches, display Yelp-specific data, and show provider status.",
-        "details": "Develop UI components for Yelp integration: a checkbox to enable/disable Yelp searches, display elements for Yelp-specific data (ratings, review counts), and provider status indicators. Implement API key setup form with validation feedback. Create help tooltips for Yelp-specific features.\n\nExample implementation:\n```python\nclass YelpUIComponents:\n    def __init__(self, yelp_config):\n        self.yelp_config = yelp_config\n        \n    def render_provider_checkbox(self):\n        # Return HTML/component for Yelp provider checkbox\n        enabled = self.yelp_config.is_valid\n        return f'''\n        <div class=\"provider-checkbox\">\n            <input type=\"checkbox\" id=\"yelp-provider\" name=\"providers\" value=\"yelp\" \n                   {\"checked\" if enabled else \"\"} {\"disabled\" if not enabled else \"\"}>\n            <label for=\"yelp-provider\">Yelp</label>\n            <span class=\"provider-status {\"active\" if enabled else \"inactive\"}\">\n                {\"Active\" if enabled else \"Inactive - API key required\"}\n            </span>\n        </div>\n        '''\n        \n    def render_api_key_setup_form(self):\n        # Return HTML/component for API key setup form\n        pass\n        \n    def render_yelp_result_card(self, business):\n        # Return HTML/component for displaying a Yelp business result\n        pass\n```",
-        "testStrategy": "Unit tests for UI component rendering. Test with different API key states (valid, invalid, missing). UI tests for checkbox functionality. Test result display with various data combinations. User acceptance testing for the setup form.",
-        "priority": "medium",
-        "dependencies": [
-          21,
-          26
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 29,
-        "title": "Implement Additional Business Data Extraction",
-        "description": "Enhance the data normalization to extract additional business data including hours, photo URLs, and Yelp business URLs.",
-        "details": "Extend the data normalization module to extract and process additional business data: business hours, photo URLs, and Yelp business URLs. Implement proper formatting and validation for these fields. Handle missing data gracefully.\n\nExample implementation:\n```python\nclass EnhancedYelpDataNormalizer(YelpDataNormalizer):\n    def normalize_business(self, yelp_business):\n        # Get base normalized data\n        normalized = super().normalize_business(yelp_business)\n        \n        # Add enhanced data\n        normalized.update({\n            'BusinessHours': self._format_hours(yelp_business.get('hours', [])),\n            'PhotoURLs': self._extract_photo_urls(yelp_business.get('photos', [])),\n            'YelpURL': yelp_business.get('url', '')\n        })\n        \n        return normalized\n        \n    def _format_hours(self, hours_data):\n        if not hours_data:\n            return None\n            \n        formatted_hours = {}\n        for day in hours_data[0].get('open', []):\n            day_name = self._get_day_name(day.get('day'))\n            start = self._format_time(day.get('start'))\n            end = self._format_time(day.get('end'))\n            formatted_hours[day_name] = f\"{start} - {end}\"\n            \n        return formatted_hours\n        \n    def _extract_photo_urls(self, photos):\n        return photos[:5] if photos else []  # Limit to first 5 photos\n        \n    def _get_day_name(self, day_num):\n        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']\n        return days[day_num] if 0 <= day_num < 7 else 'Unknown'\n        \n    def _format_time(self, time_str):\n        # Convert 24-hour format to 12-hour format\n        if not time_str or len(time_str) != 4:\n            return ''\n            \n        hour = int(time_str[:2])\n        minute = time_str[2:]\n        period = 'AM' if hour < 12 else 'PM'\n        hour = hour % 12\n        hour = 12 if hour == 0 else hour\n        \n        return f\"{hour}:{minute} {period}\"\n```",
-        "testStrategy": "Unit tests for each extraction function. Test with complete data, partial data, and missing data. Verify correct formatting of business hours. Test photo URL extraction limits. Integration test with sample Yelp API responses containing these additional fields.",
+        "id": 39,
+        "title": "Update Code Documentation",
+        "description": "Update code documentation to reflect changes made and improve overall documentation quality",
+        "details": "1. Review all modified files and update docstrings\n2. Ensure function and class docstrings follow a consistent format (e.g., Google style, NumPy style)\n3. Add or update module-level docstrings\n4. Document complex algorithms and business logic\n5. Update README and other project documentation\n6. Add comments explaining any non-obvious code\n7. Document known limitations and edge cases\n8. Update API documentation if applicable\n9. Consider generating documentation with tools like Sphinx",
+        "testStrategy": "1. Review documentation for accuracy and completeness\n2. Verify docstrings follow the project's style guide\n3. Check that all public APIs are documented\n4. Ensure documentation builds correctly if using tools like Sphinx\n5. Have another team member review documentation changes\n6. Verify examples in documentation work correctly",
         "priority": "low",
         "dependencies": [
-          23
+          31,
+          32,
+          35,
+          38
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 30,
-        "title": "Implement Performance Monitoring and Reporting",
-        "description": "Create a system to monitor and report on Yelp API usage, performance metrics, and success rates.",
-        "details": "Develop a performance monitoring system that tracks: API call counts, response times, success/error rates, cache hit/miss ratios, and rate limit usage. Implement reporting functionality to display these metrics in the UI. Create alerting for approaching rate limits.\n\nExample implementation:\n```python\nclass YelpPerformanceMonitor:\n    def __init__(self):\n        self.metrics = {\n            'api_calls': 0,\n            'successful_calls': 0,\n            'failed_calls': 0,\n            'total_response_time': 0,\n            'cache_hits': 0,\n            'cache_misses': 0,\n            'rate_limit_remaining': 5000,  # Default daily limit\n            'rate_limit_reset': None\n        }\n        self.lock = threading.Lock()\n        \n    def record_api_call(self, success, response_time, rate_limit_remaining=None):\n        with self.lock:\n            self.metrics['api_calls'] += 1\n            if success:\n                self.metrics['successful_calls'] += 1\n            else:\n                self.metrics['failed_calls'] += 1\n            self.metrics['total_response_time'] += response_time\n            if rate_limit_remaining is not None:\n                self.metrics['rate_limit_remaining'] = rate_limit_remaining\n                \n    def record_cache_access(self, hit):\n        with self.lock:\n            if hit:\n                self.metrics['cache_hits'] += 1\n            else:\n                self.metrics['cache_misses'] += 1\n                \n    def get_success_rate(self):\n        total = self.metrics['successful_calls'] + self.metrics['failed_calls']\n        return (self.metrics['successful_calls'] / total) * 100 if total > 0 else 0\n        \n    def get_average_response_time(self):\n        return self.metrics['total_response_time'] / self.metrics['api_calls'] if self.metrics['api_calls'] > 0 else 0\n        \n    def get_cache_hit_ratio(self):\n        total = self.metrics['cache_hits'] + self.metrics['cache_misses']\n        return (self.metrics['cache_hits'] / total) * 100 if total > 0 else 0\n        \n    def get_rate_limit_usage_percent(self):\n        used = 5000 - self.metrics['rate_limit_remaining']\n        return (used / 5000) * 100\n        \n    def generate_report(self):\n        # Return formatted report of all metrics\n        pass\n```",
-        "testStrategy": "Unit tests for metric calculations. Test with simulated API calls and cache accesses. Test thread safety with concurrent updates. Integration test with actual API usage. UI tests for metrics display. Test alerting functionality for rate limit thresholds.",
-        "priority": "low",
+        "id": 40,
+        "title": "Create Regression Test Suite",
+        "description": "Develop a comprehensive regression test suite to prevent future issues and verify all fixes",
+        "details": "1. Identify key functionality that needs test coverage\n2. Create unit tests for individual components\n3. Develop integration tests for component interactions\n4. Add end-to-end tests for critical workflows\n5. Implement test fixtures and mocks as needed\n6. Set up continuous integration to run tests automatically\n7. Include tests specifically for the issues that were fixed\n8. Add performance tests for critical operations\n9. Document test coverage and any gaps\n10. Consider implementing property-based testing for complex functions",
+        "testStrategy": "1. Verify tests cover all fixed issues\n2. Measure test coverage using tools like coverage.py\n3. Ensure tests run in a reasonable amount of time\n4. Verify tests are deterministic and don't have side effects\n5. Check that tests fail when they should (e.g., if a bug is reintroduced)\n6. Run tests in different environments to ensure portability",
+        "priority": "medium",
         "dependencies": [
-          22,
-          25,
-          26
+          31,
+          32,
+          34,
+          35,
+          37,
+          38
         ],
         "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 41,
+        "title": "Fix Instantly.ai API v2 Integration Issues for Campaign Loading and Lead Addition",
+        "description": "Resolve issues in the Instantly.ai API v2 integration that prevent campaigns from loading and leads from being added to campaigns, ensuring full compatibility with the latest API changes.",
+        "status": "pending",
+        "dependencies": [
+          36,
+          37,
+          38
+        ],
+        "priority": "medium",
+        "details": "1. Review the Instantly.ai API v2 documentation to understand new authentication requirements, endpoint structures, and entity naming conventions (e.g., snake_case fields, RESTful standards)[1][4].\n2. Verify that the integration uses a valid API v2 key with appropriate scopes and permissions for campaign and lead management; ensure Bearer token authentication is implemented as required[1][2][4].\n3. Update API calls to use the correct v2 endpoints for listing campaigns and adding leads, referencing the latest endpoint specifications and required payload formats[1][4].\n4. Ensure campaign IDs used in requests are valid and correspond to existing campaigns in Instantly; campaigns must be created in Instantly before leads can be added[3].\n5. Fix the lead addition issue by changing the field name from 'campaign_id' to 'campaign' in the POST /api/v2/leads endpoint payload, as per official API documentation.\n6. Consider implementing a more robust two-step process for lead addition using the POST /api/v2/leads/move endpoint as a backup method.\n7. Ensure API requests include the correct scopes: 'leads:create', 'leads:all', 'all:create', or 'all:all' for lead creation; and 'leads:update', 'leads:all', 'all:update', or 'all:all' for moving leads.\n8. Handle API errors robustly: implement clear error handling for 'forbidden', 'not found', and validation errors, providing actionable feedback to users[2][3].\n9. Add or update logging for all API interactions, capturing request/response details (excluding sensitive data) to aid in debugging and monitoring.\n10. Document all integration changes and update any related configuration or onboarding instructions for users.",
+        "testStrategy": "1. Use valid and invalid API v2 keys to verify authentication and permission handling for all endpoints.\n2. Test campaign loading: ensure the integration retrieves all campaigns for a given account, including edge cases (no campaigns, large numbers of campaigns).\n3. Test lead addition with the corrected 'campaign' field (not 'campaign_id') in the payload, verifying leads are properly assigned to campaigns.\n4. Test the alternative two-step process if implemented: create leads first, then move them using the /api/v2/leads/move endpoint.\n5. Verify API requests include the correct scopes for both lead creation and movement operations.\n6. Simulate and log API errors (e.g., forbidden, not found, validation errors) to ensure user-facing messages are clear and actionable.\n7. Review logs to confirm all API requests and responses are captured without exposing sensitive information.\n8. Run the full regression test suite to ensure no unrelated functionality is broken.\n9. Perform manual end-to-end tests for campaign and lead workflows, including onboarding scenarios and edge cases.\n10. Validate that documentation and configuration instructions are accurate and up to date.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Fix campaign assignment field in lead creation",
+            "description": "Update the lead creation endpoint to use the correct field name for campaign assignment",
+            "status": "pending",
+            "dependencies": [],
+            "details": "In instantly_integration.py line 215, change:\nFROM: lead_data['campaign_id'] = campaign_id\nTO: lead_data['campaign'] = campaign_id",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement alternative two-step lead assignment process",
+            "description": "Create a more robust method for lead assignment using the dedicated move endpoint",
+            "status": "pending",
+            "dependencies": [],
+            "details": "1. Implement a function to create leads without campaign assignment\n2. Add a second function to move leads to campaigns using POST /api/v2/leads/move with payload:\n   {\n     'ids': [list_of_lead_ids],\n     'to_campaign_id': campaign_id,\n     'check_duplicates_in_campaigns': True\n   }\n3. Add fallback logic to use this method if direct assignment fails",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Update API scope verification",
+            "description": "Ensure the integration verifies and requires the correct API scopes",
+            "status": "pending",
+            "dependencies": [],
+            "details": "1. Add validation for required scopes:\n   - For lead creation: 'leads:create', 'leads:all', 'all:create', or 'all:all'\n   - For lead movement: 'leads:update', 'leads:all', 'all:update', or 'all:all'\n2. Add clear error messages if required scopes are missing\n3. Update documentation to specify required scopes",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Test campaign assignment with real API",
+            "description": "Verify the fixed implementation works with the actual Instantly.ai API",
+            "status": "pending",
+            "dependencies": [],
+            "details": "1. Create test cases for direct campaign assignment using the 'campaign' field\n2. Create test cases for the two-step process if implemented\n3. Verify leads appear in the correct campaigns in the Instantly.ai interface\n4. Document test results and any edge cases discovered",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 42,
+        "title": "Fix Download Button and Lead Preview Functionality",
+        "description": "Resolve issues where the download button does not trigger file downloads and the lead preview displays no data, ensuring both features work reliably across supported browsers.",
+        "details": "1. Investigate the download button implementation:\n   - Verify that the button's event handler is correctly attached and triggers the intended file download logic.\n   - Ensure the backend endpoint or file generation logic returns the correct file with appropriate headers (e.g., Content-Disposition: attachment, correct MIME type).\n   - Check for JavaScript errors or blocked pop-ups that may prevent downloads, and ensure compatibility with all supported browsers.\n   - Confirm that the download location is accessible and that the application handles errors gracefully if the download fails (e.g., insufficient permissions, missing file).\n2. Debug the lead preview feature:\n   - Trace the data flow from the backend/API to the frontend component responsible for rendering the lead preview.\n   - Ensure the API returns the expected data structure and that the frontend correctly parses and displays this data.\n   - Add error handling and user-friendly messages for cases where no data is available or an error occurs.\n   - Test with various lead data scenarios, including edge cases (e.g., missing fields, large payloads).\n3. Refactor code as needed to improve maintainability and follow best practices (e.g., use async/await for asynchronous operations, modularize logic, add comments).\n4. Update documentation to reflect any changes to the download or preview logic.\n\nBest practices:\n- Use feature detection and progressive enhancement for download functionality to maximize browser compatibility.\n- Log errors with sufficient context for troubleshooting.\n- Ensure all user-facing errors are clear and actionable.",
+        "testStrategy": "1. Manually test the download button in all supported browsers and operating systems, verifying that clicking the button reliably triggers a file download with the correct content and filename.\n2. Simulate failure scenarios (e.g., missing file, network error) and verify that appropriate error messages are shown and no unhandled exceptions occur.\n3. Test the lead preview with a variety of lead data, including empty, partial, and full records, ensuring the preview displays accurate information or a clear message if no data is available.\n4. Use automated tests (unit and integration) to cover the download and preview logic, including edge cases and error handling.\n5. Review logs to confirm that errors are captured with sufficient detail for debugging.\n6. Confirm that documentation is updated and accurate.",
+        "status": "pending",
+        "dependencies": [
+          35,
+          38
+        ],
+        "priority": "medium",
         "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-14T14:53:56.536Z",
-      "updated": "2025-08-18T03:13:50.704Z",
+      "updated": "2025-08-18T14:32:51.210Z",
       "description": "Tasks for master context"
     }
   }

@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "Complete system overview documenting the multi-provider lead generation system architecture, task orchestration framework, and key business components"
+  },
+  {
+    "fileName": "lead-scoring-algorithm.mdc",
+    "description": "Detailed documentation of the proprietary R27 lead scoring system, industry-specific scoring rules, and the AI-powered personalization engine"
+  },
+  {
+    "fileName": "data-provider-architecture.mdc",
+    "description": "Documentation of the multi-provider data collection system including Google Maps, Hybrid Scraper, and Pure Scraper implementations with fallback mechanisms and cost optimization"
+  },
+  {
+    "fileName": "email-verification-engine.mdc",
+    "description": "Technical details of the email verification and scoring system including validation algorithms, scoring rules, and caching strategies"
+  },
+  {
+    "fileName": "industry-configuration-models.mdc",
+    "description": "Documentation of industry-specific scoring models, personalization rules, and value proposition mapping across different B2B verticals"
+  }
+]

@@ -244,6 +244,41 @@
             height: 1.5rem;
             margin-right: 0.5rem;
         }
+
+        /* Enhanced Tab Styling */
+        .nav-tabs {
+            border-bottom: 3px solid rgba(255,255,255,0.2);
+            margin-bottom: 2rem;
+        }
+
+        .nav-tabs .nav-link {
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(67, 97, 238, 0.3);
+            padding: 1rem 2rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin: 0 0.5rem 0 0;
+            border-radius: 12px 12px 0 0;
+            transition: all 0.3s ease;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 -4px 15px rgba(67, 97, 238, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .nav-tabs .nav-link:hover:not(.active) {
+            color: #fff;
+            background: rgba(67, 97, 238, 0.5);
+            border: 2px solid rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 -2px 10px rgba(67, 97, 238, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -257,17 +292,17 @@
         <ul class="nav nav-tabs mb-4" id="leadTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="google-tab" data-bs-toggle="tab" data-bs-target="#google" type="button">
-                    <i class="bi bi-geo-alt"></i> Google Maps Search
+                    🔍 <i class="bi bi-geo-alt-fill"></i> <strong>SINGLE SEARCH</strong>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="apollo-tab" data-bs-toggle="tab" data-bs-target="#apollo" type="button">
-                    <i class="bi bi-rocket-takeoff-fill"></i> 🔥 APOLLO CSV UPLOAD 🔥
+                    🚀 <i class="bi bi-file-earmark-arrow-up-fill"></i> <strong>APOLLO CSV</strong>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="scheduler-tab" data-bs-toggle="tab" data-bs-target="#scheduler" type="button">
-                    🔥 <i class="bi bi-clock-history"></i> SCHEDULER & QUEUE 🔥
+                    ⏰ <i class="bi bi-calendar-check-fill"></i> <strong>SCHEDULER</strong>
                 </button>
             </li>
         </ul>
@@ -496,19 +531,88 @@
                             </div>
                         </div>
 
-                        <!-- Quick Add to Queue -->
-                        <div class="mb-4">
-                            <h6 class="fw-bold">Quick Add to Queue</h6>
-                            <div class="row g-2">
+                        <!-- Quick Add to Queue with All Options -->
+                        <div class="mb-4 p-4 border rounded bg-light">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-plus-square"></i> Add Search to Queue</h5>
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold">Search Query</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control form-control-lg" id="quickQuery" 
+                                               placeholder="e.g., lawyers in Las Vegas">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="expandQueueKeywords()">
+                                            <i class="bi bi-magic"></i> Expand
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Enter business type and location</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Number of Leads</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="form-range flex-grow-1" id="quickLimitSlider" 
+                                               min="5" max="500" value="25" oninput="updateQueueLimit(this.value)">
+                                        <input type="number" class="form-control ms-2" id="quickLimit" 
+                                               value="25" min="5" max="1000" style="width: 80px"
+                                               onchange="document.getElementById('quickLimitSlider').value = Math.min(this.value, 500)">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Keyword Expansion Results -->
+                            <div id="queueKeywordResults" class="mt-3 d-none"></div>
+                            
+                            <!-- Options Checkboxes -->
+                            <div class="row mt-3">
                                 <div class="col-md-6">
-                                    <input type="text" class="form-control" id="quickQuery" placeholder="e.g., dentists in Miami">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="queueVerifyEmails" checked>
+                                        <label class="form-check-label" for="queueVerifyEmails">
+                                            <strong>Verify Emails</strong> - Check validity
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="queueGenerateEmails">
+                                        <label class="form-check-label" for="queueGenerateEmails">
+                                            <strong>Generate Emails</strong> - Create outreach
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <input type="number" class="form-control" id="quickLimit" value="25" min="5" max="1000">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="queueExportVerified" checked>
+                                        <label class="form-check-label" for="queueExportVerified">
+                                            <strong>Export Verified Only</strong> - Filter invalid
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="queueAdvancedScraping">
+                                        <label class="form-check-label" for="queueAdvancedScraping">
+                                            <strong>Advanced Scraping</strong> - Extract names
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-success w-100" onclick="addToQueue()">
-                                        <i class="bi bi-plus"></i> Add to Queue
+                            </div>
+                            
+                            <!-- Priority Selection -->
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Priority</label>
+                                    <select class="form-select" id="queuePriority">
+                                        <option value="1">High (Process First)</option>
+                                        <option value="5" selected>Normal</option>
+                                        <option value="10">Low (Process Last)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Schedule For</label>
+                                    <select class="form-select" id="queueScheduleType">
+                                        <option value="now">Process Now</option>
+                                        <option value="later">Schedule for Later</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-success btn-lg w-100 mt-4" onclick="addToQueueWithOptions()">
+                                        <i class="bi bi-plus-circle"></i> Add to Queue
                                     </button>
                                 </div>
                             </div>
@@ -1323,10 +1427,129 @@
             }
         }
 
-        async function addToQueue() {
+        // Update queue limit display
+        function updateQueueLimit(value) {
+            document.getElementById('quickLimit').value = value;
+        }
+
+        // Expand keywords for queue
+        async function expandQueueKeywords() {
+            const query = document.getElementById('quickQuery').value;
+            if (!query) {
+                alert('Please enter a search query first');
+                return;
+            }
+
+            // Parse query to extract keyword and location
+            const parts = query.split(' in ');
+            let keyword, location;
+            if (parts.length === 2) {
+                keyword = parts[0];
+                location = parts[1];
+            } else {
+                const words = query.split(' ');
+                if (words.length >= 2) {
+                    keyword = words.slice(0, -1).join(' ');
+                    location = words[words.length - 1];
+                } else {
+                    keyword = query;
+                    location = '';
+                }
+            }
+
+            try {
+                const response = await fetch('/api/expand-keywords', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ keyword, location })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayQueueKeywords(data.variants);
+                }
+            } catch (error) {
+                console.error('Error expanding keywords:', error);
+            }
+        }
+
+        // Display expanded keywords for queue
+        function displayQueueKeywords(variants) {
+            const container = document.getElementById('queueKeywordResults');
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <h6>Select Keywords to Add to Queue:</h6>
+                    <div class="row g-2" id="queueKeywordList"></div>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-primary" onclick="addSelectedToQueue()">
+                            Add Selected to Queue
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('queueKeywordResults').classList.add('d-none')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            const list = document.getElementById('queueKeywordList');
+            variants.forEach((variant, i) => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6';
+                col.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input queue-keyword" type="checkbox" 
+                               id="queueKw${i}" value="${variant.keyword}" checked>
+                        <label class="form-check-label" for="queueKw${i}">
+                            <strong>${variant.keyword}</strong>
+                        </label>
+                    </div>
+                `;
+                list.appendChild(col);
+            });
+            
+            container.classList.remove('d-none');
+        }
+
+        // Add selected keywords to queue
+        async function addSelectedToQueue() {
+            const checkboxes = document.querySelectorAll('.queue-keyword:checked');
+            const limit = document.getElementById('quickLimit').value;
+            const verifyEmails = document.getElementById('queueVerifyEmails').checked;
+            const generateEmails = document.getElementById('queueGenerateEmails').checked;
+            const exportVerified = document.getElementById('queueExportVerified').checked;
+            const advancedScraping = document.getElementById('queueAdvancedScraping').checked;
+            const priority = document.getElementById('queuePriority').value;
+            
+            for (const checkbox of checkboxes) {
+                await fetch('/api/queue', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: checkbox.value,
+                        limit_leads: parseInt(limit),
+                        priority: parseInt(priority),
+                        verify_emails: verifyEmails,
+                        generate_emails: generateEmails,
+                        export_verified_only: exportVerified,
+                        advanced_scraping: advancedScraping
+                    })
+                });
+            }
+            
+            document.getElementById('queueKeywordResults').classList.add('d-none');
+            loadQueue();
+            alert(`Added ${checkboxes.length} searches to queue!`);
+        }
+
+        // Updated add to queue with all options
+        async function addToQueueWithOptions() {
             const query = document.getElementById('quickQuery').value;
             const limit = document.getElementById('quickLimit').value;
-            const priority = 1; // All same priority = process in order
+            const verifyEmails = document.getElementById('queueVerifyEmails').checked;
+            const generateEmails = document.getElementById('queueGenerateEmails').checked;
+            const exportVerified = document.getElementById('queueExportVerified').checked;
+            const advancedScraping = document.getElementById('queueAdvancedScraping').checked;
+            const priority = document.getElementById('queuePriority').value;
             
             if (!query) {
                 alert('Please enter a search query');
@@ -1341,7 +1564,10 @@
                         query: query,
                         limit_leads: parseInt(limit),
                         priority: parseInt(priority),
-                        verify_emails: true
+                        verify_emails: verifyEmails,
+                        generate_emails: generateEmails,
+                        export_verified_only: exportVerified,
+                        advanced_scraping: advancedScraping
                     })
                 });
                 
@@ -1354,6 +1580,11 @@
                 console.error('Error adding to queue:', error);
                 alert('Failed to add to queue');
             }
+        }
+
+        // Keep old function for backward compatibility
+        async function addToQueue() {
+            addToQueueWithOptions();
         }
 
         async function toggleSchedule(id, enabled) {
@@ -1426,13 +1657,25 @@
                                     <div class="form-check mb-3">
                                         <input class="form-check-input" type="checkbox" id="scheduleVerifyEmails" checked>
                                         <label class="form-check-label" for="scheduleVerifyEmails">
-                                            Verify Emails
+                                            <strong>Verify Emails</strong> - Check email validity and deliverability
                                         </label>
                                     </div>
                                     <div class="form-check mb-3">
-                                        <input class="form-check-input" type="checkbox" id="scheduleGenerateEmails" checked>
+                                        <input class="form-check-input" type="checkbox" id="scheduleGenerateEmails">
                                         <label class="form-check-label" for="scheduleGenerateEmails">
-                                            Generate Emails
+                                            <strong>Generate Emails</strong> - Create personalized outreach emails
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="scheduleExportVerifiedOnly" checked>
+                                        <label class="form-check-label" for="scheduleExportVerifiedOnly">
+                                            <strong>Export Only Verified Emails</strong> - Filter out invalid emails from CSV
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="scheduleAdvancedScraping">
+                                        <label class="form-check-label" for="scheduleAdvancedScraping">
+                                            <strong>Advanced Website Scraping</strong> - Extract contact names, job titles, team members
                                         </label>
                                     </div>
                                 </form>
@@ -1462,6 +1705,8 @@
             const interval = document.getElementById('scheduleInterval').value;
             const verifyEmails = document.getElementById('scheduleVerifyEmails').checked;
             const generateEmails = document.getElementById('scheduleGenerateEmails').checked;
+            const exportVerifiedOnly = document.getElementById('scheduleExportVerifiedOnly').checked;
+            const advancedScraping = document.getElementById('scheduleAdvancedScraping').checked;
             
             if (!name || !query) {
                 alert('Please fill in all required fields');
@@ -1478,7 +1723,9 @@
                         limit_leads: parseInt(limit),
                         interval_hours: parseInt(interval),
                         verify_emails: verifyEmails,
-                        generate_emails: generateEmails
+                        generate_emails: generateEmails,
+                        export_verified_only: exportVerifiedOnly,
+                        advanced_scraping: advancedScraping
                     })
                 });
                 

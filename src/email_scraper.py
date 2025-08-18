@@ -73,6 +73,13 @@ class WebsiteEmailScraper:
         'hello@domain.com'
     }
     
+    # File extensions to reject (not real emails)
+    INVALID_EXTENSIONS = {
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico',
+        '.css', '.js', '.json', '.xml', '.pdf', '.doc', '.docx',
+        '.mp3', '.mp4', '.avi', '.mov', '.zip', '.tar', '.gz'
+    }
+    
     # Common contact page paths to check
     CONTACT_PATHS = [
         '',  # Homepage
@@ -98,6 +105,41 @@ class WebsiteEmailScraper:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
+    
+    def is_valid_email(self, email):
+        """Check if an email address is valid and not a file/resource"""
+        email = email.lower()
+        
+        # Check for file extensions
+        for ext in self.INVALID_EXTENSIONS:
+            if email.endswith(ext):
+                logger.debug(f"Rejecting {email} - file extension {ext}")
+                return False
+        
+        # Check for @ symbol patterns that indicate files
+        if '@2x' in email or '@3x' in email or '@1x' in email:
+            logger.debug(f"Rejecting {email} - image resolution indicator")
+            return False
+            
+        # Check basic email format
+        if email.count('@') != 1:
+            return False
+            
+        # Split and validate parts
+        try:
+            local, domain = email.split('@')
+            if not local or not domain:
+                return False
+            if '.' not in domain:
+                return False
+            # Domain should have valid TLD
+            domain_parts = domain.split('.')
+            if len(domain_parts[-1]) < 2 or len(domain_parts[-1]) > 6:
+                return False
+        except:
+            return False
+            
+        return True
     
     def extract_names_from_content(self, content: str) -> List[str]:
         """Extract potential first names from website content"""
@@ -202,7 +244,8 @@ class WebsiteEmailScraper:
                     emails = self.EMAIL_PATTERN.findall(content)
                     for email in emails:
                         email = email.lower()
-                        if email not in self.SKIP_EMAILS and '@' in email:
+                        if email not in self.SKIP_EMAILS and self.is_valid_email(email):
+                            logger.debug(f"Found valid email: {email}")
                             emails_found.add(email)
                             
                     # If we found emails, we can stop early unless doing advanced scraping

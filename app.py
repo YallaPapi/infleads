@@ -165,6 +165,32 @@ def process_leads(job):
                     
                     if unique_identifier and unique_identifier not in seen_places:
                         seen_places.add(unique_identifier)
+                        # Add the search query to each lead so we know what search found it
+                        # Parse out the keyword and location from the query
+                        # Typical format: "keyword in location" or "keyword location"
+                        query_parts = current_query.split(' in ')
+                        if len(query_parts) == 2:
+                            search_keyword = query_parts[0].strip()
+                            location = query_parts[1].strip()
+                        else:
+                            # Fallback: assume last 2-3 words are location
+                            words = current_query.split()
+                            if len(words) >= 3:
+                                # Common patterns: "lawyers las vegas", "coffee shops austin"
+                                # Check if last words look like a location
+                                potential_location_words = 2 if len(words) > 4 else min(2, len(words) - 1)
+                                search_keyword = ' '.join(words[:-potential_location_words])
+                                location = ' '.join(words[-potential_location_words:])
+                            elif len(words) == 2:
+                                search_keyword = words[0]
+                                location = words[1]
+                            else:
+                                search_keyword = current_query
+                                location = ''
+                        
+                        lead['search_keyword'] = search_keyword
+                        lead['search_location'] = location
+                        lead['full_query'] = current_query
                         all_raw_leads.append(lead)
                         query_leads_added += 1
                 
@@ -364,9 +390,15 @@ def process_leads(job):
                     filtered_leads.append(lead)
             
             original_count = len(final_leads)
-            final_leads = filtered_leads
-            logger.info(f"Filtered leads: {original_count} -> {len(final_leads)} (verified emails only)")
-            job.message = f"Filtered to {len(final_leads)} leads with verified emails"
+            
+            # If filtering would remove ALL leads, keep them all with a warning
+            if len(filtered_leads) == 0 and original_count > 0:
+                logger.warning(f"Export verified only would filter ALL {original_count} leads! Keeping all leads instead.")
+                job.message = f"Warning: No verified emails found, exporting all {original_count} leads"
+            else:
+                final_leads = filtered_leads
+                logger.info(f"Filtered leads: {original_count} -> {len(final_leads)} (verified emails only)")
+                job.message = f"Filtered to {len(final_leads)} leads with verified emails"
         
         # Store leads data for preview
         job.leads_data = final_leads
@@ -399,8 +431,20 @@ def process_leads(job):
         print(f"FLASK DEBUG: Final filename: '{filename}'")
         filepath = os.path.join('output', filename)
         
-        # Create DataFrame with simplified column order
-        columns = ['Phone', 'Email', 'Website']
+        # DEBUG: Log what we're about to save
+        logger.info(f"DEBUG: About to save CSV with {len(final_leads)} leads")
+        if not final_leads:
+            logger.error("ERROR: final_leads is empty! Cannot create CSV with data.")
+            # If we have scored_leads but no final_leads, use scored_leads instead
+            if scored_leads:
+                logger.info(f"Using scored_leads instead: {len(scored_leads)} leads")
+                final_leads = scored_leads
+                for lead in final_leads:
+                    if 'DraftEmail' not in lead:
+                        lead['DraftEmail'] = 'N/A'
+        
+        # Create DataFrame with complete column order including Name, Address, SearchKeyword and Location
+        columns = ['Name', 'Address', 'Phone', 'Email', 'Website', 'SearchKeyword', 'Location']
         
         # Add email verification column if email verification was enabled
         if job.verify_emails:
@@ -409,17 +453,26 @@ def process_leads(job):
         # Add DraftEmail at the end
         columns.append('DraftEmail')
         
+        logger.info(f"Creating DataFrame with {len(final_leads)} leads")
         df = pd.DataFrame(final_leads)
+        
+        # Log DataFrame info
+        logger.info(f"DataFrame shape: {df.shape}")
+        logger.info(f"DataFrame columns: {list(df.columns)}")
+        if not df.empty:
+            logger.info(f"First row data: {df.iloc[0].to_dict()}")
         
         # Ensure all columns exist
         for col in columns:
             if col not in df.columns:
                 df[col] = 'NA'
         
-        # Reorder columns
-        df = df[columns]
+        # Reorder columns - only select columns that exist
+        available_columns = [col for col in columns if col in df.columns]
+        df = df[available_columns]
         
         # Save to CSV
+        logger.info(f"Saving CSV to {filepath} with {len(df)} rows")
         df.to_csv(filepath, index=False)
         job.result_file = filepath
         

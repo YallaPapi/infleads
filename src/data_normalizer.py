@@ -56,7 +56,10 @@ class DataNormalizer:
             'Images': 'NA',  # TODO: Could get image count
             'Rating': lead.get('rating', 0),
             'ReviewCount': lead.get('reviews', 0),
-            'GoogleBusinessClaimed': lead.get('business_status') == 'OPERATIONAL'
+            'GoogleBusinessClaimed': lead.get('business_status') == 'OPERATIONAL',
+            # Preserve search metadata
+            'SearchKeyword': lead.get('search_keyword', lead.get('full_query', 'NA')),
+            'Location': lead.get('search_location', 'NA')
         }
         
         # Required fields with their defaults

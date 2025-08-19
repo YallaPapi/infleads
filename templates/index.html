@@ -2841,9 +2841,11 @@
                 });
                 let result; let raw = '';
                 try {
-                    result = await res.json();
+                    const clone = res.clone();
+                    result = await clone.json();
                 } catch (e) {
-                    raw = await res.text();
+                    const clone2 = res.clone();
+                    raw = await clone2.text();
                     result = { success: false, error: raw };
                 }
                 if (res.ok && result.success) {
@@ -2875,9 +2877,11 @@
                 });
                 let result; let raw = '';
                 try {
-                    result = await res.json();
+                    const clone = res.clone();
+                    result = await clone.json();
                 } catch (e) {
-                    raw = await res.text();
+                    const clone2 = res.clone();
+                    raw = await clone2.text();
                     result = { success: false, error: raw };
                 }
                 if (res.ok && result.success) {

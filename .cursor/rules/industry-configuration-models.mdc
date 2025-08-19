@@ -1,46 +1,59 @@
 ---
-description: Industry-specific configuration models for lead scoring, personalization and business value propositions across B2B verticals
+description: Documents industry-specific scoring models and personalization rules for B2B verticals
 ---
 
 
 # industry-configuration-models
 
-## Industry-Specific Scoring Models
-
-1. Lead Quality Scoring Framework
-- Multi-dimensional scoring matrix per industry:
-  * Restaurant: Online presence, review ratings, menu freshness
-  * Dental: Website modernity, appointment booking, patient reviews
-  * Law Firms: Practice area coverage, case results, online reputation
-  * Real Estate: Property listings, market coverage, response time
-  * HVAC: Service area, emergency availability, online scheduling
-  * Auto: Service types, online booking, parts inventory
-  * Beauty: Online booking, social presence, review sentiment
-
-2. Value Proposition Rules
-- Industry-targeted messaging templates:
-  * Restaurant: Online ordering, reservation systems
-  * Dental: Patient scheduling, review management
-  * Law: Case management, client portals
-  * Real Estate: Property showcasing, lead routing
-  * HVAC: Service dispatch, maintenance scheduling
-  * Auto: Parts inventory, service scheduling
-  * Beauty: Online booking, client management
-
-3. Personalization Engine
-- Custom outreach rules per vertical:
-  * Revenue-based segmentation thresholds
-  * Industry-specific pain points
-  * Technology stack recommendations
-  * Competition analysis parameters
-
-File Paths:
-/src/industry_configs.py
-/src/lead_scorer.py
-
+Industry Configuration Models
 Importance Score: 90/100
 
-The system implements sophisticated industry-specific scoring and personalization models that drive targeted B2B outreach across different verticals. Each industry has custom scoring criteria, value propositions, and personalization rules optimized for that sector's unique characteristics and needs.
+1. Vertical-Specific Scoring Models (src/industry_configs.py)
+- Manufacturing Vertical
+  - Equipment age assessment
+  - Production volume indicators
+  - Automation readiness score
+  - Supply chain complexity factor
+
+- Healthcare Vertical
+  - Patient volume metrics
+  - Legacy system indicators
+  - Compliance risk factors
+  - Digital maturity score
+
+- Professional Services
+  - Client portfolio size
+  - Service complexity rating
+  - Technology adoption level
+  - Market positioning score
+
+2. Personalization Rule Sets (src/apollo_smart_personalizer.py)
+- Industry-specific value propositions
+  - ROI calculation formulas by vertical
+  - Pain point mapping matrices
+  - Solution alignment scoring
+  - Competitor differentiation rules
+
+3. Lead Quality Scoring Models (src/lead_scorer.py)
+- Manufacturing Lead Scoring
+  - Facility size weightings
+  - Equipment modernization needs
+  - Process efficiency indicators
+  - Growth trajectory factors
+
+- Healthcare Lead Scoring
+  - Practice size coefficients
+  - Technology gap analysis
+  - Regulatory compliance needs
+  - Patient volume growth rates
+
+- Technology Sector Scoring
+  - Stack compatibility rating
+  - Integration complexity score
+  - Scale readiness indicators
+  - Innovation adoption metrics
+
+The system implements dynamic scoring and personalization models that adapt based on industry vertical, company size, and technological maturity. Each vertical has unique qualification criteria, value proposition mappings, and personalization rules that determine lead quality and engagement strategy.
 
 $END$
 

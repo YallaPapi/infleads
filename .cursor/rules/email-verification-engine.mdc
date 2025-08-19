@@ -1,61 +1,56 @@
 ---
-description: Email verification and scoring system for lead quality assessment and validation
+description: Technical specification for email verification and scoring system including validation algorithms and caching strategies
 ---
 
 
 # email-verification-engine
 
-Core email verification and scoring system implemented across multiple components:
+Email Verification Pipeline
+Importance Score: 85/100
 
-### Verification Engine
-File: src/email_verifier.py
-Importance Score: 90
+Core Components:
 
-Email quality assessment using multi-tier verification:
-- MX record validation with domain-specific scoring
-- SMTP verification with catch-all detection
-- Role-based email identification
-- Disposable domain detection
+1. Multi-Stage Verification System (`src/email_verifier.py`)
+- Pattern-based validation for syntax and format
+- MX record verification with custom DNS timeout handling
+- SMTP connection testing with bounce prediction
+- Disposable email detection using pattern database
+- Custom scoring based on verification results (0-100)
 
-Scoring system:
-- Valid emails: +20 points to lead score
-- Catch-all domains: +10 points
-- Role accounts: +5 points  
-- Invalid/Disposable: -50 points
-- Missing email: -20 points
+2. Verification Result Classification
+- Valid (Score 80-100): Fully verified working address
+- Risky (Score 50-79): Passed syntax but failed SMTP
+- Invalid (Score 0-49): Failed basic validation or blacklisted
+- Unknown (Score -1): Verification timeout or error
 
-### Lead Quality Integration
-File: src/lead_scorer.py
-Importance Score: 85
+3. Scoring Rules
+- Basic syntax check: +20 points
+- Valid domain with MX: +30 points
+- SMTP verification: +50 points
+- Penalties:
+  - Disposable domain: -40 points
+  - Role account (info@, sales@): -20 points
+  - Generic local part: -10 points
+  - Historical bounce rate: -5 to -25 points
 
-Email verification results affect overall lead scoring:
-- Valid business emails boost total score
-- Invalid emails may disqualify leads
-- Domain quality factors into scoring
-- Custom scoring rules per industry vertical
+4. Caching Strategy
+- TTL-based cache for verification results
+- Domain-level MX caching
+- Negative result caching with shorter TTL
+- Provider-specific timeout configurations
 
-### Caching & Rate Limiting
-Importance Score: 75
+5. Provider Integration
+- Primary verification through direct SMTP
+- Fallback to third-party verification services
+- Results aggregation with weighted scoring
+- Custom timeout handling per provider
 
-- 24-hour verification result caching
-- Provider-specific rate limiting:
-  * MailTester.ninja: 100/minute
-  * SMTP checks: 50/minute
-  * MX lookups: 200/minute
-- Automatic token refresh (23-hour window)
-- Result persistence across verification runs
-
-### Industry-Specific Rules
-File: src/industry_configs.py
-Importance Score: 80
-
-- Custom email validation criteria per industry:
-  * Legal: Strict role-account rejection
-  * Healthcare: Domain whitelist validation
-  * Real Estate: Agent email pattern matching
-  * Restaurant: Domain verification exceptions
-
-The engine provides comprehensive email quality assessment while maintaining industry-specific validation requirements and integrating directly with the lead scoring system.
+Business Rules:
+- Minimum score of 70 required for campaign inclusion
+- Auto-retry failed verifications after 24 hours
+- Maximum 3 verification attempts per address
+- Domain-level verification rate limiting
+- Blacklist/whitelist domain override system
 
 $END$
 

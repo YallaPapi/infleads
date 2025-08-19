@@ -160,3 +160,4 @@ Docs:
 @./.taskmaster/CLAUDE.md
 
 - add any files with api keys to gitignore. never remove api keys from the project
+- restart the local server after every fix, no exceptions

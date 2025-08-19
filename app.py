@@ -14,6 +14,9 @@ import pandas as pd
 from dotenv import load_dotenv
 import logging
 import pickle
+from collections import deque
+from flask import Response
+import queue
 
 # Load environment variables FIRST
 load_dotenv()
@@ -41,13 +44,42 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 CORS(app)
 
+# In-memory log storage for debugging terminal
+debug_logs = deque(maxlen=1000)  # Keep last 1000 log entries
+log_subscribers = []
+
+class DebugLogHandler(logging.Handler):
+    """Custom log handler that stores logs for the debug terminal"""
+    def emit(self, record):
+        try:
+            log_entry = {
+                'timestamp': datetime.fromtimestamp(record.created).strftime('%H:%M:%S.%f')[:-3],
+                'level': record.levelname,
+                'name': record.name,
+                'message': self.format(record)
+            }
+            debug_logs.append(log_entry)
+            
+            # Notify all SSE subscribers
+            for subscriber_queue in log_subscribers[:]:  # Copy to avoid modification during iteration
+                try:
+                    subscriber_queue.put_nowait(log_entry)
+                except queue.Full:
+                    log_subscribers.remove(subscriber_queue)
+        except Exception:
+            pass  # Ignore errors in logging handler
+
 # Configure comprehensive logging
+debug_handler = DebugLogHandler()
+debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('logs/flask_app.log'),
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        debug_handler
     ]
 )
 logger = logging.getLogger(__name__)
@@ -751,6 +783,8 @@ def process_leads(job):
         job.status = "error"
         job.error = str(e)
         job.message = "Job failed"
+        # Persist errored job so it shows up in completed list
+        save_completed_job(job)
 
 @app.route('/')
 def index():
@@ -772,6 +806,49 @@ def index():
 def test():
     """Test route to verify HTML rendering"""
     return render_template('test.html')
+
+@app.route('/api/debug-simple')
+def debug_simple():
+    """Simple debug endpoint to test functionality"""
+    return {
+        "debug_logs_count": len(debug_logs) if 'debug_logs' in globals() else 0,
+        "recent_logs": list(debug_logs)[-5:] if 'debug_logs' in globals() and debug_logs else []
+    }
+
+@app.route('/api/debug-test')
+def debug_test():
+    """Simple debug test endpoint"""
+    return {"status": "working", "debug_logs_count": len(debug_logs)}
+
+@app.route('/api/debug-logs')
+def debug_logs_stream():
+    """Server-Sent Events stream for real-time debug logs"""
+    def generate():
+        subscriber_queue = queue.Queue(maxsize=100)
+        log_subscribers.append(subscriber_queue)
+        
+        try:
+            # Send recent logs first
+            for log_entry in list(debug_logs):
+                yield f"data: {json.dumps(log_entry)}\n\n"
+            
+            # Then stream new logs
+            while True:
+                try:
+                    log_entry = subscriber_queue.get(timeout=30)
+                    yield f"data: {json.dumps(log_entry)}\n\n"
+                except queue.Empty:
+                    # Send keepalive
+                    yield f"data: {json.dumps({'keepalive': True})}\n\n"
+        finally:
+            if subscriber_queue in log_subscribers:
+                log_subscribers.remove(subscriber_queue)
+    
+    return Response(generate(), mimetype='text/plain', headers={
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Content-Type': 'text/event-stream',
+    })
 
 @app.route('/api/generate', methods=['POST'])
 def generate_leads():
@@ -969,17 +1046,20 @@ def process_multi_provider_leads(job, providers):
             df = pd.DataFrame(unique_results)
             timestamp = int(time.time())
             filename = f'leads_multi_provider_{timestamp}.csv'
-            filepath = os.path.join('downloads', filename)
+            filepath = os.path.join('output', filename)
             
-            os.makedirs('downloads', exist_ok=True)
+            os.makedirs('output', exist_ok=True)
             df.to_csv(filepath, index=False)
             
-            job.result_file = filename
+            job.result_file = filepath
             job.leads_data = unique_results
             job.total_leads = len(unique_results)
             job.status = "completed"
             job.progress = 100
             job.message = f"✅ Found {len(unique_results)} unique leads from {len(providers)} providers!"
+            
+            # Persist completed multi-provider job
+            save_completed_job(job)
             
             logger.info(f"Multi-provider search completed: {len(unique_results)} leads saved to {filename}")
         else:
@@ -1072,14 +1152,119 @@ def download_csv(job_id):
     
     return jsonify({'error': 'File not found'}), 404
 
+@app.route('/api/active-jobs', methods=['GET'])
+def get_active_jobs():
+    """Get currently active/running jobs"""
+    active_jobs = []
+
+    # Regular lead generation jobs
+    for job_id, job in jobs.items():
+        if hasattr(job, 'status') and job.status not in ['completed', 'failed', 'cancelled', 'error']:
+            active_jobs.append({
+                'job_id': job_id,
+                'query': getattr(job, 'query', 'Unknown'),
+                'status': getattr(job, 'status', 'unknown'),
+                'progress': getattr(job, 'progress', 0),
+                'message': getattr(job, 'message', ''),
+                'type': 'lead_generation'
+            })
+
+    # Apollo jobs
+    for job_id, job in apollo_jobs.items():
+        if hasattr(job, 'status') and job.status not in ['completed', 'failed', 'cancelled', 'error']:
+            active_jobs.append({
+                'job_id': job_id,
+                'query': 'Apollo Processing',
+                'status': getattr(job, 'status', 'unknown'),
+                'progress': getattr(job, 'progress', 0),
+                'message': getattr(job, 'message', ''),
+                'type': 'apollo'
+            })
+
+    return jsonify({
+        'active_jobs': active_jobs,
+        'total_active': len(active_jobs),
+        'total_jobs_tracked': len(jobs),
+        'total_apollo_tracked': len(apollo_jobs)
+    })
+
 @app.route('/api/completed-jobs')
 def get_completed_jobs():
     """Get list of completed jobs"""
+    # Check if active jobs are requested
+    if request.args.get('active') == 'true':
+        active_jobs = []
+        
+        # Check regular jobs
+        for job_id, job in jobs.items():
+            if hasattr(job, 'status') and job.status not in ['completed', 'failed', 'cancelled']:
+                active_jobs.append({
+                    'job_id': job_id,
+                    'query': getattr(job, 'query', 'Unknown'),
+                    'status': getattr(job, 'status', 'unknown'),
+                    'progress': getattr(job, 'progress', 0),
+                    'message': getattr(job, 'message', ''),
+                    'type': 'lead_generation'
+                })
+        
+        # Check apollo jobs
+        for job_id, job in apollo_jobs.items():
+            if hasattr(job, 'status') and job.status not in ['completed', 'failed', 'cancelled']:
+                active_jobs.append({
+                    'job_id': job_id,
+                    'query': 'Apollo Processing',
+                    'status': getattr(job, 'status', 'unknown'),
+                    'progress': getattr(job, 'progress', 0),
+                    'message': getattr(job, 'message', ''),
+                    'type': 'apollo'
+                })
+        
+        return jsonify({
+            'active_jobs': active_jobs,
+            'total_active': len(active_jobs),
+            'total_jobs_tracked': len(jobs),
+            'total_apollo_tracked': len(apollo_jobs)
+        })
+    
+    # Check if debug mode is requested
+    debug_mode = request.args.get('debug') == 'true'
+    
+    if debug_mode:
+        return {
+            "debug_info": {
+                "debug_logs_count": len(debug_logs) if 'debug_logs' in globals() else 0,
+                "recent_logs": list(debug_logs)[-10:] if 'debug_logs' in globals() and debug_logs else [],
+                "log_subscribers": len(log_subscribers) if 'log_subscribers' in globals() else 0
+            }
+        }
+    
     completed_jobs = load_completed_jobs()
     # Convert to list and sort by completion time (newest first)
     jobs_list = list(completed_jobs.values())
     jobs_list.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
     return jsonify(jobs_list)
+
+@app.route('/api/debug-info')
+def get_debug_info():
+    """Get debug information and recent logs"""
+    import logging
+    
+    # Get recent logs from the file
+    recent_logs = []
+    try:
+        with open('logs/flask_app.log', 'r') as f:
+            lines = f.readlines()[-50:]  # Get last 50 lines
+            for line in lines:
+                recent_logs.append(line.strip())
+    except Exception as e:
+        recent_logs = [f"Error reading log file: {str(e)}"]
+    
+    return {
+        "status": "working", 
+        "recent_logs": recent_logs,
+        "current_jobs": len(jobs),
+        "debug_logs_available": 'debug_logs' in globals()
+    }
 
 @app.route('/api/expand-keywords', methods=['POST'])
 def expand_keywords():
@@ -1990,6 +2175,60 @@ def test_provider():
             'provider_class': 'Failed to initialize',
             'traceback': str(e)
         }), 500
+
+@app.route('/api/active-jobs-test', methods=['GET'])
+def get_active_jobs_test():
+    """Get currently active/running jobs - test version"""
+    print("DEBUG: Active jobs TEST endpoint hit!")
+    return jsonify({
+        'active_jobs': [],
+        'total_active': 0,
+        'debug': 'TEST Route is working!',
+        'timestamp': str(datetime.now())
+    })
+
+@app.route('/api/instantly/retry-import', methods=['POST'])
+def retry_instantly_import():
+    data = request.json or {}
+    job_id = data.get('job_id')
+    campaign_id = data.get('campaign_id')
+    if not job_id or not campaign_id:
+        return jsonify({'error': 'job_id and campaign_id are required'}), 400
+
+    # Load job data from persistence or memory
+    job_info = None
+    if job_id in jobs:
+        job_info = jobs[job_id].to_dict()
+    else:
+        completed = load_completed_jobs()
+        job_info = completed.get(job_id)
+
+    if not job_info:
+        return jsonify({'error': 'Job not found'}), 404
+
+    # Read CSV and convert to Instantly leads
+    try:
+        result_file = job_info.get('result_file')
+        if not result_file or not os.path.exists(result_file):
+            return jsonify({'error': 'Result file missing on disk'}), 404
+
+        df = pd.read_csv(result_file)
+        leads = df.to_dict(orient='records')
+
+        # Filter leads with valid emails
+        filtered = [l for l in leads if str(l.get('Email', '')).strip() not in ('', 'NA')]
+        instantly_leads = convert_r27_leads_to_instantly(filtered)
+
+        api_key = os.getenv('INSTANTLY_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'INSTANTLY_API_KEY not configured'}), 400
+
+        inst = InstantlyIntegration(api_key)
+        result = inst.add_leads_to_campaign(campaign_id, instantly_leads)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Retry Instantly import failed: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("\n" + "="*50)

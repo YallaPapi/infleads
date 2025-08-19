@@ -1,61 +1,65 @@
 ---
-description: Rules and patterns for implementing industry-specific lead scoring algorithms with AI-powered personalization
+description: Defines custom scoring rules and logic for evaluating and ranking B2B sales leads across industries
 ---
 
 
 # lead-scoring-algorithm
 
-## R27 Lead Scoring System
-File: src/lead_scorer.py
-Importance Score: 90
+R27 Proprietary Lead Scoring System
+Importance Score: 90/100
 
-Core scoring criteria:
-- Website presence: +3 points if missing/broken
-- Online reviews: +2 points if rating < 3.5 stars 
-- Business images: +2 points for < 3 images
-- Social presence: +2 points if no active accounts
-- Google listing: +1 point if unclaimed
+Core Components:
 
-## Industry-Specific Rules
-File: src/industry_configs.py
-Importance Score: 85
+1. Multi-Factor Lead Qualification (src/lead_scorer.py)
+- Industry-specific scoring matrices for 10 vertical markets
+- Dynamic weighting based on company attributes:
+  - Digital presence gaps (0-3 points)
+  - Technology stack compatibility (0-2 points)
+  - Growth signals (0-2 points)
+  - Revenue bracket alignment (0-2 points)
+  - Employee count factor (0-1 point)
 
-Restaurant Scoring:
-- No online ordering: +3
-- No reservation system: +2
-- Poor menu visibility: +2
+2. Personalization Engine Rules (src/apollo_lead_processor.py)
+- Company maturity classification:
+  - Legacy (15+ years): Focus on modernization
+  - Growth (5-15 years): Focus on scaling
+  - Startup (0-5 years): Focus on foundation
+- Digital presence scoring:
+  - Missing website: +3 points
+  - Poor reviews: +2 points
+  - Limited social: +2 points
+  - Unclaimed listings: +1 point
 
-Dental Practice Scoring:
-- No online scheduling: +3
-- Limited service info: +2
-- No insurance details: +2
+3. Vertical Market Scoring (src/industry_configs.py)
+Industry-specific scoring criteria:
 
-Law Firm Scoring:
-- No consultation booking: +3
-- Missing practice areas: +2
-- No case results: +2
+Solar Companies:
+- Roof size factor (0-3)
+- Energy consumption signals (0-2)
+- Facility age multiplier (1.0-1.5x)
 
-## Personalization Engine
-File: src/apollo_smart_personalizer.py
-Importance Score: 80
+Insurance Agencies:
+- Risk profile score (0-3)
+- Compliance indicators (0-2)
+- Client portfolio size (0-2)
 
-Email customization rules:
-- Industry-specific value propositions
-- Weakness-focused messaging 
-- ROI calculations based on business size
-- Social proof matching by vertical
-- Technology stack personalization
+HVAC Services:
+- Building type rating (0-3)
+- Service area coverage (0-2)
+- Equipment age signals (0-2)
 
-## Lead Quality Boosting
-File: src/providers/hybrid_scraper.py
-Importance Score: 75
+4. Smart Analysis Engine (src/smart_lead_analyzer.py)
+- Automated business challenge detection:
+  - Website performance issues
+  - Review management gaps
+  - Social media presence
+  - Digital marketing maturity
+- Score adjustments based on:
+  - Market competition level
+  - Geographic business density
+  - Seasonal demand patterns
 
-Email verification impact:
-- Valid email: +20 points
-- Catch-all domain: +10 points
-- Role account: +5 points
-- Invalid/Disposable: -50 points
-- Missing email: -20 points
+The R27 system implements unique vertical-specific scoring algorithms with dynamic weighting based on real-time market conditions and company-specific factors. The core value lies in its ability to identify high-potential leads based on digital presence gaps and industry-specific opportunity signals.
 
 $END$
 

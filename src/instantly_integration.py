@@ -212,8 +212,8 @@ class InstantlyIntegration:
             lead_data.pop('DraftEmail', None)
             lead_data.pop('campaign', None)  # Remove any existing campaign field
             
-            # Add the campaign_id using the correct field name for API v2
-            lead_data['campaign_id'] = campaign_id
+            # Add the campaign using the correct field name for API v2
+            lead_data['campaign'] = campaign_id
             
             instantly_leads.append(lead_data)
         
@@ -242,7 +242,7 @@ class InstantlyIntegration:
             print(f"\n--- Lead {i}/{len(instantly_leads)} ---")
             print(f"Email: {lead_data.get('email')}")
             print(f"Name: {lead_data.get('first_name')} {lead_data.get('last_name')}")
-            print(f"Campaign ID: {lead_data.get('campaign_id')}")
+            print(f"Campaign ID: {lead_data.get('campaign')}")
             
             # Retry logic for rate limiting
             for retry in range(max_retries):

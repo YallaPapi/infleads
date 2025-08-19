@@ -10,62 +10,51 @@
 - Explain your OBSERVATIONS clearly, then provide REASONING to identify the exact issue. Add console logs when needed to gather more information.
 
 
-Core Business Logic Components:
+TaskMaster Enterprise System implements a sophisticated task orchestration and management platform with several key business components:
 
-1. Lead Generation & Processing Pipeline
-- Multi-provider business data collection system
-- Industry-specific lead scoring with AI analysis
-- Email verification with quality scoring (+20 valid, +10 catch-all, -50 invalid)
-- Personalized email generation with industry context
-- Location-aware query expansion system
+1. Task Intelligence Core
+- Custom complexity scoring (1-10) based on technical depth, integration points, and risk factors
+- Smart dependency inference and validation 
+- Multi-context task isolation with state preservation
+- Automated task progression based on code changes
+- Intelligent subtask generation and breakdown
 
-Key Files:
-- src/apollo_lead_processor.py
-- src/apollo_smart_personalizer.py
-- src/lead_scorer.py
+2. Parameter Management System
+- Field-level schema mapping with smart defaults
+- Round-trip validation and transformation engine
+- Automated data normalization between task contexts
+- Version-aware schema drift detection
 
-2. Task Management Orchestration
-- AI-powered task decomposition and delegation
-- Mode-based workflow management (Orchestrator, Architect, Debug)
-- Context preservation across task boundaries
-- Dependency-aware task progression
+3. Orchestration Engine
+- Multi-agent task delegation and coordination
+- Context-aware workflow optimization
+- Parallel execution planning with dependency resolution
+- State machine for task lifecycle management
+- Branch-aware task organization
 
-Key Files:
-- .roo/rules-orchestrator/orchestrator-rules
-- .kiro/hooks/tm-task-dependency-auto-progression.kiro.hook
-- .kiro/hooks/tm-daily-standup-assistant.kiro.hook
+4. Hook System
+- Git commit task state management
+- Test success task completion detection 
+- PR readiness validation
+- Dependency-based progression rules
+- Daily standup report generation
 
-3. Lead Analysis Engine
-- Industry-specific scoring criteria for 10 verticals
-- Company maturity classification (startup to legacy)
-- Business scale categorization (micro to enterprise)
-- Multi-source data aggregation (Apollo, LinkedIn, website)
+5. Project Analysis 
+- Task complexity pattern recognition
+- Implementation path optimization
+- Test coverage requirement analysis
+- Technical debt risk scoring
+- Resource allocation suggestions
 
-Key Files:
-- src/industry_configs.py
-- src/smart_lead_analyzer.py
+The system provides enterprise-grade task management with emphasis on intelligent automation, complexity analysis, and workflow optimization. Core value derives from AI-assisted task breakdown and automated progression based on actual development activities.
 
-4. Multi-Provider Integration
-- Cascading provider system with cost optimization
-- Intelligent fallback mechanisms across providers
-- Provider selection based on cost/quality thresholds
-- Cross-provider deduplication
+Key Integrations:
+- Version Control: Task state management via commits
+- CI/CD: Test-driven task completion
+- Documentation: Auto-synced README updates
+- IDE: Development context awareness
 
-Key Files:
-- src/providers/multi_provider.py
-- src/providers/hybrid_scraper.py
-
-5. Email Generation & Verification
-- Two-sentence format with strict business rules
-- Industry-specific challenge mapping
-- MX and SMTP validation with lead scoring impact
-- Custom verification status classification
-
-Key Files:
-- src/email_generator.py
-- src/email_verifier.py
-
-The system implements a sophisticated B2B lead generation and task management platform, with deep integration of AI for workflow optimization and personalized outreach. Core value lies in industry-specific scoring, intelligent task orchestration, and multi-provider data aggregation with cost optimization.
+The platform implements sophisticated business rules around task dependencies, complexity scoring, and automated progression while maintaining strict isolation between different task contexts.
 
 $END$
 

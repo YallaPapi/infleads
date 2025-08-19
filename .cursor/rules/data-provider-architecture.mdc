@@ -1,66 +1,82 @@
 ---
-description: Documentation of multi-provider data collection system with fallback mechanisms and cost optimization logic
+description: Defines the multi-provider data collection system architecture with fallback mechanisms and cost optimization
 ---
 
 
 # data-provider-architecture
 
-## Provider Hierarchy
-Location: src/providers/multi_provider.py
+The data provider architecture implements a sophisticated multi-source business data collection system with intelligent fallback mechanisms and cost optimization:
 
-Primary data collection system with tiered provider cascade:
+## Provider Cascade System
+- Primary: Google Maps Places API 
+- Secondary: Hybrid Scraper (combines Geocoding + web scraping)
+- Tertiary: Pure Scraper implementation
+- Final Fallback: OpenStreetMap free data
 
-1. Direct Google Maps API Provider
-- High accuracy, rate limited
-- $17 per 1000 requests
-- Used for high-priority searches
-
-2. Hybrid Scraper Provider
-- Combines geocoding with web scraping
-- $5 per 1000 requests
-- Used when direct API cost threshold exceeded
-
-3. Pure Scraper Provider 
-- Direct web scraping implementation
-- Zero cost, rate limited
-- Used as final fallback option
+Implementation paths:
+```
+src/providers/
+  ├── multi_provider.py      # Provider orchestration logic
+  ├── google_places_new.py   # Primary Google Maps integration
+  ├── hybrid_scraper.py      # Combined API + scraping approach
+  ├── pure_scraper.py        # Web-only scraping implementation
+  └── openstreetmap_provider.py  # Free data fallback
+```
 
 ## Provider Selection Logic
-Location: src/providers/base.py
+1. Cost-Based Routing:
+- Tracks API usage across providers
+- Routes requests to lower-cost providers when possible
+- Maintains quality thresholds for provider selection
+- Implements smart caching to minimize API calls
 
-Intelligent provider routing based on:
-- Current API cost totals
-- Rate limit status
-- Search priority level
-- Required data completeness
+2. Geographic Coverage Rules:
+- US locations: Prefers Google Maps + YellowPages
+- International: Falls back to OpenStreetMap
+- Metro areas: Uses hybrid approach for better coverage
+- Rural areas: Combines multiple providers for validation
 
-## Data Normalization Pipeline
-Location: src/providers/data_normalizer.py
+3. Quality Assurance:
+- Cross-validates data between providers
+- Implements provider-specific field normalization
+- Handles inconsistent address formats
+- Deduplicates business records across sources
 
-Business data standardization:
-- Company name normalization (remove legal suffixes)
-- Address standardization
-- Phone number formatting
-- Website URL canonicalization
-- Email extraction and validation
+## Business Rules
 
-## Cost Management System
-Location: src/providers/cost_tracker.py
+1. Provider Priority Scoring:
+```
+Google Maps: 100 points (baseline)
+- Minus 10 points per $0.01 cost
+- Minus 5 points per second of latency
+- Plus 20 points for data freshness
 
-Provider cost optimization:
-- Real-time cost tracking per provider
-- Automatic provider switching at cost thresholds
-- Cost-based rate limiting
-- Usage reporting and forecasting
+Hybrid Scraper: 80 points
+- Plus 10 points for cost savings
+- Minus 15 points for potential blocking
+- Plus 5 points per successful cache hit
 
-## Fallback Chain Management
-Location: src/providers/fallback_manager.py
+Pure Scraper: 60 points
+- Plus 20 points for zero API costs
+- Minus 25 points for reliability concerns
+- Plus 15 points for data completeness
+```
 
-Cascading provider system:
-- Success rate monitoring
-- Automatic provider switching on failure
-- Data quality validation
-- Minimum data completeness enforcement
+2. Fallback Triggers:
+- API quota exhaustion
+- Rate limiting detection
+- Quality threshold failures
+- Coverage gaps in target area
+- Cost optimization targets
+
+3. Data Quality Requirements:
+- Business name match score > 85%
+- Address components validation
+- Phone number format verification
+- Category mapping confidence > 90%
+- Operating hours completeness check
+
+Importance Score: 90/100 (Critical business logic for data acquisition)
 
 $END$
 

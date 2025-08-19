@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from dotenv import load_dotenv
 import logging
+import pickle
 
 # Load environment variables FIRST
 load_dotenv()
@@ -54,6 +55,83 @@ logger = logging.getLogger(__name__)
 # Store job status
 jobs = {}
 apollo_jobs = {}
+
+# Job persistence
+COMPLETED_JOBS_FILE = 'data/completed_jobs.json'
+
+def ensure_data_dir():
+    """Ensure data directory exists"""
+    os.makedirs('data', exist_ok=True)
+
+def save_completed_job(job):
+    """Save completed job to persistent storage"""
+    ensure_data_dir()
+    
+    # Load existing completed jobs
+    completed_jobs = load_completed_jobs()
+    
+    # Create job record
+    job_record = {
+        'job_id': job.job_id,
+        'query': job.query,
+        'limit': job.limit,
+        'status': job.status,
+        'total_leads': job.total_leads,
+        'emails_verified': job.emails_verified,
+        'valid_emails': job.valid_emails,
+        'result_file': job.result_file,
+        'share_link': job.share_link,
+        'error': job.error,
+        'completed_at': datetime.now().isoformat(),
+        'verify_emails': job.verify_emails,
+        'generate_emails': job.generate_emails,
+        'export_verified_only': job.export_verified_only,
+        'advanced_scraping': job.advanced_scraping
+    }
+    
+    # Add to completed jobs (keep only last 100 jobs)
+    completed_jobs[job.job_id] = job_record
+    
+    # Keep only the 100 most recent jobs
+    if len(completed_jobs) > 100:
+        # Sort by completion time and keep most recent 100
+        sorted_jobs = sorted(completed_jobs.items(), 
+                           key=lambda x: x[1].get('completed_at', ''), 
+                           reverse=True)
+        completed_jobs = dict(sorted_jobs[:100])
+    
+    # Save to file
+    try:
+        with open(COMPLETED_JOBS_FILE, 'w') as f:
+            json.dump(completed_jobs, f, indent=2)
+        logger.info(f"Saved completed job {job.job_id} to persistent storage")
+    except Exception as e:
+        logger.error(f"Failed to save completed job: {e}")
+
+def load_completed_jobs():
+    """Load completed jobs from persistent storage"""
+    if not os.path.exists(COMPLETED_JOBS_FILE):
+        return {}
+    
+    try:
+        with open(COMPLETED_JOBS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load completed jobs: {e}")
+        return {}
+
+def get_job_info(job_id):
+    """Get job info from memory or persistent storage"""
+    # First check active jobs in memory
+    if job_id in jobs:
+        return jobs[job_id]
+    
+    # Then check completed jobs from storage
+    completed_jobs = load_completed_jobs()
+    if job_id in completed_jobs:
+        return completed_jobs[job_id]
+    
+    return None
 
 # Initialize scheduler
 scheduler = LeadScheduler()
@@ -618,6 +696,9 @@ def process_leads(job):
         if not hasattr(job, 'message') or 'Instantly' not in job.message:
             job.message = f"Successfully generated {len(final_leads)} leads!"
         
+        # Save completed job to persistent storage
+        save_completed_job(job)
+        
         # Track in search history
         try:
             search_history.add_search(
@@ -653,6 +734,11 @@ def index():
     response.headers['Expires'] = '0'
     
     return response
+
+@app.route('/test')
+def test():
+    """Test route to verify HTML rendering"""
+    return render_template('test.html')
 
 @app.route('/api/generate', methods=['POST'])
 def generate_leads():
@@ -879,14 +965,21 @@ def process_multi_provider_leads(job, providers):
 @app.route('/api/status/<job_id>')
 def get_status(job_id):
     """Get job status with detailed error information"""
-    if job_id not in jobs:
-        logger.warning(f"Job {job_id} not found in active jobs")
-        return jsonify({'error': 'Job not found'}), 404
+    # First check active jobs in memory
+    if job_id in jobs:
+        job_data = jobs[job_id].to_dict()
+        logger.debug(f"Returning status for job {job_id}: {job_data['status']}")
+        return jsonify(job_data)
     
-    job_data = jobs[job_id].to_dict()
-    logger.debug(f"Returning status for job {job_id}: {job_data['status']}")
+    # Check completed jobs from persistent storage
+    completed_jobs = load_completed_jobs()
+    if job_id in completed_jobs:
+        job_record = completed_jobs[job_id]
+        logger.debug(f"Returning completed job status for {job_id}: {job_record['status']}")
+        return jsonify(job_record)
     
-    return jsonify(job_data)
+    logger.warning(f"Job {job_id} not found in active or completed jobs")
+    return jsonify({'error': 'Job not found'}), 404
 
 @app.route('/api/cancel/<job_id>', methods=['POST'])
 def cancel_job(job_id):
@@ -911,14 +1004,49 @@ def cancel_job(job_id):
 @app.route('/api/download/<job_id>')
 def download_csv(job_id):
     """Download the CSV file"""
-    if job_id not in jobs:
-        return jsonify({'error': 'Job not found'}), 404
+    # First check if job exists in memory
+    if job_id in jobs:
+        job = jobs[job_id]
+        if hasattr(job, 'result_file') and job.result_file and os.path.exists(job.result_file):
+            return send_file(job.result_file, as_attachment=True, mimetype='text/csv')
     
-    job = jobs[job_id]
-    if not job.result_file or not os.path.exists(job.result_file):
-        return jsonify({'error': 'File not ready'}), 404
+    # Check completed jobs from persistent storage
+    completed_jobs = load_completed_jobs()
+    if job_id in completed_jobs:
+        job_record = completed_jobs[job_id]
+        result_file = job_record.get('result_file')
+        if result_file and os.path.exists(result_file):
+            return send_file(result_file, as_attachment=True, mimetype='text/csv')
     
-    return send_file(job.result_file, as_attachment=True, mimetype='text/csv')
+    # Fallback: Look for the most recent file that matches this job pattern
+    output_dir = 'output'
+    if os.path.exists(output_dir):
+        # Get all CSV files, sorted by modification time (newest first)
+        csv_files = []
+        for filename in os.listdir(output_dir):
+            if filename.endswith('.csv'):
+                filepath = os.path.join(output_dir, filename)
+                if os.path.isfile(filepath):
+                    csv_files.append((filepath, os.path.getmtime(filepath)))
+        
+        # Sort by modification time, newest first
+        csv_files.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return the most recent CSV file
+        if csv_files:
+            most_recent_file = csv_files[0][0]
+            return send_file(most_recent_file, as_attachment=True, mimetype='text/csv')
+    
+    return jsonify({'error': 'File not found'}), 404
+
+@app.route('/api/completed-jobs')
+def get_completed_jobs():
+    """Get list of completed jobs"""
+    completed_jobs = load_completed_jobs()
+    # Convert to list and sort by completion time (newest first)
+    jobs_list = list(completed_jobs.values())
+    jobs_list.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
+    return jsonify(jobs_list)
 
 @app.route('/api/expand-keywords', methods=['POST'])
 def expand_keywords():

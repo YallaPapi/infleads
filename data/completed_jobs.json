@@ -1,0 +1,19 @@
+{
+  "job_1755560348": {
+    "job_id": "job_1755560348",
+    "query": "immigration lawyers in dallas | estate planning attorneys in dallas | real estate lawyers in dallas | business lawyers in dallas | civil litigation attorneys in dallas | intellectual property lawyers in dallas | employment law attorneys in dallas | bankruptcy lawyers in dallas | medical malpractice attorneys in dallas | family law lawyers in dallas | divorce attorneys in dallas | probate lawyers in dallas | criminal law attorneys in dallas | tax lawyers in dallas | personal injury attorneys in dallas | environmental law lawyers in dallas | insurance law attorneys in dallas | entertainment lawyers in dallas | government law attorneys in dallas | immigration law firm in dallas",
+    "limit": 500,
+    "status": "completed",
+    "total_leads": 619,
+    "emails_verified": 299,
+    "valid_emails": 170,
+    "result_file": "output\\2025-08-18_202051_immigration_lawyers_in_dallas_.csv",
+    "share_link": null,
+    "error": null,
+    "completed_at": "2025-08-18T20:21:07.758833",
+    "verify_emails": true,
+    "generate_emails": false,
+    "export_verified_only": true,
+    "advanced_scraping": false
+  }
+}

@@ -17,6 +17,8 @@ import pickle
 from collections import deque
 from flask import Response
 import queue
+import tempfile
+import zipfile
 
 # Load environment variables FIRST
 load_dotenv()
@@ -695,15 +697,12 @@ def process_leads(job):
                 
                 api_key = os.getenv('INSTANTLY_API_KEY')
                 if api_key:
-                    # Filter for leads with valid emails
-                    leads_for_instantly = final_leads
-                    if job.verify_emails:
-                        # Use verified leads only
-                        leads_for_instantly = [lead for lead in final_leads if lead.get('Email') and lead.get('email_status') == 'valid']
-                    else:
-                        # Filter leads that have valid emails (not NA or empty)
-                        leads_for_instantly = [lead for lead in final_leads 
-                                             if lead.get('Email') and lead.get('Email') != 'NA' and lead.get('Email') != '']
+                    # Filter for verified emails only
+                    leads_for_instantly = [
+                        lead for lead in final_leads
+                        if lead.get('Email') and lead.get('Email') not in ('', 'NA') 
+                        and (str(lead.get('email_status','')).lower() == 'valid' or str(lead.get('Email_Status','')).lower() == 'valid' or str(lead.get('Email_Verified','')).lower() in ('true','1','yes'))
+                    ]
                     
                     if leads_for_instantly:
                         print(f"\n{'#'*60}")
@@ -2215,8 +2214,16 @@ def retry_instantly_import():
         df = pd.read_csv(result_file)
         leads = df.to_dict(orient='records')
 
-        # Filter leads with valid emails
-        filtered = [l for l in leads if str(l.get('Email', '')).strip() not in ('', 'NA')]
+        # Filter to verified emails only if verification columns exist
+        filtered = []
+        for l in leads:
+            email = str(l.get('Email', '')).strip()
+            if not email or email == 'NA':
+                continue
+            status = str(l.get('Email_Status', '')).lower()
+            verified_flag = str(l.get('Email_Verified', '')).lower()
+            if status == 'valid' or verified_flag in ('true', '1', 'yes'):
+                filtered.append(l)
         instantly_leads = convert_r27_leads_to_instantly(filtered)
 
         api_key = os.getenv('INSTANTLY_API_KEY')
@@ -2229,6 +2236,102 @@ def retry_instantly_import():
     except Exception as e:
         logger.error(f"Retry Instantly import failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instantly/retry-import-batch', methods=['POST'])
+def retry_instantly_import_batch():
+	data = request.json or {}
+	job_ids = data.get('job_ids') or []
+	campaign_id = data.get('campaign_id')
+	if not job_ids or not campaign_id:
+		return jsonify({'error': 'job_ids (array) and campaign_id are required'}), 400
+
+	try:
+		api_key = os.getenv('INSTANTLY_API_KEY')
+		if not api_key:
+			return jsonify({'error': 'INSTANTLY_API_KEY not configured'}), 400
+
+		# Collect leads from all jobs
+		all_leads = []
+		for job_id in job_ids:
+			# Load job info
+			job_info = None
+			if job_id in jobs:
+				job_info = jobs[job_id].to_dict()
+			else:
+				completed = load_completed_jobs()
+				job_info = completed.get(job_id)
+
+			if not job_info:
+				logger.warning(f"Job not found for batch import: {job_id}")
+				continue
+
+			result_file = job_info.get('result_file')
+			if not result_file or not os.path.exists(result_file):
+				logger.warning(f"Result file missing for job {job_id}")
+				continue
+
+			# Read CSV and convert
+			df = pd.read_csv(result_file)
+			        records = df.to_dict(orient='records')
+        filtered = []
+        for r in records:
+            email = str(r.get('Email', '')).strip()
+            if not email or email == 'NA':
+                continue
+            status = str(r.get('Email_Status', '')).lower()
+            verified_flag = str(r.get('Email_Verified', '')).lower()
+            if status == 'valid' or verified_flag in ('true', '1', 'yes'):
+                filtered.append(r)
+        all_leads.extend(filtered)
+
+		if not all_leads:
+			return jsonify({'success': False, 'message': 'No valid leads with emails found across selected jobs'})
+
+		inst = InstantlyIntegration(api_key)
+		instantly_leads = convert_r27_leads_to_instantly(all_leads)
+		result = inst.add_leads_to_campaign(campaign_id, instantly_leads)
+		return jsonify({'success': True, **result, 'jobs_processed': len(job_ids)})
+	except Exception as e:
+		logger.error(f"Batch Instantly import failed: {e}", exc_info=True)
+		return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/download-batch', methods=['POST'])
+def download_batch():
+	data = request.json or {}
+	job_ids = data.get('job_ids') or []
+	if not job_ids:
+		return jsonify({'error': 'job_ids (array) is required'}), 400
+
+	import tempfile
+	import zipfile
+
+	try:
+		# Create a temporary zip file
+		tmp_dir = tempfile.mkdtemp()
+		zip_path = os.path.join(tmp_dir, f"leads_batch_{int(time.time())}.zip")
+		with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+			for job_id in job_ids:
+				job_info = None
+				if job_id in jobs:
+					job_info = jobs[job_id].to_dict()
+				else:
+					completed = load_completed_jobs()
+					job_info = completed.get(job_id)
+
+				if not job_info:
+					continue
+
+				result_file = job_info.get('result_file')
+				if result_file and os.path.exists(result_file):
+					# Add to zip with a friendly name
+					base_name = os.path.basename(result_file)
+					zf.write(result_file, arcname=base_name)
+
+		return send_file(zip_path, as_attachment=True, download_name=os.path.basename(zip_path), mimetype='application/zip')
+	except Exception as e:
+		logger.error(f"Batch download failed: {e}", exc_info=True)
+		return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("\n" + "="*50)

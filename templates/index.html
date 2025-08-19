@@ -426,9 +426,20 @@
         <div class="card mb-4" id="recentJobsCard">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-clock-history"></i> Recent Jobs</span>
-                <button class="btn btn-sm btn-outline-primary" id="refreshRecentBtn" onclick="loadCompletedJobs()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                </button>
+                <div class="d-flex align-items-center">
+                    <select class="form-select form-select-sm me-2" id="campaignSelect" style="width: 260px;">
+                        <option value="">Select Instantly campaign...</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary me-2" id="batchSendBtn" onclick="batchSendToInstantly()">
+                        <i class="bi bi-arrow-repeat"></i> Send Selected to Instantly
+                    </button>
+                    <button class="btn btn-sm btn-outline-success me-2" id="batchDownloadBtn" onclick="batchDownload()">
+                        <i class="bi bi-download"></i> Download Selected
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="refreshRecentBtn" onclick="loadCompletedJobs()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div id="recentJobsList" class="list-group" style="max-height: 300px; overflow-y: auto;">
@@ -2752,9 +2763,32 @@
                 const res = await fetch('/api/completed-jobs');
                 const jobs = await res.json();
                 renderCompletedJobs(jobs);
+                // refresh campaigns list too
+                loadCampaignsDropdown();
             } catch (e) {
                 console.error('Failed to load completed jobs', e);
                 document.getElementById('recentJobsList').innerHTML = '<div class="text-danger">Error loading jobs</div>';
+            }
+        }
+
+        async function loadCampaignsDropdown() {
+            try {
+                const res = await fetch('/api/instantly/campaigns');
+                const campaigns = await res.json();
+                const sel = document.getElementById('campaignSelect');
+                const prev = sel.value;
+                sel.innerHTML = '<option value="">Select Instantly campaign...</option>';
+                if (Array.isArray(campaigns)) {
+                    campaigns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id || c._id || c.campaign_id || '';
+                        opt.textContent = c.name || c.title || opt.value;
+                        sel.appendChild(opt);
+                    });
+                }
+                if (prev) sel.value = prev;
+            } catch (e) {
+                // silent fail
             }
         }
 
@@ -2770,12 +2804,16 @@
                 item.className = 'list-group-item';
                 const completed = job.completed_at ? new Date(job.completed_at).toLocaleString() : '';
                 const leads = job.total_leads ?? 0;
+                const verified = job.valid_emails ?? job.emails_verified ?? 0;
                 const statusBadge = job.status === 'completed' ? 'success' : (job.status === 'error' ? 'danger' : 'secondary');
                 item.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center">
-                        <div style="max-width: 60%;">
+                        <div class="form-check me-2">
+                            <input class="form-check-input job-select" type="checkbox" value="${job.job_id}">
+                        </div>
+                        <div style="max-width: 55%;">
                             <div class="fw-bold">${job.query || job.job_id}</div>
-                            <small class="text-muted">${completed} · ${leads} leads</small>
+                            <small class="text-muted">${completed} · ${leads} leads · ${verified} verified</small>
                             <div><span class="badge bg-${statusBadge} mt-1">${job.status || 'completed'}</span></div>
                         </div>
                         <div class="text-end">
@@ -2793,9 +2831,8 @@
         }
 
         async function retryInstantly(jobId) {
-            const defaultCampaign = (document.getElementById('instantlyCampaign') || {}).value || '';
-            const campaignId = prompt('Enter Instantly campaign ID to add leads to:', defaultCampaign);
-            if (!campaignId) return;
+            const campaignId = document.getElementById('campaignSelect').value || (document.getElementById('instantlyCampaign') || {}).value || '';
+            if (!campaignId) { alert('Select an Instantly campaign from the dropdown'); return; }
             try {
                 const res = await fetch('/api/instantly/retry-import', {
                     method: 'POST',
@@ -2810,6 +2847,63 @@
                 }
             } catch (e) {
                 alert('Instantly import error: ' + e.message);
+            }
+        }
+
+        async function batchSendToInstantly() {
+            const campaignId = document.getElementById('campaignSelect').value;
+            if (!campaignId) {
+                alert('Select an Instantly campaign first');
+                return;
+            }
+            const selected = Array.from(document.querySelectorAll('.job-select:checked')).map(i => i.value);
+            if (selected.length === 0) {
+                alert('Select at least one job');
+                return;
+            }
+            try {
+                const res = await fetch('/api/instantly/retry-import-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selected, campaign_id: campaignId })
+                });
+                const result = await res.json();
+                if (res.ok && result.success) {
+                    alert(`Batch import done: Added ${result.added}, Failed ${result.failed}`);
+                } else {
+                    alert('Batch import failed: ' + (result.error || JSON.stringify(result)));
+                }
+            } catch (e) {
+                alert('Batch import error: ' + e.message);
+            }
+        }
+
+        async function batchDownload() {
+            const selected = Array.from(document.querySelectorAll('.job-select:checked')).map(i => i.value);
+            if (selected.length === 0) {
+                alert('Select at least one job');
+                return;
+            }
+            try {
+                const res = await fetch('/api/download-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selected })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Download failed');
+                }
+                // Stream as blob and download
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `leads_batch_${Date.now()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Batch download error: ' + e.message);
             }
         }
     </script>

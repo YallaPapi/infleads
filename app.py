@@ -2353,26 +2353,7 @@ app.add_url_rule('/api/instantly/import/', view_func=instantly_import_alias, met
 app.add_url_rule('/api/instantly/retry_import/', view_func=instantly_retry_import_alias, methods=['POST'])
 app.add_url_rule('/api/instantly/add-leads/', view_func=instantly_add_leads_alias, methods=['POST'])
 
-@app.route('/api/instantly/<path:subpath>', methods=['POST'])
-def instantly_catch_all(subpath):
-    # Normalize and dispatch to the core handler for known variants
-    normalized = subpath.strip('/').lower()
-    if normalized in ['retry-import', 'retry_import', 'import', 'add-leads', 'add_leads']:
-        return retry_instantly_import()
-    return jsonify({'error': f'Unknown Instantly path: {subpath}'}), 404
 
-@app.errorhandler(404)
-def handle_404(error):
-    try:
-        path = request.path or ''
-        if path.startswith('/api/instantly/'):
-            # Forward to import handler
-            return retry_instantly_import()
-        if path == '/api/active-jobs':
-            return get_active_jobs()
-    except Exception:
-        pass
-    return error
 
 if __name__ == '__main__':
     print("\n" + "="*50)

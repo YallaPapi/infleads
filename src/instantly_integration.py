@@ -210,10 +210,10 @@ class InstantlyIntegration:
             # Remove problematic fields
             lead_data.pop('draft_email', None)
             lead_data.pop('DraftEmail', None)
-            lead_data.pop('campaign_id', None)  # Don't use campaign_id
+            lead_data.pop('campaign', None)  # Remove any existing campaign field
             
-            # Add the campaign using the correct field name
-            lead_data['campaign'] = campaign_id
+            # Add the campaign_id using the correct field name for API v2
+            lead_data['campaign_id'] = campaign_id
             
             instantly_leads.append(lead_data)
         
@@ -234,33 +234,59 @@ class InstantlyIntegration:
         results = []
         failed = []
         
+        # Rate limiting settings
+        max_retries = 3
+        base_delay = 0.5  # 500ms between requests
+        
         for i, lead_data in enumerate(instantly_leads, 1):
             print(f"\n--- Lead {i}/{len(instantly_leads)} ---")
             print(f"Email: {lead_data.get('email')}")
             print(f"Name: {lead_data.get('first_name')} {lead_data.get('last_name')}")
-            print(f"Campaign: {lead_data.get('campaign')}")
+            print(f"Campaign ID: {lead_data.get('campaign_id')}")
             
-            try:
-                # Send lead with campaign assignment
-                result = self._make_request("POST", "leads", lead_data)
-                
-                if isinstance(result, dict) and 'id' in result:
-                    results.append(result)
-                    print(f"[SUCCESS] Lead added to campaign")
-                    print(f"Lead ID: {result.get('id')}")
+            # Retry logic for rate limiting
+            for retry in range(max_retries):
+                try:
+                    # Send lead with campaign assignment
+                    result = self._make_request("POST", "leads", lead_data)
                     
-                    # Check if campaign was assigned
-                    if 'campaign' in result:
-                        print(f"Campaign confirmed: {result.get('campaign')}")
-                else:
-                    print(f"[WARNING] Unexpected response format")
-                    print(f"Response: {json.dumps(result, indent=2)[:200]}")
+                    if isinstance(result, dict) and 'id' in result:
+                        results.append(result)
+                        print(f"[SUCCESS] Lead added to campaign")
+                        print(f"Lead ID: {result.get('id')}")
+                        
+                        # Check if campaign was assigned
+                        if 'campaign_id' in result or 'campaign' in result:
+                            print(f"Campaign confirmed: {result.get('campaign_id') or result.get('campaign')}")
+                    else:
+                        print(f"[WARNING] Unexpected response format")
+                        print(f"Response: {json.dumps(result, indent=2)[:200]}")
                     
-            except Exception as e:
-                print(f"[FAILED] Could not add lead")
-                print(f"Error: {str(e)}")
-                failed.append(lead_data.get('email'))
-                continue
+                    # Success - break retry loop
+                    break
+                    
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429:  # Rate limit
+                        retry_after = int(e.response.headers.get('Retry-After', 5))
+                        print(f"[RATE LIMIT] Waiting {retry_after} seconds...")
+                        time.sleep(retry_after)
+                        continue
+                    else:
+                        print(f"[HTTP ERROR] {e.response.status_code}: {e.response.text[:200]}")
+                        failed.append(lead_data.get('email'))
+                        break
+                        
+                except Exception as e:
+                    print(f"[ERROR] Attempt {retry + 1}/{max_retries} failed: {str(e)}")
+                    if retry == max_retries - 1:
+                        print(f"[FAILED] Could not add lead after {max_retries} attempts")
+                        failed.append(lead_data.get('email'))
+                    else:
+                        time.sleep(base_delay * (2 ** retry))  # Exponential backoff
+            
+            # Rate limiting between successful requests
+            if i < len(instantly_leads):
+                time.sleep(base_delay)
         
         print(f"\n{'='*60}")
         print(f"FINAL RESULTS:")
@@ -277,37 +303,27 @@ class InstantlyIntegration:
             raise Exception(f"ALL {len(instantly_leads)} leads failed to add to Instantly!")
         
     def bulk_import_leads(self, leads: List[InstantlyLead], 
-                         campaign_name: str = None) -> Dict:
-        """Import leads in bulk, optionally to specific campaign"""
+                         campaign_id: str = None) -> Dict:
+        """
+        DEPRECATED: Instantly API v2 does not support bulk import.
         
-        # Convert leads to Instantly format
-        instantly_leads = []
-        for lead in leads:
-            lead_data = lead.to_dict()
-            if campaign_name:
-                lead_data["campaign"] = campaign_name
-            instantly_leads.append(lead_data)
-            
-        # Split into batches (Instantly has limits)
-        batch_size = 1000
-        results = []
+        This method now redirects to add_leads_to_campaign which 
+        correctly handles individual lead creation with rate limiting.
         
-        for i in range(0, len(instantly_leads), batch_size):
-            batch = instantly_leads[i:i + batch_size]
-            batch_data = {"leads": batch}
-            
-            result = self._make_request("POST", "leads", batch_data)
-            results.append(result)
-            
-            # Rate limiting
-            if len(instantly_leads) > batch_size:
-                time.sleep(1)
-                
-        return {
-            "total_leads": len(instantly_leads),
-            "batches": len(results),
-            "results": results
-        }
+        Research confirmed: As of 2025, Instantly.ai API v2 lacks a 
+        bulk upload endpoint. Each lead must be added individually.
+        """
+        
+        print(f"\n{'='*60}")
+        print("NOTICE: Bulk import not supported in Instantly API v2")
+        print("Redirecting to individual lead creation with rate limiting...")
+        print(f"{'='*60}\n")
+        
+        # Redirect to the working method
+        if campaign_id:
+            return self.add_leads_to_campaign(campaign_id, leads)
+        else:
+            raise ValueError("campaign_id is required for adding leads to Instantly")
         
     def get_campaign_stats(self, campaign_id: str) -> Dict:
         """Get campaign performance statistics"""
@@ -618,8 +634,8 @@ def convert_r27_leads_to_instantly(leads_data: List[Dict]) -> List[InstantlyLead
         # Create custom variables for ALL additional data from CSV
         custom_vars = {}
         
-        # Map selected fields from the lead data as custom variables
-        # REMOVED DraftEmail to avoid encoding issues
+        # Map selected fields from the lead data as custom variables  
+        # Updated to match standardized CSV column names after DataFrame standardization
         field_mapping = {
             'SocialMediaLinks': 'social_media_links', 
             'Reviews': 'reviews',
@@ -627,12 +643,20 @@ def convert_r27_leads_to_instantly(leads_data: List[Dict]) -> List[InstantlyLead
             'Rating': 'rating',
             'ReviewCount': 'review_count',
             'GoogleBusinessClaimed': 'google_business_claimed',
+            
+            # Email verification fields - check both old and new standardized names
             'email_source': 'email_source',
-            'email_quality_boost': 'email_quality_boost',
-            # 'DraftEmail': 'draft_email',  # REMOVED - causes encoding issues
+            'Email_Source': 'email_source',  # From CSV standardization
+            'email_quality_boost': 'email_quality_boost', 
+            'Email_Quality_Boost': 'email_quality_boost',  # From CSV standardization
+            'Email_Status': 'email_status',  # From CSV standardization
+            'Email_Score': 'email_score',    # From CSV standardization
+            
+            # Search metadata
             'SearchKeyword': 'search_term',  # Keep original search term
             'Location': 'search_location',
-            'LeadScore': 'lead_score'
+            'LeadScore': 'lead_score',
+            'DraftEmail': 'draft_email'  # Re-added with proper handling
         }
         
         # Add business name as custom variable
@@ -739,7 +763,7 @@ def create_campaign_from_r27_leads(instantly_api: InstantlyIntegration,
     # Add leads to campaign
     if instantly_leads:
         lead_result = instantly_api.add_leads_to_campaign(
-            campaign['campaign_id'], 
+            campaign.get('id', campaign.get('campaign_id', '')),  # Try both field names for compatibility
             instantly_leads
         )
         

@@ -1,0 +1,431 @@
+{
+  "dentists in miami": [
+    {
+      "name": "Aspen Dental",
+      "address": "",
+      "phone": "(305) 330-1150",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Dentists",
+        "Cosmetic Dentistry",
+        "Dental Clinics",
+        "Prosthodontists & Denture Centers"
+      ],
+      "types": [
+        "Dentists",
+        "Cosmetic Dentistry",
+        "Dental Clinics",
+        "Prosthodontists & Denture Centers"
+      ],
+      "place_id": "yp_Aspen_Dental_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 4
+    },
+    {
+      "name": "George Phen",
+      "address": "",
+      "phone": "(954) 228-9506",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Dentists",
+        "Teeth Whitening Products & Services",
+        "Implant Dentistry",
+        "Cosmetic Dentistry"
+      ],
+      "types": [
+        "Dentists",
+        "Teeth Whitening Products & Services",
+        "Implant Dentistry",
+        "Cosmetic Dentistry"
+      ],
+      "place_id": "yp_George_Phen_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 1024
+    },
+    {
+      "name": "Rodriguez-Feo, Carlos J",
+      "address": "6601 SW 80th St Ste 125, Miami, FL 33143",
+      "phone": "(786) 310-4459",
+      "website": "http://jawsurgery.org",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Dentists",
+        "Physicians & Surgeons, Oral Surgery",
+        "Oral & Maxillofacial Surgery"
+      ],
+      "types": [
+        "Dentists",
+        "Physicians & Surgeons, Oral Surgery",
+        "Oral & Maxillofacial Surgery"
+      ],
+      "place_id": "yp_Rodriguez-Feo,_Carlos_J_6601 SW 80th St Ste ",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 35
+    },
+    {
+      "name": "Advanced Center For Cosmetic & Implant Dentistry",
+      "address": "8501 SW 124th Ave Ste 107, Miami, FL 33183",
+      "phone": "(305) 279-9005",
+      "website": "http://www.drocascante.com/",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Dentists"
+      ],
+      "types": [
+        "Dentists"
+      ],
+      "place_id": "yp_Advanced_Center_For_Cosmetic_&_Implant_Dentistry_8501 SW 124th Ave St",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 25
+    },
+    {
+      "name": "Aspen Dental",
+      "address": "1420 NW North River Dr Ste 170, Miami, FL 33125",
+      "phone": "(305) 330-1150",
+      "website": "https://www.aspendental.com/schedule-an-appointment/?fc=4222&utm_source=YP&utm_medium=IYP&utm_campaign=MiamiRL_FL-MMIYP-4222",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Dentists",
+        "Dental Hygienists",
+        "Prosthodontists & Denture Centers"
+      ],
+      "types": [
+        "Dentists",
+        "Dental Hygienists",
+        "Prosthodontists & Denture Centers"
+      ],
+      "place_id": "yp_Aspen_Dental_1420 NW North River ",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 4
+    }
+  ],
+  "law firms in chicago": [
+    {
+      "name": "StarkmanMichael I",
+      "address": "",
+      "phone": "(708) 996-1390",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Attorneys",
+        "Elder Law Attorneys",
+        "Personal Injury Law Attorneys",
+        "Real Estate Attorneys"
+      ],
+      "types": [
+        "Attorneys",
+        "Elder Law Attorneys",
+        "Personal Injury Law Attorneys",
+        "Real Estate Attorneys"
+      ],
+      "place_id": "yp_StarkmanMichael_I_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": null
+    },
+    {
+      "name": "Horn & Kelley P.C. Attorneys at Law",
+      "address": "",
+      "phone": "(708) 572-4902",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Attorneys",
+        "Social Security & Disability Law Attorneys"
+      ],
+      "types": [
+        "Attorneys",
+        "Social Security & Disability Law Attorneys"
+      ],
+      "place_id": "yp_Horn_&_Kelley_P.C._Attorneys_at_Law_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 44
+    },
+    {
+      "name": "Gregory K. Stern, PC",
+      "address": "",
+      "phone": "(844) 720-6168",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Attorneys",
+        "Bankruptcy Law Attorneys",
+        "Real Estate Attorneys",
+        "Tax Attorneys"
+      ],
+      "types": [
+        "Attorneys",
+        "Bankruptcy Law Attorneys",
+        "Real Estate Attorneys",
+        "Tax Attorneys"
+      ],
+      "place_id": "yp_Gregory_K._Stern,_PC_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 42
+    },
+    {
+      "name": "Collins Bargione Vukovich",
+      "address": "",
+      "phone": "(844) 354-0545",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Attorneys"
+      ],
+      "types": [
+        "Attorneys"
+      ],
+      "place_id": "yp_Collins_Bargione_Vukovich_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 69
+    },
+    {
+      "name": "Mudd Law",
+      "address": "",
+      "phone": "(708) 986-1999",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Attorneys"
+      ],
+      "types": [
+        "Attorneys"
+      ],
+      "place_id": "yp_Mudd_Law_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 24
+    }
+  ],
+  "auto repair shops in dallas": [
+    {
+      "name": "Firestone Complete Auto Care",
+      "address": "",
+      "phone": "(800) 364-4314",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Auto Repair & Service",
+        "Tire Dealers"
+      ],
+      "types": [
+        "Auto Repair & Service",
+        "Tire Dealers"
+      ],
+      "place_id": "yp_Firestone_Complete_Auto_Care_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 99
+    },
+    {
+      "name": "Lone Star Engine Installation",
+      "address": "",
+      "phone": "(844) 297-5801",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Auto Repair & Service",
+        "Engine Rebuilding & Exchange"
+      ],
+      "types": [
+        "Auto Repair & Service",
+        "Engine Rebuilding & Exchange"
+      ],
+      "place_id": "yp_Lone_Star_Engine_Installation_",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 34
+    },
+    {
+      "name": "Lone Star Engine Installation",
+      "address": "405 Ann Ave, Dallas, TX 75223",
+      "phone": "(844) 297-5801",
+      "website": "https://www.lonestarengine.net",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Auto Repair & Service",
+        "Engine Rebuilding & Exchange"
+      ],
+      "types": [
+        "Auto Repair & Service",
+        "Engine Rebuilding & Exchange"
+      ],
+      "place_id": "yp_Lone_Star_Engine_Installation_405 Ann Ave, Dallas,",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 34
+    },
+    {
+      "name": "Firestone Complete Auto Care",
+      "address": "14010 Montfort Dr, Dallas, TX 75240",
+      "phone": "(972) 546-1021",
+      "website": "https://www.firestonecompleteautocare.com/texas/dallas/14010-montfort-dr/?lw_cmp=IYP_YPC_MLP_26492",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Auto Repair & Service",
+        "Mufflers & Exhaust Systems",
+        "Tire Dealers"
+      ],
+      "types": [
+        "Auto Repair & Service",
+        "Mufflers & Exhaust Systems",
+        "Tire Dealers"
+      ],
+      "place_id": "yp_Firestone_Complete_Auto_Care_14010 Montfort Dr, D",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 99
+    },
+    {
+      "name": "Firestone Complete Auto Care",
+      "address": "9070 Forest Ln, Dallas, TX 75243",
+      "phone": "(214) 306-0098",
+      "website": "https://www.firestonecompleteautocare.com/texas/dallas/9070-forest-ln/?lw_cmp=IYP_YPC_MLP_19313",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Auto Repair & Service",
+        "Automotive Tune Up Service",
+        "Auto Oil & Lube"
+      ],
+      "types": [
+        "Auto Repair & Service",
+        "Automotive Tune Up Service",
+        "Auto Oil & Lube"
+      ],
+      "place_id": "yp_Firestone_Complete_Auto_Care_9070 Forest Ln, Dall",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 99
+    }
+  ],
+  "restaurants in san francisco": [],
+  "hair salons in atlanta": [
+    {
+      "name": "Total Hair Systems",
+      "address": "2140 Peachtree Rd NW, Ste 215, Atlanta, GA 30309",
+      "phone": "(678) 870-6125",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Hair Stylists",
+        "Hair Weaving",
+        "Hair Replacement"
+      ],
+      "types": [
+        "Hair Stylists",
+        "Hair Weaving",
+        "Hair Replacement"
+      ],
+      "place_id": "yp_Total_Hair_Systems_2140 Peachtree Rd NW",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": null
+    },
+    {
+      "name": "Capaul's International",
+      "address": "659 Auburn Ave NE, Atlanta, GA 30312",
+      "phone": "(404) 522-8695",
+      "website": "http://www.capaulsinternationalsalon.com",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Hair Stylists"
+      ],
+      "types": [
+        "Hair Stylists"
+      ],
+      "place_id": "yp_Capaul's_International_659 Auburn Ave NE, A",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 13
+    },
+    {
+      "name": "Famous Hair",
+      "address": "8725 Roswell Rd Ste K, Atlanta, GA 30350",
+      "phone": "(770) 992-9806",
+      "website": "http://www.getthelook.com/Atlanta",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Hair Stylists",
+        "Beauty Salons",
+        "Barbers"
+      ],
+      "types": [
+        "Hair Stylists",
+        "Beauty Salons",
+        "Barbers"
+      ],
+      "place_id": "yp_Famous_Hair_8725 Roswell Rd Ste ",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": null
+    },
+    {
+      "name": "Weave Couture",
+      "address": "2841 Greenbriar Pkwy SW Ste N402, Atlanta, GA 30331",
+      "phone": "(678) 949-9653",
+      "website": "",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Hair Stylists",
+        "Beauty Salons"
+      ],
+      "types": [
+        "Hair Stylists",
+        "Beauty Salons"
+      ],
+      "place_id": "yp_Weave_Couture_2841 Greenbriar Pkwy",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 14
+    },
+    {
+      "name": "Jamison Shaw Hairdressers",
+      "address": "3330 Piedmont Rd NE, Atlanta, GA 30305",
+      "phone": "(404) 262-3777",
+      "website": "http://www.jamisonshaw.com",
+      "rating": 0,
+      "reviews": 0,
+      "categories": [
+        "Hair Stylists",
+        "Beauty Salons"
+      ],
+      "types": [
+        "Hair Stylists",
+        "Beauty Salons"
+      ],
+      "place_id": "yp_Jamison_Shaw_Hairdressers_3330 Piedmont Rd NE,",
+      "business_status": "OPERATIONAL",
+      "source": "yellowpages",
+      "years_in_business": 31
+    }
+  ]
+}

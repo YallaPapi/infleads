@@ -1,0 +1,209 @@
+{
+  "yellowpages": {
+    "count": 10,
+    "results": [
+      {
+        "name": "Aspen Dental",
+        "phone": "(305) 330-1150",
+        "address": "1420 NW North River Dr Ste 170, Miami, FL 33125",
+        "website": "https://www.aspendental.com/schedule-an-appointment/?fc=4222&utm_source=YP&utm_medium=IYP&utm_campaign=MiamiRL_FL-MMIYP-4222",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists",
+          "Cosmetic Dentistry",
+          "Dental Clinics",
+          "Prosthodontists & Denture Centers"
+        ],
+        "types": [
+          "Dentists",
+          "Cosmetic Dentistry",
+          "Dental Clinics",
+          "Prosthodontists & Denture Centers"
+        ],
+        "place_id": "yp_Aspen_Dental_1420 NW North River ",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 4
+      },
+      {
+        "name": "George Phen",
+        "phone": "(954) 228-9506",
+        "address": "2212 North Flamingo Road, Fleming, FL 33028",
+        "website": "http://www.phendental.com/",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists",
+          "Teeth Whitening Products & Services",
+          "Implant Dentistry",
+          "Cosmetic Dentistry"
+        ],
+        "types": [
+          "Dentists",
+          "Teeth Whitening Products & Services",
+          "Implant Dentistry",
+          "Cosmetic Dentistry"
+        ],
+        "place_id": "yp_George_Phen_2212 North Flamingo ",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 1024
+      },
+      {
+        "name": "Rodriguez-Feo, Carlos J",
+        "phone": "(786) 310-4459",
+        "address": "6601 SW 80th St Ste 125, Miami, FL 33143",
+        "website": "http://jawsurgery.org",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists",
+          "Physicians & Surgeons, Oral Surgery",
+          "Oral & Maxillofacial Surgery"
+        ],
+        "types": [
+          "Dentists",
+          "Physicians & Surgeons, Oral Surgery",
+          "Oral & Maxillofacial Surgery"
+        ],
+        "place_id": "yp_Rodriguez-Feo,_Carlo_6601 SW 80th St Ste ",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 35
+      },
+      {
+        "name": "Advanced Center For Cosmetic & Implant Dentistry",
+        "phone": "(305) 279-9005",
+        "address": "8501 SW 124th Ave Ste 107, Miami, FL 33183",
+        "website": "http://www.drocascante.com/",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists"
+        ],
+        "types": [
+          "Dentists"
+        ],
+        "place_id": "yp_Advanced_Center_For__8501 SW 124th Ave St",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 25
+      },
+      {
+        "name": "Falls Dental Care Group",
+        "phone": "(786) 471-2236",
+        "address": "8729 Southwest 136th Street, Miami, FL 33176",
+        "website": "http://www.fallsdentalcaregroup.com/#",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists"
+        ],
+        "types": [
+          "Dentists"
+        ],
+        "place_id": "yp_Falls_Dental_Care_Gr_8729 Southwest 136th",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 29
+      },
+      {
+        "name": "Galloway Dental Care",
+        "phone": "(645) 215-6646",
+        "address": "7755 SW 87th Avenue, Miami, FL 33143",
+        "website": "https://dentistmiami.com",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists",
+          "Implant Dentistry",
+          "Cosmetic Dentistry"
+        ],
+        "types": [
+          "Dentists",
+          "Implant Dentistry",
+          "Cosmetic Dentistry"
+        ],
+        "place_id": "yp_Galloway_Dental_Care_7755 SW 87th Avenue,",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 27
+      },
+      {
+        "name": "Raiko Rojas",
+        "phone": "(833) 809-8266",
+        "address": "9572 SW 137th Ave, Miami, FL 33186",
+        "website": "https://www.picassodentalmiami.com",
+        "rating": 0,
+        "reviews": 0,
+        "categories": [
+          "Dentists"
+        ],
+        "types": [
+          "Dentists"
+        ],
+        "place_id": "yp_Raiko_Rojas_9572 SW 137th Ave, M",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 12
+      },
+      {
+        "name": "Ronald M Hagen, DDS",
+        "phone": "(305) 667-4410",
+        "address": "8257 S Dixie Hwy, Miami, FL 33143",
+        "website": "http://www.hagendental.com",
+        "rating": 1.0,
+        "reviews": 0,
+        "categories": [
+          "Dentists"
+        ],
+        "types": [
+          "Dentists"
+        ],
+        "place_id": "yp_Ronald_M_Hagen,_DDS_8257 S Dixie Hwy, Mi",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": null
+      },
+      {
+        "name": "Valeria Soltanik, DMD, PA, GP",
+        "phone": "(305) 466-2334",
+        "address": "2999 NE 191st St Ste 350, Miami, FL 33180",
+        "website": "http://www.soltanikdental.com",
+        "rating": 104.0,
+        "reviews": 0,
+        "categories": [
+          "Dentists",
+          "Oral & Maxillofacial Surgery"
+        ],
+        "types": [
+          "Dentists",
+          "Oral & Maxillofacial Surgery"
+        ],
+        "place_id": "yp_Valeria_Soltanik,_DM_2999 NE 191st St Ste",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": null
+      },
+      {
+        "name": "Rene Piedra, DMD",
+        "phone": "(305) 667-6747",
+        "address": "7887 N Kendall Dr Ste 220, Miami, FL 33156",
+        "website": "http://floridasleepdentist.com",
+        "rating": 47.0,
+        "reviews": 0,
+        "categories": [
+          "Dentists"
+        ],
+        "types": [
+          "Dentists"
+        ],
+        "place_id": "yp_Rene_Piedra,_DMD_7887 N Kendall Dr St",
+        "business_status": "OPERATIONAL",
+        "source": "yellowpages",
+        "years_in_business": 24
+      }
+    ]
+  }
+}

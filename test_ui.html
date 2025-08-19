@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lead Preview Test</title>
+    <style>
+        .lead-item {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lead Preview Test</h1>
+    <button onclick="testLeadGeneration()">Generate Test Leads</button>
+    <button onclick="checkStatus()">Check Status</button>
+    <div id="status"></div>
+    <div id="preview"></div>
+    
+    <script>
+        let currentJobId = null;
+        
+        async function testLeadGeneration() {
+            const response = await fetch('http://localhost:5000/api/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: 'restaurants',
+                    location: 'Austin, TX', 
+                    limit: 3,
+                    verify_emails: false,
+                    generate_emails: false,
+                    providers: ['google_maps']
+                })
+            });
+            const data = await response.json();
+            currentJobId = data.job_id;
+            document.getElementById('status').innerHTML = `Job created: ${currentJobId}`;
+            setTimeout(checkStatus, 2000);
+        }
+        
+        async function checkStatus() {
+            if (!currentJobId) {
+                alert('No job ID. Generate leads first.');
+                return;
+            }
+            
+            const response = await fetch(`http://localhost:5000/api/status/${currentJobId}`);
+            const data = await response.json();
+            
+            document.getElementById('status').innerHTML = `
+                <h3>Status: ${data.status}</h3>
+                <p>Message: ${data.message}</p>
+                <p>Total Leads: ${data.total_leads}</p>
+                <p>Preview Count: ${data.leads_preview ? data.leads_preview.length : 0}</p>
+            `;
+            
+            if (data.leads_preview && data.leads_preview.length > 0) {
+                const preview = document.getElementById('preview');
+                preview.innerHTML = '<h2>Lead Preview:</h2>';
+                
+                data.leads_preview.forEach((lead, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'lead-item';
+                    div.innerHTML = `
+                        <strong>${i+1}. ${lead.Name}</strong><br>
+                        Address: ${lead.Address}<br>
+                        Phone: ${lead.Phone || 'N/A'}<br>
+                        Email: ${lead.Email || 'N/A'}<br>
+                        Website: ${lead.Website || 'N/A'}
+                    `;
+                    preview.appendChild(div);
+                });
+            }
+            
+            if (data.status !== 'completed' && data.status !== 'error') {
+                setTimeout(checkStatus, 2000);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -86,7 +86,7 @@
           34,
           35
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -154,7 +154,7 @@
             "id": 1,
             "title": "Fix campaign assignment field in lead creation",
             "description": "Update the lead creation endpoint to use the correct field name for campaign assignment",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "details": "In instantly_integration.py line 215, change:\nFROM: lead_data['campaign_id'] = campaign_id\nTO: lead_data['campaign'] = campaign_id",
             "testStrategy": ""
@@ -205,7 +205,7 @@
     ],
     "metadata": {
       "created": "2025-08-14T14:53:56.536Z",
-      "updated": "2025-08-18T14:32:51.210Z",
+      "updated": "2025-08-19T02:14:00.889Z",
       "description": "Tasks for master context"
     }
   }

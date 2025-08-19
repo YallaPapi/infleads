@@ -599,9 +599,35 @@ def process_leads(job):
         logger.info(f"Creating DataFrame with {len(final_leads)} leads")
         df = pd.DataFrame(final_leads)
         
+        # CRITICAL FIX: Standardize CSV column names for consistency
+        column_mapping = {
+            # Email verification fields - standardize to PascalCase for CSV
+            'email_status': 'Email_Status',
+            'email_verified': 'Email_Verified', 
+            'email_score': 'Email_Score',
+            'email_quality_boost': 'Email_Quality_Boost',
+            'mx_valid': 'MX_Valid',
+            'smtp_valid': 'SMTP_Valid',
+            'email_source': 'Email_Source',
+            
+            # Review fields standardization  
+            'reviews': 'Reviews',
+            'review_count': 'ReviewCount',
+            
+            # Social media standardization
+            'social_media_links': 'SocialMediaLinks',
+            
+            # Other standardizations
+            'draft_email': 'DraftEmail',
+            'lead_score': 'LeadScore'
+        }
+        
+        # Apply column renaming
+        df = df.rename(columns=column_mapping)
+        
         # Log DataFrame info
         logger.info(f"DataFrame shape: {df.shape}")
-        logger.info(f"DataFrame columns: {list(df.columns)}")
+        logger.info(f"Standardized CSV columns: {list(df.columns)}")
         if not df.empty:
             logger.info(f"First row data: {df.iloc[0].to_dict()}")
         
@@ -658,18 +684,25 @@ def process_leads(job):
                         
                         print(f"FLASK: Converted to {len(instantly_leads)} Instantly lead objects")
                         
+                        # Use working add_leads_to_campaign method (bulk import deprecated)
                         result = instantly.add_leads_to_campaign(job.instantly_campaign, instantly_leads)
                         
                         print(f"FLASK: Result from Instantly: {result}")
                         
-                        if result.get('success'):
+                        # Handle add_leads_to_campaign result format
+                        if result.get('success') and result.get('added', 0) > 0:
                             added_count = result.get('added', 0)
                             failed_count = result.get('failed', 0)
-                            logger.info(f"Successfully added {added_count} leads to Instantly, {failed_count} failed")
-                            job.message = f"Successfully generated {len(final_leads)} leads and added {added_count} to Instantly!"
+                            
+                            logger.info(f"Added {added_count} leads to Instantly campaign - {failed_count} failed")
+                            
+                            if failed_count == 0:
+                                job.message = f"✅ Generated {len(final_leads)} leads and successfully added ALL {added_count} to Instantly!"
+                            else:
+                                job.message = f"⚠️ Generated {len(final_leads)} leads - {added_count} added to Instantly, {failed_count} failed"
                         else:
-                            logger.warning(f"Instantly returned failure: {result}")
-                            job.message = f"Successfully generated {len(final_leads)} leads (Instantly integration had issues)"
+                            logger.warning(f"Instantly lead import completely failed: {result}")
+                            job.message = f"✅ Generated {len(final_leads)} leads but ❌ Instantly lead import failed completely"
                         
                         print(f"{'#'*60}\n")
                     else:

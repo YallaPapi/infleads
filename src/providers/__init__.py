@@ -8,6 +8,7 @@ from .serp_provider import get_maps_provider, DirectGoogleMapsProvider
 from .google_places_new import GooglePlacesNewProvider
 from .hybrid_scraper import HybridGoogleScraper
 from .multi_provider import MultiProvider
+from .yellowpages_provider import YellowPagesProvider
 import os
 import logging
 
@@ -33,5 +34,9 @@ def get_provider(provider_name: str = 'auto') -> BaseProvider:
     # Hybrid scraper as fallback
     if provider_name == 'hybrid':
         return HybridGoogleScraper()
+    
+    # Yellow Pages provider
+    if provider_name == 'yellowpages':
+        return YellowPagesProvider()
     
     return get_maps_provider(provider_name)

@@ -2839,11 +2839,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ job_id: jobId, campaign_id: campaignId })
                 });
-                const result = await res.json();
+                let result; let raw = '';
+                try {
+                    result = await res.json();
+                } catch (e) {
+                    raw = await res.text();
+                    result = { success: false, error: raw };
+                }
                 if (res.ok && result.success) {
                     alert(`Instantly import successful: Added ${result.added}, Failed ${result.failed}`);
                 } else {
-                    alert(`Instantly import failed: ${result.error || JSON.stringify(result)}`);
+                    alert(`Instantly import failed: ${result.error || raw || res.statusText}`);
                 }
             } catch (e) {
                 alert('Instantly import error: ' + e.message);
@@ -2867,11 +2873,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ job_ids: selected, campaign_id: campaignId })
                 });
-                const result = await res.json();
+                let result; let raw = '';
+                try {
+                    result = await res.json();
+                } catch (e) {
+                    raw = await res.text();
+                    result = { success: false, error: raw };
+                }
                 if (res.ok && result.success) {
                     alert(`Batch import done: Added ${result.added}, Failed ${result.failed}`);
                 } else {
-                    alert('Batch import failed: ' + (result.error || JSON.stringify(result)));
+                    alert('Batch import failed: ' + (result.error || raw || res.statusText));
                 }
             } catch (e) {
                 alert('Batch import error: ' + e.message);

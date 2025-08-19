@@ -427,12 +427,6 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-clock-history"></i> Recent Jobs</span>
                 <div class="d-flex align-items-center">
-                    <select class="form-select form-select-sm me-2" id="campaignSelect" style="width: 260px;">
-                        <option value="">Select Instantly campaign...</option>
-                    </select>
-                    <button class="btn btn-sm btn-outline-primary me-2" id="batchSendBtn" onclick="batchSendToInstantly()">
-                        <i class="bi bi-arrow-repeat"></i> Send Selected to Instantly
-                    </button>
                     <button class="btn btn-sm btn-outline-success me-2" id="batchDownloadBtn" onclick="batchDownload()">
                         <i class="bi bi-download"></i> Download Selected
                     </button>
@@ -2820,9 +2814,7 @@
                             <a class="btn btn-sm btn-success me-2" href="/api/download/${job.job_id}">
                                 <i class="bi bi-download"></i> Download
                             </a>
-                            <button class="btn btn-sm btn-outline-primary" onclick="retryInstantly('${job.job_id}')">
-                                <i class="bi bi-arrow-repeat"></i> Send to Instantly
-                            </button>
+
                         </div>
                     </div>
                 `;
@@ -2830,33 +2822,7 @@
             });
         }
 
-        async function retryInstantly(jobId) {
-            const campaignId = document.getElementById('campaignSelect').value || (document.getElementById('instantlyCampaign') || {}).value || '';
-            if (!campaignId) { alert('Select an Instantly campaign from the dropdown'); return; }
-            try {
-                const res = await fetch('/api/instantly/retry-import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ job_id: jobId, campaign_id: campaignId })
-                });
-                let result; let raw = '';
-                try {
-                    const clone = res.clone();
-                    result = await clone.json();
-                } catch (e) {
-                    const clone2 = res.clone();
-                    raw = await clone2.text();
-                    result = { success: false, error: raw };
-                }
-                if (res.ok && result.success) {
-                    alert(`Instantly import successful: Added ${result.added}, Failed ${result.failed}`);
-                } else {
-                    alert(`Instantly import failed: ${result.error || raw || res.statusText}`);
-                }
-            } catch (e) {
-                alert('Instantly import error: ' + e.message);
-            }
-        }
+
 
         async function batchSendToInstantly() {
             const campaignId = document.getElementById('campaignSelect').value;
@@ -2884,6 +2850,7 @@
                     raw = await clone2.text();
                     result = { success: false, error: raw };
                 }
+                console.log('Instantly batch-send response:', res.status, result);
                 if (res.ok && result.success) {
                     alert(`Batch import done: Added ${result.added}, Failed ${result.failed}`);
                 } else {

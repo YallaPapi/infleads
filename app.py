@@ -2237,6 +2237,19 @@ def retry_instantly_import():
         logger.error(f"Retry Instantly import failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+# Alias routes to avoid path mismatch issues
+@app.route('/api/instantly/import', methods=['POST'])
+def instantly_import_alias():
+    return retry_instantly_import()
+
+@app.route('/api/instantly/retry_import', methods=['POST'])
+def instantly_retry_import_alias():
+    return retry_instantly_import()
+
+@app.route('/api/instantly/add-leads', methods=['POST'])
+def instantly_add_leads_alias():
+    return retry_instantly_import()
+
 @app.route('/api/instantly/retry-import-batch', methods=['POST'])
 def retry_instantly_import_batch():
     data = request.json or {}
@@ -2329,6 +2342,37 @@ def download_batch():
     except Exception as e:
         logger.error(f"Batch download failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/routes')
+def list_routes():
+    return jsonify(sorted(str(r) for r in app.url_map.iter_rules()))
+
+# Trailing-slash variants for Instantly import endpoints
+app.add_url_rule('/api/instantly/retry-import/', view_func=retry_instantly_import, methods=['POST'])
+app.add_url_rule('/api/instantly/import/', view_func=instantly_import_alias, methods=['POST'])
+app.add_url_rule('/api/instantly/retry_import/', view_func=instantly_retry_import_alias, methods=['POST'])
+app.add_url_rule('/api/instantly/add-leads/', view_func=instantly_add_leads_alias, methods=['POST'])
+
+@app.route('/api/instantly/<path:subpath>', methods=['POST'])
+def instantly_catch_all(subpath):
+    # Normalize and dispatch to the core handler for known variants
+    normalized = subpath.strip('/').lower()
+    if normalized in ['retry-import', 'retry_import', 'import', 'add-leads', 'add_leads']:
+        return retry_instantly_import()
+    return jsonify({'error': f'Unknown Instantly path: {subpath}'}), 404
+
+@app.errorhandler(404)
+def handle_404(error):
+    try:
+        path = request.path or ''
+        if path.startswith('/api/instantly/'):
+            # Forward to import handler
+            return retry_instantly_import()
+        if path == '/api/active-jobs':
+            return get_active_jobs()
+    except Exception:
+        pass
+    return error
 
 if __name__ == '__main__':
     print("\n" + "="*50)

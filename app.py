@@ -19,6 +19,7 @@ from flask import Response
 import queue
 import tempfile
 import zipfile
+import subprocess
 
 # Load environment variables FIRST
 load_dotenv()
@@ -87,7 +88,11 @@ def _increment_restart_counter(notes: str | None = None):
 		'notes': info.get('last_notes', '')
 	})
 	_save_restart_info_internal(info)
-	logger.info(f"Dev restart counter incremented to {info['counter']}")
+	try:
+		import logging as _logging
+		_logging.getLogger(__name__).info(f"Dev restart counter incremented to {info['counter']}")
+	except Exception:
+		pass
 
 
 # Increment on import (each server start)
@@ -975,6 +980,28 @@ def debug_simple():
 def debug_test():
     """Simple debug test endpoint"""
     return {"status": "working", "debug_logs_count": len(debug_logs)}
+
+@app.route('/api/git-summary')
+def git_summary():
+    """Return a short summary of recent git commits for UI display"""
+    try:
+        # Get last 5 one-line commits
+        result = subprocess.run(
+            ["git", "--no-pager", "log", "--oneline", "-n", "5"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
+            timeout=3
+        )
+        lines = [ln.strip() for ln in (result.stdout or "").splitlines() if ln.strip()]
+        if lines:
+            # Keep messages only (drop hashes), join compactly
+            msgs = [" ".join(ln.split(" ", 1)[1:]) if " " in ln else ln for ln in lines]
+            summary = "; ".join(msgs)[:360]
+            return jsonify({"summary": summary, "count": len(lines)})
+    except Exception as e:
+        logger.warning(f"git-summary failed: {e}")
+    return jsonify({"summary": "", "count": 0})
 
 @app.route('/api/debug-logs')
 def debug_logs_stream():

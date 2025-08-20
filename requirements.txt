@@ -10,4 +10,3 @@ anthropic==0.7.8
 google-api-python-client==2.108.0
 googlemaps==4.10.0
 aiohttp==3.9.1
-concurrent-futures

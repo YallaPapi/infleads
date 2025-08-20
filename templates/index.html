@@ -398,6 +398,17 @@
                 <div class="slogan">👁️ WE SEE ALL THE LEADS 👁️</div>
             </div>
             <h1><i class="bi bi-graph-up-arrow"></i> R27 Infinite AI Leads Agent</h1>
+            <div id="devRestartCard" class="card border-warning mb-3" style="max-width: 900px; margin: 0.5rem auto;">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center justify-content-center flex-wrap">
+                        <span class="badge bg-warning text-dark me-2">Dev Restart</span>
+                        <span class="fw-bold me-3">Iteration: <span id="devRestartCount">—</span></span>
+                        <span class="text-muted small" id="devRestartNotes"></span>
+                    </div>
+                    <div class="mt-1 small text-muted text-center" id="recentChanges" style="display:none;"></div>
+                    <noscript><div class="text-muted small">JavaScript disabled – cannot load restart info.</div></noscript>
+                </div>
+            </div>
             <p>Generate high-quality business leads with AI-powered scoring and personalized outreach</p>
         </div>
 
@@ -3056,67 +3067,26 @@
 <script>
     async function loadRestartInfo() {
         try {
-            const res = await fetch('/api/restart-info');
+            const res = await fetch('/api/restart-info', { cache: 'no-store' });
             if (!res.ok) throw new Error('Failed to load restart info');
             const info = await res.json();
-
-            const container = document.querySelector('.main-container') || document.body;
-            let card = document.getElementById('devRestartCard');
-            if (!card) {
-                card = document.createElement('div');
-                card.id = 'devRestartCard';
-                card.className = 'card border-warning mb-3';
-                card.innerHTML = `
-                    <div class="card-body py-3">
-                        <div class="d-flex align-items-center">
-                            <span class="badge bg-warning text-dark me-2">Dev Restart</span>
-                            <span class="fw-bold">Iteration: <span id="devRestartCount"></span></span>
-                        </div>
-                        <div class="small text-muted mt-1" id="devRestartNotes"></div>
-                        <div class="mt-2" id="devRestartControls" style="display:none;">
-                            <textarea class="form-control form-control-sm" id="devRestartNotesInput" placeholder="Add notes for this restart..."></textarea>
-                            <button class="btn btn-sm btn-outline-warning mt-1" id="devRestartSaveBtn">Save notes</button>
-                        </div>
-                    </div>`;
-                if (container.firstChild) {
-                    container.insertBefore(card, container.firstChild);
-                } else {
-                    container.appendChild(card);
-                }
-
-                // Show controls in dev
-                const controls = card.querySelector('#devRestartControls');
-                if (controls) controls.style.display = '';
-                const saveBtn = card.querySelector('#devRestartSaveBtn');
-                if (saveBtn) {
-                    saveBtn.addEventListener('click', async () => {
-                        const notes = card.querySelector('#devRestartNotesInput').value || '';
-                        try {
-                            const r = await fetch('/api/restart-notes', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ notes })
-                            });
-                            if (r.ok) {
-                                document.getElementById('devRestartNotes').textContent = notes || 'No notes yet';
-                            }
-                        } catch (e) {}
-                    });
-                }
-            }
-
             const countEl = document.getElementById('devRestartCount');
             const notesEl = document.getElementById('devRestartNotes');
             if (countEl) countEl.textContent = (info && typeof info.counter !== 'undefined') ? info.counter : 0;
-            if (notesEl) notesEl.textContent = (info && info.last_notes) ? info.last_notes : 'No notes yet';
-        } catch (e) {
-            // Silent fail in production
-        }
+            if (notesEl) notesEl.textContent = (info && info.last_notes) ? info.last_notes : '';
+        } catch (e) {}
+        try {
+            const res = await fetch('/api/git-summary', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.summary) {
+                    const rc = document.getElementById('recentChanges');
+                    if (rc) { rc.style.display=''; rc.textContent = `Recent changes: ${data.summary}`; }
+                }
+            }
+        } catch (e) {}
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        loadRestartInfo();
-    });
+    document.addEventListener('DOMContentLoaded', loadRestartInfo);
 </script>
 </body>
 </html>

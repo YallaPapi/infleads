@@ -159,5 +159,8 @@ Docs:
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
 @./.taskmaster/CLAUDE.md
 
-- add any files with api keys to gitignore. never remove api keys from the project
-- restart the local server after every fix, no exceptions
+- add any files with api keys to gitignore. never remove api keys from the project[byterover-mcp]
+
+# important 
+always use byterover-retrieve-knowledge tool to get the related context before any tasks 
+always use byterover-store-knowledge to store all the critical informations after sucessful tasks

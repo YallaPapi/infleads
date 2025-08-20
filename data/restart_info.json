@@ -1,0 +1,31 @@
+{
+  "counter": 5,
+  "last_notes": "",
+  "history": [
+    {
+      "timestamp": "2025-08-19T22:19:22",
+      "counter": 1,
+      "notes": ""
+    },
+    {
+      "timestamp": "2025-08-19T22:20:03",
+      "counter": 2,
+      "notes": ""
+    },
+    {
+      "timestamp": "2025-08-19T22:20:48",
+      "counter": 3,
+      "notes": ""
+    },
+    {
+      "timestamp": "2025-08-19T22:47:45",
+      "counter": 4,
+      "notes": ""
+    },
+    {
+      "timestamp": "2025-08-19T23:40:13",
+      "counter": 5,
+      "notes": ""
+    }
+  ]
+}

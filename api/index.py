@@ -8,6 +8,8 @@ import os
 import json
 import time
 from datetime import datetime
+import logging
+import json as _json
 import pandas as pd
 from dotenv import load_dotenv
 import logging
@@ -70,6 +72,87 @@ class SimpleLeadJob:
             'error': self.error,
             'leads_preview': self.result_data[:10] if self.result_data else []
         }
+
+# ---------------------------------------------------------------------------
+# Restart counter/version endpoints (parity with full app)
+# ---------------------------------------------------------------------------
+
+# Persist restart info to project data directory
+def _ensure_data_dir_dev():
+    try:
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
+    except Exception:
+        return os.path.join(os.getcwd(), 'data')
+
+_DATA_DIR = _ensure_data_dir_dev()
+_RESTART_INFO_PATH = os.path.join(_DATA_DIR, 'restart_info.json')
+
+def _load_restart_info_internal():
+    try:
+        if os.path.exists(_RESTART_INFO_PATH):
+            with open(_RESTART_INFO_PATH, 'r', encoding='utf-8') as f:
+                return _json.load(f)
+    except Exception:
+        pass
+    return {'counter': 0, 'last_notes': '', 'history': []}
+
+def _save_restart_info_internal(info):
+    try:
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        with open(_RESTART_INFO_PATH, 'w', encoding='utf-8') as f:
+            _json.dump(info, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to save restart info: {e}")
+
+def _increment_restart_counter(notes: str | None = None):
+    info = _load_restart_info_internal()
+    try:
+        info['counter'] = int(info.get('counter', 0)) + 1
+    except Exception:
+        info['counter'] = 1
+    if notes is not None:
+        info['last_notes'] = notes
+    if 'history' not in info or not isinstance(info['history'], list):
+        info['history'] = []
+    info['history'].append({
+        'timestamp': datetime.now().isoformat(timespec='seconds'),
+        'counter': info.get('counter', 0),
+        'notes': info.get('last_notes', '')
+    })
+    _save_restart_info_internal(info)
+    logger.info(f"Serverless restart counter incremented to {info['counter']}")
+
+# Increment once on import/start
+_increment_restart_counter(os.getenv('RESTART_NOTES', '').strip() or None)
+
+@app.route('/api/restart-info', methods=['GET'])
+def get_restart_info():
+    info = _load_restart_info_internal()
+    # Only return last 5 history entries
+    info['history'] = info.get('history', [])[-5:]
+    return jsonify(info)
+
+@app.route('/api/restart-notes', methods=['POST'])
+def set_restart_notes():
+    try:
+        payload = request.get_json(force=True) or {}
+        notes = str(payload.get('notes', '')).strip()
+        info = _load_restart_info_internal()
+        info['last_notes'] = notes
+        if 'history' not in info or not isinstance(info['history'], list):
+            info['history'] = []
+        info['history'].append({
+            'timestamp': datetime.now().isoformat(timespec='seconds'),
+            'counter': info.get('counter', 0),
+            'notes': notes
+        })
+        _save_restart_info_internal(info)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Failed to set restart notes: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def process_leads_sync(job):
     """Synchronous lead processing for Vercel"""

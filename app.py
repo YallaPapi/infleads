@@ -713,60 +713,58 @@ def process_leads(job):
         # Add DraftEmail at the end
         columns.append('DraftEmail')
         
-        # Ensure SearchKeyword and Location are populated for CSV
+        # Ensure SearchKeyword and Location populated per-lead from the actual query that found them
         try:
-            # Derive from the primary query (e.g., "coffee shops in austin")
-            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
-            kw, loc = base_query, ''
-            if ' in ' in base_query:
-                parts = base_query.split(' in ', 1)
-                kw = parts[0].strip()
-                loc = parts[1].strip()
-            else:
-                # Fallback split: last word(s) as location for 2+ tokens
-                tokens = base_query.split()
-                if len(tokens) >= 2:
-                    kw = ' '.join(tokens[:-1]).strip()
-                    loc = tokens[-1].strip()
+            def _parse_query_parts(q: str):
+                if not isinstance(q, str):
+                    return '', ''
+                if ' in ' in q:
+                    p = q.split(' in ', 1)
+                    return p[0].strip(), p[1].strip()
+                w = q.split()
+                if len(w) >= 2:
+                    return ' '.join(w[:-1]).strip(), w[-1].strip()
+                return q.strip(), ''
+
+            def _title_location(s: str):
+                try:
+                    return ' '.join([t.capitalize() for t in str(s).split()]) if s else ''
+                except Exception:
+                    return s
+
             for lead in final_leads:
-                # Preserve existing values if present and not NA
-                if not str(lead.get('SearchKeyword', '')).strip() or str(lead.get('SearchKeyword')).strip() == 'NA':
-                    lead['SearchKeyword'] = kw if kw else 'NA'
-                if not str(lead.get('Location', '')).strip() or str(lead.get('Location')).strip() == 'NA':
-                    lead['Location'] = loc if loc else 'NA'
-            # Debug: log backfill summary
+                q_kw = lead.get('search_keyword')
+                q_loc = lead.get('search_location')
+                if (not q_kw or str(q_kw).strip() == '') or (not q_loc and lead.get('full_query')):
+                    fq = lead.get('full_query') or ''
+                    pk, pl = _parse_query_parts(fq)
+                    q_kw = q_kw or pk
+                    q_loc = q_loc or pl
+                if (not str(lead.get('SearchKeyword', '')).strip()) or str(lead.get('SearchKeyword')).strip() == 'NA':
+                    lead['SearchKeyword'] = (q_kw or 'NA')
+                if (not str(lead.get('Location', '')).strip()) or str(lead.get('Location')).strip() == 'NA':
+                    lead['Location'] = _title_location(q_loc) if q_loc else 'NA'
+
             try:
                 filled_kw = sum(1 for l in final_leads if str(l.get('SearchKeyword','')).strip() not in ('', 'NA'))
                 filled_loc = sum(1 for l in final_leads if str(l.get('Location','')).strip() not in ('', 'NA'))
-                logger.info(f"Backfill SearchKeyword/Location: set_kw={filled_kw}/{len(final_leads)}, set_loc={filled_loc}/{len(final_leads)}; kw='{kw}', loc='{loc}'")
+                logger.info(f"Backfill SearchKeyword/Location (per-lead): set_kw={filled_kw}/{len(final_leads)}, set_loc={filled_loc}/{len(final_leads)}")
                 if final_leads:
                     logger.info(f"First lead after backfill: SearchKeyword='{final_leads[0].get('SearchKeyword','')}', Location='{final_leads[0].get('Location','')}'")
             except Exception:
                 pass
         except Exception as e:
-            logger.warning(f"Failed to backfill SearchKeyword/Location: {e}")
+            logger.warning(f"Failed to backfill per-lead SearchKeyword/Location: {e}")
 
         logger.info(f"Creating DataFrame with {len(final_leads)} leads")
         df = pd.DataFrame(final_leads)
-        # Ensure SearchKeyword/Location columns have values, fallback from job query if missing/NA
+        # Do not overwrite per-lead SearchKeyword/Location at DataFrame level
         try:
-            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
-            kw, loc = base_query, ''
-            if ' in ' in base_query:
-                parts = base_query.split(' in ', 1)
-                kw = parts[0].strip()
-                loc = parts[1].strip()
-            else:
-                tokens = base_query.split()
-                if len(tokens) >= 2:
-                    kw = ' '.join(tokens[:-1]).strip()
-                    loc = tokens[-1].strip()
-            # Unconditionally set columns for reliability
-            df['SearchKeyword'] = kw if kw else 'NA'
-            df['Location'] = loc if loc else 'NA'
-            logger.info(f"CSV fill (forced): SearchKeyword='{kw}', Location='{loc}'")
+            missing_kw = df['SearchKeyword'].isna().sum() if 'SearchKeyword' in df.columns else len(df)
+            missing_loc = df['Location'].isna().sum() if 'Location' in df.columns else len(df)
+            logger.info(f"CSV columns present. Missing counts → SearchKeyword: {missing_kw}, Location: {missing_loc}")
         except Exception as e:
-            logger.warning(f"Failed DF-level fill for SearchKeyword/Location: {e}")
+            logger.warning(f"CSV columns check failed for SearchKeyword/Location: {e}")
         
         # CRITICAL FIX: Standardize CSV column names for consistency
         column_mapping = {
@@ -797,6 +795,18 @@ def process_leads(job):
         # Log DataFrame info
         logger.info(f"DataFrame shape: {df.shape}")
         logger.info(f"Standardized CSV columns: {list(df.columns)}")
+        # Normalize Email_Verified to TRUE/blank for CSV consumers
+        try:
+            if 'Email_Verified' in df.columns:
+                def _map_verified(v):
+                    vs = str(v).strip().lower()
+                    if v is True or vs in ('true', '1', 'yes'):
+                        return 'TRUE'
+                    return ''
+                df['Email_Verified'] = df['Email_Verified'].apply(_map_verified)
+                logger.info("Mapped Email_Verified to TRUE/blank for CSV output")
+        except Exception as e:
+            logger.warning(f"Failed to map Email_Verified for CSV: {e}")
         if not df.empty:
             logger.info(f"First row data: {df.iloc[0].to_dict()}")
         

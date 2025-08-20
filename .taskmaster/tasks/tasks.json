@@ -201,11 +201,26 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 43,
+        "title": "Fix CSV Export for Google Maps Scrapes with Correct SearchKeyword and Location",
+        "description": "Modify the CSV/JSON export functionality to include the correct SearchKeyword and Location fields for Google Maps scrapes, ensuring these values are properly stored on the job and merged into each lead before export.",
+        "details": "1. Identify where search terms and location data are captured during Google Maps scrape requests:\n   - Locate the component that initiates Google Maps scrapes\n   - Ensure these parameters are being stored on the job object\n\n2. Modify the job model/schema to store SearchKeyword and Location if not already present:\n   - Add fields to the job model if they don't exist\n   - Update database migrations if necessary\n   - Ensure these fields are populated when a scrape job is created\n\n3. Update the lead processing pipeline:\n   - Modify the code that transforms scraped data into leads\n   - Ensure each lead record is associated with the job's SearchKeyword and Location\n   - Implement a merge operation that adds these fields to each lead before export\n\n4. Fix the CSV/JSON export functionality:\n   - Update the export service to include SearchKeyword and Location columns\n   - Ensure the column headers are properly named in the output\n   - Preserve literal 'NA' strings as text and prevent conversion to NaN values\n   - Add specific handling to distinguish between null values and 'NA' string values\n\n5. Handle edge cases:\n   - Ensure backward compatibility with existing jobs that may not have these fields\n   - Implement default values for missing data (empty string instead of null/undefined)\n   - Add validation to prevent malformed data\n\n6. Update the frontend display if needed:\n   - Modify lead preview component to show SearchKeyword and Location fields\n   - Update any data tables or detail views to include these fields\n   - Ensure consistent display formatting\n\n7. Review and update any related documentation or help text to reflect these changes",
+        "testStrategy": "1. Unit Testing:\n   - Write unit tests for the job model changes to verify SearchKeyword and Location are properly stored\n   - Test the lead processing pipeline to ensure fields are correctly merged\n   - Create tests for the CSV/JSON export functionality with various input scenarios including:\n     * Normal search terms and locations\n     * Special characters in search terms or locations\n     * Empty values\n     * Literal 'NA' strings\n\n2. Integration Testing:\n   - Test the complete flow from job creation to export\n   - Verify that SearchKeyword and Location values are preserved throughout the process\n   - Test with real Google Maps scrape requests\n\n3. End-to-End Testing:\n   - Run a complete Google Maps scrape with known search parameters\n   - Download the resulting CSV file\n   - Verify that the CSV contains the correct SearchKeyword and Location values for each lead\n   - Confirm that literal 'NA' strings are preserved and not converted to NaN\n\n4. Frontend Testing:\n   - Verify that the lead preview correctly displays the SearchKeyword and Location fields\n   - Test the UI with various data scenarios including empty values and 'NA' strings\n\n5. Regression Testing:\n   - Ensure other export formats and scrape types still function correctly\n   - Verify that existing jobs can still be exported without errors\n\n6. Manual Verification:\n   - Open exported CSV files in different spreadsheet applications (Excel, Google Sheets, etc.)\n   - Confirm that the data is displayed correctly and 'NA' values are preserved",
+        "status": "pending",
+        "dependencies": [
+          35,
+          38,
+          42
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-14T14:53:56.536Z",
-      "updated": "2025-08-19T02:14:00.889Z",
+      "updated": "2025-08-19T23:47:40.397Z",
       "description": "Tasks for master context"
     }
   }

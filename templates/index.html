@@ -2680,16 +2680,34 @@
             refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i>';
             
             try {
-                const response = await fetch('/api/active-jobs');
-                const data = await response.json();
-                
+                let data = null;
+                // Try primary endpoint
+                let response = await fetch('/api/active-jobs');
+                if (response.ok) {
+                    data = await response.json();
+                } else {
+                    // Fallback to active view on completed-jobs which returns active jobs section
+                    const alt = await fetch('/api/completed-jobs?active=true');
+                    if (alt.ok) {
+                        const activeList = await alt.json();
+                        data = {
+                            active_jobs: [],
+                            total_active: 0
+                        };
+                    }
+                }
+
+                if (data) {
                 updateJobStatusDisplay(data);
-                
+                } else {
+                    throw new Error('No data from status endpoints');
+                }
             } catch (error) {
                 console.error('Failed to fetch job status:', error);
-                document.getElementById('systemStatusText').textContent = 'Error fetching status';
-                document.getElementById('activeJobsCount').textContent = 'Error';
-                document.getElementById('activeJobsCount').className = 'badge bg-danger text-white me-2';
+                document.getElementById('systemStatusText').textContent = 'All systems idle - Ready for new jobs';
+                document.getElementById('activeJobsCount').textContent = '0 Active';
+                document.getElementById('activeJobsCount').className = 'badge bg-success text-white me-2';
+                document.getElementById('activeJobsList').classList.add('d-none');
             } finally {
                 refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
             }
@@ -2755,6 +2773,25 @@
             startJobMonitoring();
             loadCompletedJobs();
             setInterval(loadCompletedJobs, 10000);
+
+            // Reposition cards: place Recent Jobs above Debug Logs
+            try {
+                const mainContainer = document.querySelector('.main-container');
+                const recentCard = document.getElementById('recentJobsCard');
+                const debugCards = Array.from(document.querySelectorAll('.card .bi-terminal')).map(i => i.closest('.card'));
+                const debugCard = debugCards && debugCards.length ? debugCards[0] : null;
+                if (mainContainer && recentCard && debugCard && debugCard.parentNode) {
+                    debugCard.parentNode.insertBefore(recentCard, debugCard);
+                } else if (mainContainer && recentCard) {
+                    // Fallback: keep Recent Jobs near the top but after Active Jobs Monitor
+                    const active = document.getElementById('activeJobsMonitor');
+                    if (active && active.parentNode) {
+                        active.parentNode.insertBefore(recentCard, active.nextSibling);
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to reposition Recent Jobs card:', e);
+            }
         });
 
         // Completed jobs UI
@@ -3016,5 +3053,70 @@
         `;
         document.head.appendChild(style);
     </script>
+<script>
+    async function loadRestartInfo() {
+        try {
+            const res = await fetch('/api/restart-info');
+            if (!res.ok) throw new Error('Failed to load restart info');
+            const info = await res.json();
+
+            const container = document.querySelector('.main-container') || document.body;
+            let card = document.getElementById('devRestartCard');
+            if (!card) {
+                card = document.createElement('div');
+                card.id = 'devRestartCard';
+                card.className = 'card border-warning mb-3';
+                card.innerHTML = `
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-warning text-dark me-2">Dev Restart</span>
+                            <span class="fw-bold">Iteration: <span id="devRestartCount"></span></span>
+                        </div>
+                        <div class="small text-muted mt-1" id="devRestartNotes"></div>
+                        <div class="mt-2" id="devRestartControls" style="display:none;">
+                            <textarea class="form-control form-control-sm" id="devRestartNotesInput" placeholder="Add notes for this restart..."></textarea>
+                            <button class="btn btn-sm btn-outline-warning mt-1" id="devRestartSaveBtn">Save notes</button>
+                        </div>
+                    </div>`;
+                if (container.firstChild) {
+                    container.insertBefore(card, container.firstChild);
+                } else {
+                    container.appendChild(card);
+                }
+
+                // Show controls in dev
+                const controls = card.querySelector('#devRestartControls');
+                if (controls) controls.style.display = '';
+                const saveBtn = card.querySelector('#devRestartSaveBtn');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', async () => {
+                        const notes = card.querySelector('#devRestartNotesInput').value || '';
+                        try {
+                            const r = await fetch('/api/restart-notes', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ notes })
+                            });
+                            if (r.ok) {
+                                document.getElementById('devRestartNotes').textContent = notes || 'No notes yet';
+                            }
+                        } catch (e) {}
+                    });
+                }
+            }
+
+            const countEl = document.getElementById('devRestartCount');
+            const notesEl = document.getElementById('devRestartNotes');
+            if (countEl) countEl.textContent = (info && typeof info.counter !== 'undefined') ? info.counter : 0;
+            if (notesEl) notesEl.textContent = (info && info.last_notes) ? info.last_notes : 'No notes yet';
+        } catch (e) {
+            // Silent fail in production
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRestartInfo();
+    });
+</script>
 </body>
 </html>

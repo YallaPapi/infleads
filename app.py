@@ -46,6 +46,84 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 CORS(app)
 
+# Dev restart counter (for debugging during development)
+RESTART_INFO_PATH = os.path.join('data', 'restart_info.json')
+
+
+def _ensure_data_dir_dev():
+	try:
+		os.makedirs('data', exist_ok=True)
+	except Exception:
+		pass
+
+
+def _load_restart_info_internal():
+	_ensure_data_dir_dev()
+	if os.path.exists(RESTART_INFO_PATH):
+		try:
+			with open(RESTART_INFO_PATH, 'r', encoding='utf-8') as f:
+				return json.load(f)
+		except Exception:
+			return {'counter': 0, 'last_notes': '', 'history': []}
+	return {'counter': 0, 'last_notes': '', 'history': []}
+
+
+def _save_restart_info_internal(info):
+	_ensure_data_dir_dev()
+	with open(RESTART_INFO_PATH, 'w', encoding='utf-8') as f:
+		json.dump(info, f, indent=2)
+
+
+def _increment_restart_counter(notes: str | None = None):
+	info = _load_restart_info_internal()
+	info['counter'] = int(info.get('counter', 0)) + 1
+	if notes is not None:
+		info['last_notes'] = notes
+	if 'history' not in info or not isinstance(info['history'], list):
+		info['history'] = []
+	info['history'].append({
+		'timestamp': datetime.now().isoformat(timespec='seconds'),
+		'counter': info['counter'],
+		'notes': info.get('last_notes', '')
+	})
+	_save_restart_info_internal(info)
+	logger.info(f"Dev restart counter incremented to {info['counter']}")
+
+
+# Increment on import (each server start)
+_increment_restart_counter(os.getenv('RESTART_NOTES', '').strip() or None)
+
+
+@app.route('/api/restart-info', methods=['GET'])
+def get_restart_info():
+	info = _load_restart_info_internal()
+	return jsonify({
+		'counter': info.get('counter', 0),
+		'last_notes': info.get('last_notes', ''),
+		'history': info.get('history', [])[-5:]
+	})
+
+
+@app.route('/api/restart-notes', methods=['POST'])
+def set_restart_notes():
+	try:
+		payload = request.get_json(force=True) or {}
+		notes = str(payload.get('notes', '')).strip()
+		info = _load_restart_info_internal()
+		info['last_notes'] = notes
+		if 'history' not in info or not isinstance(info['history'], list):
+			info['history'] = []
+		info['history'].append({
+			'timestamp': datetime.now().isoformat(timespec='seconds'),
+			'counter': info.get('counter', 0),
+			'notes': notes
+		})
+		_save_restart_info_internal(info)
+		return jsonify({'success': True})
+	except Exception as e:
+		logger.error(f"Failed to set restart notes: {e}")
+		return jsonify({'success': False, 'error': str(e)}), 500
+
 # In-memory log storage for debugging terminal
 debug_logs = deque(maxlen=1000)  # Keep last 1000 log entries
 log_subscribers = []
@@ -630,8 +708,60 @@ def process_leads(job):
         # Add DraftEmail at the end
         columns.append('DraftEmail')
         
+        # Ensure SearchKeyword and Location are populated for CSV
+        try:
+            # Derive from the primary query (e.g., "coffee shops in austin")
+            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
+            kw, loc = base_query, ''
+            if ' in ' in base_query:
+                parts = base_query.split(' in ', 1)
+                kw = parts[0].strip()
+                loc = parts[1].strip()
+            else:
+                # Fallback split: last word(s) as location for 2+ tokens
+                tokens = base_query.split()
+                if len(tokens) >= 2:
+                    kw = ' '.join(tokens[:-1]).strip()
+                    loc = tokens[-1].strip()
+            for lead in final_leads:
+                # Preserve existing values if present and not NA
+                if not str(lead.get('SearchKeyword', '')).strip() or str(lead.get('SearchKeyword')).strip() == 'NA':
+                    lead['SearchKeyword'] = kw if kw else 'NA'
+                if not str(lead.get('Location', '')).strip() or str(lead.get('Location')).strip() == 'NA':
+                    lead['Location'] = loc if loc else 'NA'
+            # Debug: log backfill summary
+            try:
+                filled_kw = sum(1 for l in final_leads if str(l.get('SearchKeyword','')).strip() not in ('', 'NA'))
+                filled_loc = sum(1 for l in final_leads if str(l.get('Location','')).strip() not in ('', 'NA'))
+                logger.info(f"Backfill SearchKeyword/Location: set_kw={filled_kw}/{len(final_leads)}, set_loc={filled_loc}/{len(final_leads)}; kw='{kw}', loc='{loc}'")
+                if final_leads:
+                    logger.info(f"First lead after backfill: SearchKeyword='{final_leads[0].get('SearchKeyword','')}', Location='{final_leads[0].get('Location','')}'")
+            except Exception:
+                pass
+        except Exception as e:
+            logger.warning(f"Failed to backfill SearchKeyword/Location: {e}")
+
         logger.info(f"Creating DataFrame with {len(final_leads)} leads")
         df = pd.DataFrame(final_leads)
+        # Ensure SearchKeyword/Location columns have values, fallback from job query if missing/NA
+        try:
+            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
+            kw, loc = base_query, ''
+            if ' in ' in base_query:
+                parts = base_query.split(' in ', 1)
+                kw = parts[0].strip()
+                loc = parts[1].strip()
+            else:
+                tokens = base_query.split()
+                if len(tokens) >= 2:
+                    kw = ' '.join(tokens[:-1]).strip()
+                    loc = tokens[-1].strip()
+            # Unconditionally set columns for reliability
+            df['SearchKeyword'] = kw if kw else 'NA'
+            df['Location'] = loc if loc else 'NA'
+            logger.info(f"CSV fill (forced): SearchKeyword='{kw}', Location='{loc}'")
+        except Exception as e:
+            logger.warning(f"Failed DF-level fill for SearchKeyword/Location: {e}")
         
         # CRITICAL FIX: Standardize CSV column names for consistency
         column_mapping = {
@@ -674,6 +804,24 @@ def process_leads(job):
         available_columns = [col for col in columns if col in df.columns]
         df = df[available_columns]
         
+        # Ensure SearchKeyword/Location are filled before save
+        try:
+            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
+            kw, loc = base_query, ''
+            if ' in ' in base_query:
+                parts = base_query.split(' in ', 1)
+                kw = parts[0].strip()
+                loc = parts[1].strip()
+            else:
+                tokens = base_query.split()
+                if len(tokens) >= 2:
+                    kw = ' '.join(tokens[:-1]).strip()
+                    loc = tokens[-1].strip()
+            df['SearchKeyword'] = kw if kw else df.get('SearchKeyword', 'NA')
+            df['Location'] = loc if loc else df.get('Location', 'NA')
+        except Exception:
+            pass
+
         # Save to CSV
         logger.info(f"Saving CSV to {filepath} with {len(df)} rows")
         df.to_csv(filepath, index=False)
@@ -697,11 +845,16 @@ def process_leads(job):
                 
                 api_key = os.getenv('INSTANTLY_API_KEY')
                 if api_key:
-                    # Filter for verified emails only
+                    # STRICT: Only send verified valid emails
                     leads_for_instantly = [
                         lead for lead in final_leads
-                        if lead.get('Email') and lead.get('Email') not in ('', 'NA') 
-                        and (str(lead.get('email_status','')).lower() == 'valid' or str(lead.get('Email_Status','')).lower() == 'valid' or str(lead.get('Email_Verified','')).lower() in ('true','1','yes'))
+                        if (
+                            str(lead.get('Email', '')).strip() not in ('', 'NA') and (
+                                str(lead.get('email_status', '')).lower() == 'valid' or
+                                str(lead.get('Email_Status', '')).lower() == 'valid' or
+                                str(lead.get('Email_Verified', '')).lower() in ('true', '1', 'yes')
+                            )
+                        )
                     ]
                     
                     if leads_for_instantly:
@@ -721,25 +874,29 @@ def process_leads(job):
                         print(f"FLASK: Result from Instantly: {result}")
                         
                         # Handle add_leads_to_campaign result format
-                        if result.get('success') and result.get('added', 0) > 0:
+                        if result.get('success'):
                             added_count = result.get('added', 0)
                             failed_count = result.get('failed', 0)
+                            skipped_dupes = result.get('skipped_duplicates', 0)
                             
-                            logger.info(f"Added {added_count} leads to Instantly campaign - {failed_count} failed")
+                            logger.info(f"Added {added_count} leads to Instantly campaign - {failed_count} failed - {skipped_dupes} duplicates")
                             
                             if failed_count == 0:
-                                job.message = f"✅ Generated {len(final_leads)} leads and successfully added ALL {added_count} to Instantly!"
+                                if skipped_dupes:
+                                    job.message = f"✅ Generated {len(final_leads)} leads; added {added_count} to Instantly ({skipped_dupes} duplicates skipped)"
+                                else:
+                                    job.message = f"✅ Generated {len(final_leads)} leads and successfully added ALL {added_count} to Instantly!"
                             else:
-                                job.message = f"⚠️ Generated {len(final_leads)} leads - {added_count} added to Instantly, {failed_count} failed"
+                                job.message = f"⚠️ Generated {len(final_leads)} leads - {added_count} added to Instantly, {failed_count} failed{f', {skipped_dupes} duplicates' if skipped_dupes else ''}"
                         else:
                             logger.warning(f"Instantly lead import completely failed: {result}")
                             job.message = f"✅ Generated {len(final_leads)} leads but ❌ Instantly lead import failed completely"
                         
                         print(f"{'#'*60}\n")
                     else:
-                        print("FLASK: No verified leads to send to Instantly")
-                        logger.warning("No verified leads to add to Instantly campaign")
-                        job.message = f"Successfully generated {len(final_leads)} leads (no verified emails for Instantly)"
+                        print("FLASK: No VALID verified emails to send to Instantly")
+                        logger.warning("No VALID verified emails to add to Instantly campaign")
+                        job.message = f"Generated {len(final_leads)} leads but 0 VALID verified emails for Instantly"
                 else:
                     logger.warning("Instantly API key not configured")
                     job.message = f"Successfully generated {len(final_leads)} leads (Instantly API key missing)"
@@ -1875,13 +2032,18 @@ def get_instantly_campaigns():
             return jsonify({'error': 'Instantly API key not configured'}), 400
             
         instantly = InstantlyIntegration(api_key)
-        campaigns = instantly.get_campaigns()
-        
-        return jsonify(campaigns)
+        try:
+            campaigns = instantly.get_campaigns()
+            return jsonify(campaigns)
+        except Exception as e:
+            # Soft-fail to keep UI stable; return empty list instead of 500
+            logger.error(f"Failed to get Instantly campaigns: {e}")
+            return jsonify([])
         
     except Exception as e:
+        # Final guard: still respond with empty array to avoid breaking dropdown/UI
         logger.error(f"Failed to get Instantly campaigns: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify([])
 
 @app.route('/api/instantly/create-campaign', methods=['POST'])
 def create_instantly_campaign():
@@ -2211,7 +2373,8 @@ def retry_instantly_import():
         if not result_file or not os.path.exists(result_file):
             return jsonify({'error': 'Result file missing on disk'}), 404
 
-        df = pd.read_csv(result_file)
+        # Preserve literal 'NA' strings so they don't become NaN in JSON payloads
+        df = pd.read_csv(result_file, keep_default_na=False)
         leads = df.to_dict(orient='records')
 
         # Filter to verified emails only if verification columns exist
@@ -2284,7 +2447,8 @@ def retry_instantly_import_batch():
                 continue
 
             # Read CSV and convert
-            df = pd.read_csv(result_file)
+            # Preserve literal 'NA' strings so they don't become NaN in JSON payloads
+            df = pd.read_csv(result_file, keep_default_na=False)
             records = df.to_dict(orient='records')
             filtered = []
             for r in records:

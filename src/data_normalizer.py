@@ -57,7 +57,7 @@ class DataNormalizer:
             'Rating': lead.get('rating', 0),
             'ReviewCount': lead.get('reviews', 0),
             'GoogleBusinessClaimed': lead.get('business_status') == 'OPERATIONAL',
-            # Preserve search metadata
+            # Preserve search metadata (fall back to full_query if needed)
             'SearchKeyword': lead.get('search_keyword', lead.get('full_query', 'NA')),
             'Location': lead.get('search_location', 'NA')
         }
@@ -74,7 +74,10 @@ class DataNormalizer:
             'Images': 'NA',
             'Rating': 0,
             'ReviewCount': 0,
-            'GoogleBusinessClaimed': False
+            'GoogleBusinessClaimed': False,
+            # Ensure these appear in the normalized output for CSV
+            'SearchKeyword': 'NA',
+            'Location': 'NA'
         }
         
         for field, default in field_defaults.items():
@@ -96,6 +99,13 @@ class DataNormalizer:
                 else:
                     # Numeric/boolean fields
                     normalized[field] = value
+
+        # Ensure search metadata is explicitly present
+        # Even if earlier logic missed it, set them here from raw lead keys
+        sk = lead.get('search_keyword') or lead.get('full_query')
+        loc = lead.get('search_location')
+        normalized['SearchKeyword'] = (str(sk).strip() if sk is not None and str(sk).strip() != '' else 'NA')
+        normalized['Location'] = (str(loc).strip() if loc is not None and str(loc).strip() != '' else 'NA')
         
         # Preserve raw data for scoring
         if '_raw' in lead:

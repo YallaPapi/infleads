@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 """
 Flask Web GUI for R27 Infinite AI Leads Agent
-
-Refactored for improved code organization and maintainability.
-Modularized into separate concerns:
-- Configuration (src.config)
-- Job Management (src.job_manager)
-- Debug Utilities (src.debug_utils)
-- Lead Processing (src.lead_processor)
-- Common Utilities (src.utils)
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
@@ -19,34 +11,24 @@ import threading
 import time
 from datetime import datetime, timedelta
 import pandas as pd
+from dotenv import load_dotenv
 import logging
 import pickle
 from collections import deque
+from flask import Response
 import queue
 import tempfile
 import zipfile
 import subprocess
 
-# Import configuration and utilities first
-from src.config import (
-    AppConfig, PathConfig, JobConfig, APIConfig, 
-    DebugConfig, CSVConfig, ProviderConfig, SchedulerConfig
-)
-from src.utils import (
-    sanitize_filename, generate_timestamp_filename, ensure_directory,
-    safe_json_loads, calculate_progress, format_percentage
-)
-from src.debug_utils import (
-    get_restart_counter, get_debug_terminal, SystemMonitor
-)
-from src.job_manager import (
-    get_job_manager, LeadGenerationJob, ApolloJob, JobStatus
-)
-from src.lead_processor import LeadProcessor
+# Load environment variables FIRST
+load_dotenv()
 
-# Import existing modules (to be further refactored)
+# Import our modules
 from src.providers import get_provider
+# Lead scoring functionality removed
 from src.email_generator import EmailGenerator
+# from src.drive_uploader import DriveUploader  # Removed - using local downloads instead
 from src.data_normalizer import DataNormalizer
 from src.industry_configs import IndustryConfig
 from src.apollo_lead_processor import ApolloLeadProcessor
@@ -58,49 +40,131 @@ from src.search_history import SearchHistoryManager
 from src.providers.openstreetmap_provider import OpenStreetMapProvider
 from src.providers.yellowpages_api_provider import YellowPagesAPIProvider
 from src.lead_enrichment import LeadEnricher
-from src.instantly_integration import (
-    InstantlyIntegration, CampaignTemplates, 
-    convert_r27_leads_to_instantly, create_campaign_from_r27_leads
-)
+from src.instantly_integration import InstantlyIntegration, CampaignTemplates, convert_r27_leads_to_instantly, create_campaign_from_r27_leads
 
-# Initialize Flask application with configuration
 app = Flask(__name__)
-app.config.from_object(AppConfig)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 CORS(app)
 
-# Ensure required directories exist
-PathConfig.ensure_directories()
+# Dev restart counter (for debugging during development)
+RESTART_INFO_PATH = os.path.join('data', 'restart_info.json')
 
-# Initialize debug utilities
-restart_counter = get_restart_counter()
-debug_terminal = get_debug_terminal()
+
+def _ensure_data_dir_dev():
+	try:
+		os.makedirs('data', exist_ok=True)
+	except Exception:
+		pass
+
+
+def _load_restart_info_internal():
+	_ensure_data_dir_dev()
+	if os.path.exists(RESTART_INFO_PATH):
+		try:
+			with open(RESTART_INFO_PATH, 'r', encoding='utf-8') as f:
+				return json.load(f)
+		except Exception:
+			return {'counter': 0, 'last_notes': '', 'history': []}
+	return {'counter': 0, 'last_notes': '', 'history': []}
+
+
+def _save_restart_info_internal(info):
+	_ensure_data_dir_dev()
+	with open(RESTART_INFO_PATH, 'w', encoding='utf-8') as f:
+		json.dump(info, f, indent=2)
+
+
+def _increment_restart_counter(notes: str | None = None):
+	info = _load_restart_info_internal()
+	info['counter'] = int(info.get('counter', 0)) + 1
+	if notes is not None:
+		info['last_notes'] = notes
+	if 'history' not in info or not isinstance(info['history'], list):
+		info['history'] = []
+	info['history'].append({
+		'timestamp': datetime.now().isoformat(timespec='seconds'),
+		'counter': info['counter'],
+		'notes': info.get('last_notes', '')
+	})
+	_save_restart_info_internal(info)
+	try:
+		import logging as _logging
+		_logging.getLogger(__name__).info(f"Dev restart counter incremented to {info['counter']}")
+	except Exception:
+		pass
+
+
+# Increment on import (each server start)
+_increment_restart_counter(os.getenv('RESTART_NOTES', '').strip() or None)
 
 
 @app.route('/api/restart-info', methods=['GET'])
 def get_restart_info():
-	"""Get restart counter information"""
-	return jsonify(restart_counter.get_info())
+	info = _load_restart_info_internal()
+	return jsonify({
+		'counter': info.get('counter', 0),
+		'last_notes': info.get('last_notes', ''),
+		'history': info.get('history', [])[-5:]
+	})
 
 
 @app.route('/api/restart-notes', methods=['POST'])
 def set_restart_notes():
-	"""Set notes for the current restart session"""
 	try:
 		payload = request.get_json(force=True) or {}
 		notes = str(payload.get('notes', '')).strip()
-		restart_counter.set_notes(notes)
+		info = _load_restart_info_internal()
+		info['last_notes'] = notes
+		if 'history' not in info or not isinstance(info['history'], list):
+			info['history'] = []
+		info['history'].append({
+			'timestamp': datetime.now().isoformat(timespec='seconds'),
+			'counter': info.get('counter', 0),
+			'notes': notes
+		})
+		_save_restart_info_internal(info)
 		return jsonify({'success': True})
 	except Exception as e:
 		logger.error(f"Failed to set restart notes: {e}")
 		return jsonify({'success': False, 'error': str(e)}), 500
 
-# Configure logging
+# In-memory log storage for debugging terminal
+debug_logs = deque(maxlen=1000)  # Keep last 1000 log entries
+log_subscribers = []
+
+class DebugLogHandler(logging.Handler):
+    """Custom log handler that stores logs for the debug terminal"""
+    def emit(self, record):
+        try:
+            log_entry = {
+                'timestamp': datetime.fromtimestamp(record.created).strftime('%H:%M:%S.%f')[:-3],
+                'level': record.levelname,
+                'name': record.name,
+                'message': self.format(record)
+            }
+            debug_logs.append(log_entry)
+            
+            # Notify all SSE subscribers
+            for subscriber_queue in log_subscribers[:]:  # Copy to avoid modification during iteration
+                try:
+                    subscriber_queue.put_nowait(log_entry)
+                except queue.Full:
+                    log_subscribers.remove(subscriber_queue)
+        except Exception:
+            pass  # Ignore errors in logging handler
+
+# Configure comprehensive logging
+debug_handler = DebugLogHandler()
+debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
 logging.basicConfig(
-    level=getattr(logging, AppConfig.LOG_LEVEL),
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(AppConfig.LOG_FILE),
-        logging.StreamHandler()
+        logging.FileHandler('logs/flask_app.log'),
+        logging.StreamHandler(),
+        debug_handler
     ]
 )
 logger = logging.getLogger(__name__)
@@ -192,7 +256,7 @@ scheduler = LeadScheduler()
 # Initialize search history manager
 search_history = SearchHistoryManager()
 
-def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = True):
+def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = False):
     """Process a scheduled search"""
     job_id = f"scheduled_{int(time.time())}"
     job = LeadGenerationJob(job_id, query, limit, verify_emails=verify_emails, generate_emails=generate_emails)
@@ -212,7 +276,7 @@ def process_scheduled_search(query: str, limit: int, verify_emails: bool, genera
 scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default', verify_emails=True, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=False, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
         self.job_id = job_id
         self.query = query
         self.queries = queries or [query] if query else []  # Support multiple queries
@@ -221,7 +285,7 @@ class LeadGenerationJob:
         print(f"FLASK DEBUG: Job created with {len(self.queries)} queries: {self.queries}")
         print(f"FLASK DEBUG: Limit per query: {self.limit}")
         self.industry = industry
-        self.verify_emails = True  # ALWAYS enabled - email verification is mandatory
+        self.verify_emails = verify_emails
         self.generate_emails = generate_emails  # New toggle for email generation
         self.export_verified_only = export_verified_only  # New toggle for verified emails only
         self.advanced_scraping = advanced_scraping  # New toggle for advanced website scraping
@@ -263,26 +327,18 @@ def process_leads(job):
         # Step 1: Fetch leads
         job.status = "fetching"
         job.progress = 10
-        job.message = "Fetching leads from Google Maps..."
+        job.message = "Fetching leads from OpenStreetMap and free sources..."
         
         logger.info(f"Getting provider for job {job.job_id}")
         try:
-            # For multi-query requests, use DirectGoogleMapsProvider for more predictable results
-            if len(job.queries) > 1:
-                from src.providers.serp_provider import DirectGoogleMapsProvider
-                provider = DirectGoogleMapsProvider()
-                logger.info(f"Using DirectGoogleMapsProvider for multi-query request ({len(job.queries)} queries)")
-            else:
-                provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
+            # Always use auto provider (MultiProvider) for all requests
+            provider = get_provider('auto')  # Uses free providers only
+            logger.info(f"Using MultiProvider with free sources for request ({len(job.queries)} queries)")
                 logger.info(f"Using provider: {provider.__class__.__name__}")
             
             # Check API key availability
-            if hasattr(provider, 'api_key') and not provider.api_key:
-                error_msg = "Google API key not configured. Please set GOOGLE_API_KEY environment variable."
-                logger.error(error_msg)
-                job.status = "error"
-                job.error = error_msg
-                return
+            # No API key check needed - all providers are free now
+            logger.info("Using free providers - no API keys required")
             
             all_raw_leads = []
             seen_places = set()
@@ -431,6 +487,8 @@ def process_leads(job):
             job.message = "Verifying email addresses..."
             
             try:
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                import threading
                 
                 verifier = MailTesterVerifier()
                 
@@ -444,74 +502,78 @@ def process_leads(job):
                         emails_to_verify.append((i, email))
                         email_lead_map[email] = i
                 
-                logger.info(f"Starting sequential verification of {len(emails_to_verify)} emails")
+                logger.info(f"Starting parallel verification of {len(emails_to_verify)} emails")
+                
+                # Thread-safe counters
+                completed_count = [0]  # Use list for mutable counter
+                lock = threading.Lock()
                 
                 def verify_single_email(email_data):
-                    """Verify a single email"""
+                    """Verify a single email with thread safety"""
                     idx, email = email_data
                     try:
                         result = verifier.verify_email(email)
+                        
+                        with lock:
+                            # Update counters safely
+                            job.emails_verified += 1
+                            if result.status == EmailStatus.VALID:
+                                job.valid_emails += 1
+                            
+                            # Update progress
+                            completed_count[0] += 1
+                            progress_pct = int((completed_count[0] / len(emails_to_verify)) * 10)
+                            job.progress = 35 + progress_pct
+                            job.message = f"Verified {completed_count[0]}/{len(emails_to_verify)} emails"
+                        
                         return (idx, email, result, None)
                     except Exception as e:
                         logger.warning(f"Email verification failed for {email}: {e}")
                         return (idx, email, None, str(e))
                 
-                # Process emails sequentially to avoid API token conflicts
-                # MailTester API doesn't handle concurrent authentication well
-                completed_count = 0
+                # Use ThreadPoolExecutor for parallel processing
+                # Limit to 5 threads to respect API rate limits while gaining speed
+                max_workers = min(5, len(emails_to_verify))
                 
-                for idx, email in emails_to_verify:
-                    if job.cancelled:
-                        break
-                        
-                    try:
-                        # Add small delay between requests to prevent overwhelming API
-                        if completed_count > 0:
-                            time.sleep(0.1)  # 100ms delay between requests
-                        
-                        result = verify_single_email((idx, email))
-                        idx, email, result, error = result
-                        lead = normalized_leads[idx]
-                        
-                        # Update counters
-                        job.emails_verified += 1
-                        if result and result.status == EmailStatus.VALID:
-                            job.valid_emails += 1
-                        
-                        # Update progress
-                        completed_count += 1
-                        progress_pct = int((completed_count / len(emails_to_verify)) * 10)
-                        job.progress = 35 + progress_pct
-                        job.message = f"Verified {completed_count}/{len(emails_to_verify)} emails"
-                        
-                        if result:
-                            # Add verification data
-                            lead['email_verified'] = result.status == EmailStatus.VALID
-                            lead['email_status'] = result.status.value
-                            lead['email_score'] = result.score
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all verification tasks
+                    future_to_email = {
+                        executor.submit(verify_single_email, email_data): email_data 
+                        for email_data in emails_to_verify
+                    }
+                    
+                    # Process results as they complete
+                    for future in as_completed(future_to_email):
+                        if job.cancelled:
+                            executor.shutdown(wait=False)
+                            break
                             
-                            # Adjust scoring boost
-                            if result.status == EmailStatus.VALID:
-                                lead['email_quality_boost'] = 20
-                            elif result.status == EmailStatus.CATCH_ALL:
-                                lead['email_quality_boost'] = 10
-                            elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
-                                lead['email_quality_boost'] = -50
+                        try:
+                            idx, email, result, error = future.result()
+                            lead = normalized_leads[idx]
+                            
+                            if result:
+                                # Add verification data
+                                lead['email_verified'] = result.status == EmailStatus.VALID
+                                lead['email_status'] = result.status.value
+                                lead['email_score'] = result.score
+                                
+                                # Adjust scoring boost
+                                if result.status == EmailStatus.VALID:
+                                    lead['email_quality_boost'] = 20
+                                elif result.status == EmailStatus.CATCH_ALL:
+                                    lead['email_quality_boost'] = 10
+                                elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
+                                    lead['email_quality_boost'] = -50
+                                else:
+                                    lead['email_quality_boost'] = 0
                             else:
+                                # Verification failed
+                                lead['email_verified'] = False
+                                lead['email_status'] = 'error'
                                 lead['email_quality_boost'] = 0
-                        else:
-                            # Verification failed
-                            lead['email_verified'] = False
-                            lead['email_status'] = 'error'
-                            lead['email_quality_boost'] = 0
-                            
-                    except Exception as e:
-                        logger.error(f"Error processing verification for {email}: {e}")
-                        # Mark as failed verification
-                        lead = normalized_leads[idx]
-                        lead['email_verified'] = False
-                        lead['email_status'] = 'error'
-                        lead['email_quality_boost'] = 0
+                        except Exception as e:
+                            logger.error(f"Error processing verification result: {e}")
                 
                 # Set default values for leads without emails
                 for lead in normalized_leads:
@@ -643,64 +705,66 @@ def process_leads(job):
         # Add DraftEmail at the end
         columns.append('DraftEmail')
         
-        # Ensure SearchKeyword and Location populated per-lead from the actual query that found them
+        # Ensure SearchKeyword and Location are populated for CSV
         try:
-            def _parse_query_parts(q: str):
-                if not isinstance(q, str):
-                    return '', ''
-                if ' in ' in q:
-                    p = q.split(' in ', 1)
-                    return p[0].strip(), p[1].strip()
-                w = q.split()
-                if len(w) >= 2:
-                    return ' '.join(w[:-1]).strip(), w[-1].strip()
-                return q.strip(), ''
-
-            def _title_location(s: str):
-                try:
-                    return ' '.join([t.capitalize() for t in str(s).split()]) if s else ''
-                except Exception:
-                    return s
-
+            # Derive from the primary query (e.g., "coffee shops in austin")
+            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
+            kw, loc = base_query, ''
+            if ' in ' in base_query:
+                parts = base_query.split(' in ', 1)
+                kw = parts[0].strip()
+                loc = parts[1].strip()
+            else:
+                # Fallback split: last word(s) as location for 2+ tokens
+                tokens = base_query.split()
+                if len(tokens) >= 2:
+                    kw = ' '.join(tokens[:-1]).strip()
+                    loc = tokens[-1].strip()
             for lead in final_leads:
-                q_kw = lead.get('search_keyword')
-                q_loc = lead.get('search_location')
-                if (not q_kw or str(q_kw).strip() == '') or (not q_loc and lead.get('full_query')):
-                    fq = lead.get('full_query') or ''
-                    pk, pl = _parse_query_parts(fq)
-                    q_kw = q_kw or pk
-                    q_loc = q_loc or pl
-                if (not str(lead.get('SearchKeyword', '')).strip()) or str(lead.get('SearchKeyword')).strip() == 'NA':
-                    lead['SearchKeyword'] = (q_kw or 'NA')
-                if (not str(lead.get('Location', '')).strip()) or str(lead.get('Location')).strip() == 'NA':
-                    lead['Location'] = _title_location(q_loc) if q_loc else 'NA'
-
+                # Preserve existing values if present and not NA
+                if not str(lead.get('SearchKeyword', '')).strip() or str(lead.get('SearchKeyword')).strip() == 'NA':
+                    lead['SearchKeyword'] = kw if kw else 'NA'
+                if not str(lead.get('Location', '')).strip() or str(lead.get('Location')).strip() == 'NA':
+                    lead['Location'] = loc if loc else 'NA'
+            # Debug: log backfill summary
             try:
                 filled_kw = sum(1 for l in final_leads if str(l.get('SearchKeyword','')).strip() not in ('', 'NA'))
                 filled_loc = sum(1 for l in final_leads if str(l.get('Location','')).strip() not in ('', 'NA'))
-                logger.info(f"Backfill SearchKeyword/Location (per-lead): set_kw={filled_kw}/{len(final_leads)}, set_loc={filled_loc}/{len(final_leads)}")
+                logger.info(f"Backfill SearchKeyword/Location: set_kw={filled_kw}/{len(final_leads)}, set_loc={filled_loc}/{len(final_leads)}; kw='{kw}', loc='{loc}'")
                 if final_leads:
                     logger.info(f"First lead after backfill: SearchKeyword='{final_leads[0].get('SearchKeyword','')}', Location='{final_leads[0].get('Location','')}'")
             except Exception:
                 pass
         except Exception as e:
-            logger.warning(f"Failed to backfill per-lead SearchKeyword/Location: {e}")
+            logger.warning(f"Failed to backfill SearchKeyword/Location: {e}")
 
         logger.info(f"Creating DataFrame with {len(final_leads)} leads")
         df = pd.DataFrame(final_leads)
-        # Do not overwrite per-lead SearchKeyword/Location at DataFrame level
+        # Ensure SearchKeyword/Location columns have values, fallback from job query if missing/NA
         try:
-            missing_kw = df['SearchKeyword'].isna().sum() if 'SearchKeyword' in df.columns else len(df)
-            missing_loc = df['Location'].isna().sum() if 'Location' in df.columns else len(df)
-            logger.info(f"CSV columns present. Missing counts → SearchKeyword: {missing_kw}, Location: {missing_loc}")
+            base_query = job.query or (job.queries[0] if getattr(job, 'queries', []) else '')
+            kw, loc = base_query, ''
+            if ' in ' in base_query:
+                parts = base_query.split(' in ', 1)
+                kw = parts[0].strip()
+                loc = parts[1].strip()
+            else:
+                tokens = base_query.split()
+                if len(tokens) >= 2:
+                    kw = ' '.join(tokens[:-1]).strip()
+                    loc = tokens[-1].strip()
+            # Unconditionally set columns for reliability
+            df['SearchKeyword'] = kw if kw else 'NA'
+            df['Location'] = loc if loc else 'NA'
+            logger.info(f"CSV fill (forced): SearchKeyword='{kw}', Location='{loc}'")
         except Exception as e:
-            logger.warning(f"CSV columns check failed for SearchKeyword/Location: {e}")
+            logger.warning(f"Failed DF-level fill for SearchKeyword/Location: {e}")
         
         # CRITICAL FIX: Standardize CSV column names for consistency
         column_mapping = {
-            # Email verification fields - keep email_verified lowercase to match template
+            # Email verification fields - standardize to PascalCase for CSV
             'email_status': 'Email_Status',
-            # 'email_verified': 'Email_Verified',  # REMOVED - keep lowercase to match CSV template
+            'email_verified': 'Email_Verified', 
             'email_score': 'Email_Score',
             'email_quality_boost': 'Email_Quality_Boost',
             'mx_valid': 'MX_Valid',
@@ -722,28 +786,17 @@ def process_leads(job):
         # Apply column renaming
         df = df.rename(columns=column_mapping)
         
+        # CRITICAL FIX: Also rename the columns list to match the renamed DataFrame columns
+        renamed_columns = []
+        for col in columns:
+            renamed_col = column_mapping.get(col, col)  # Use renamed version if it exists
+            renamed_columns.append(renamed_col)
+        columns = renamed_columns
+        
         # Log DataFrame info
         logger.info(f"DataFrame shape: {df.shape}")
         logger.info(f"Standardized CSV columns: {list(df.columns)}")
-        # Normalize email_verified to TRUE/blank for CSV consumers
-        try:
-            # Check for lowercase column name (no longer mapping to uppercase)
-            verified_col = None
-            if 'email_verified' in df.columns:
-                verified_col = 'email_verified'
-            elif 'Email_Verified' in df.columns:
-                verified_col = 'Email_Verified'
-            
-            if verified_col:
-                def _map_verified(v):
-                    vs = str(v).strip().lower()
-                    if v is True or vs in ('true', '1', 'yes'):
-                        return 'TRUE'
-                    return ''
-                df[verified_col] = df[verified_col].apply(_map_verified)
-                logger.info(f"Mapped {verified_col} to TRUE/blank for CSV output")
-        except Exception as e:
-            logger.warning(f"Failed to map Email_Verified for CSV: {e}")
+        logger.info(f"Expected columns after rename: {columns}")
         if not df.empty:
             logger.info(f"First row data: {df.iloc[0].to_dict()}")
         
@@ -988,11 +1041,11 @@ def generate_leads():
     queries = data.get('queries', [query] if query else [])  # Handle multiple queries
     limit = int(data.get('limit', 25))
     industry = data.get('industry', 'default')
-    verify_emails = True  # ALWAYS enabled
-    generate_emails = data.get('generate_emails', True) # Default to True
+    verify_emails = data.get('verify_emails', False)
+    generate_emails = data.get('generate_emails', False) # Default to False - save costs
     export_verified_only = data.get('export_verified_only', False)
     advanced_scraping = data.get('advanced_scraping', False)
-    providers = data.get('providers', ['google_maps'])  # New provider selection
+    providers = data.get('providers', ['openstreetmap'])  # Default to OpenStreetMap
     add_to_instantly = data.get('add_to_instantly', False)
     instantly_campaign = data.get('instantly_campaign', '')
     
@@ -1007,11 +1060,10 @@ def generate_leads():
     if not providers:
         return jsonify({'error': 'At least one data source must be selected'}), 400
     
-    # If multi-provider search is requested, use the multi-provider flow
-    if len(providers) > 1 or (len(providers) == 1 and providers[0] != 'google_maps'):
-        return handle_multi_provider_generate(data)
+    # Always use multi-provider flow now (no Google Maps)
+    return handle_multi_provider_generate(data)
     
-    # Create job for Google Maps only
+    # Legacy single-provider code removed
     job_id = f"job_{int(time.time())}"
     job = LeadGenerationJob(job_id, query, limit, industry, verify_emails, generate_emails, export_verified_only, advanced_scraping, queries, add_to_instantly, instantly_campaign)
     jobs[job_id] = job
@@ -1028,10 +1080,10 @@ def handle_multi_provider_generate(data):
         query = data.get('query', '')
         queries = data.get('queries', [query] if query else [])
         limit = int(data.get('limit', 25))
-        verify_emails = True  # ALWAYS enabled  
-        generate_emails = data.get('generate_emails', True)
+        verify_emails = data.get('verify_emails', False)
+        generate_emails = data.get('generate_emails', False)
         export_verified_only = data.get('export_verified_only', False)
-        providers = data.get('providers', ['google_maps'])
+        providers = data.get('providers', ['openstreetmap'])
         add_to_instantly = data.get('add_to_instantly', False)
         instantly_campaign = data.get('instantly_campaign', '')
         
@@ -1084,27 +1136,7 @@ def process_multi_provider_leads(job, providers):
                 business_type = query
                 location = None
             
-            # Google Maps
-            if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
-                try:
-                    job.message = "Searching Google Maps..."
-                    google_provider = get_provider('auto')
-                    google_results = google_provider.fetch_places(query, job.limit)
-                    logger.info(f"Google Maps found {len(google_results)} results")
-                    
-                    for result in google_results:
-                        normalized = {
-                            'Name': result.get('name', ''),
-                            'Address': result.get('address', ''),
-                            'Phone': result.get('phone', 'Not available'),
-                            'Website': result.get('website', 'Not available'),
-                            'SearchKeyword': business_type,
-                            'Location': location or 'No location specified',
-                            'data_source': 'Google Maps'
-                        }
-                        all_results.append(normalized)
-                except Exception as e:
-                    logger.error(f"Google Maps provider error: {e}")
+            # Google Maps removed - using OpenStreetMap as primary provider
             
             # OpenStreetMap
             if 'openstreetmap' in providers:
@@ -1618,7 +1650,7 @@ def handle_favorites():
             name=data.get('name'),
             query=data.get('query'),
             limit_leads=data.get('limit_leads', 25),
-            verify_emails=True,  # ALWAYS enabled
+            verify_emails=data.get('verify_emails', False),
             generate_emails=data.get('generate_emails', False),
             export_verified_only=data.get('export_verified_only', False),
             advanced_scraping=data.get('advanced_scraping', False)
@@ -1646,8 +1678,10 @@ def download_csv_template():
         'query': ['dentists in New York', 'lawyers in Los Angeles', 'restaurants in Chicago'],
         'limit_leads': [100, 50, 25],
         'verify_emails': [True, True, False],
-        'interval_hours': [24, 0, 168],
-        'interval_minutes': [15, 30, 60]
+        'expand_keywords': [False, False, True],
+        'max_variants': [20, 20, 20],
+        'interval_hours': [0, 0, 24],
+        'interval_minutes': [15, 30, 0]
     }
     df = pd.DataFrame(template_data)
     
@@ -1758,8 +1792,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'provider': provider_name,
-        'google_api_key': bool(os.getenv('GOOGLE_API_KEY')),
-        'google_api_key_value': os.getenv('GOOGLE_API_KEY', '')[:10] + '...' if os.getenv('GOOGLE_API_KEY') else 'None',
+        'google_api_key': False,  # Google API removed
+        'google_api_key_value': 'Not used - free providers only',
         'test_fetch_worked': len(test_results) > 0,
         'openai_configured': bool(os.getenv('OPENAI_API_KEY')),
         'available_industries': IndustryConfig.get_industry_display_names()
@@ -1780,8 +1814,8 @@ def create_schedule():
         name=data['name'],
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
-        verify_emails=True,  # ALWAYS enabled
-        generate_emails=data.get('generate_emails', True),  # New parameter
+        verify_emails=data.get('verify_emails', False),
+        generate_emails=data.get('generate_emails', False),  # New parameter
         interval_hours=data.get('interval_hours', 24),
         integrations=data.get('integrations', [])
     )
@@ -1822,23 +1856,10 @@ def add_to_queue():
     queue_id = scheduler.add_to_queue(
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
-        verify_emails=True,  # ALWAYS enabled
+        verify_emails=data.get('verify_emails', False),
         priority=data.get('priority', 5)
     )
     return jsonify({'id': queue_id, 'success': True})
-
-@app.route('/api/queue/<int:queue_id>', methods=['DELETE'])
-def delete_queue_item(queue_id):
-    """Delete a specific queue item"""
-    try:
-        success = scheduler.cancel_queue_item(queue_id)
-        if success:
-            return jsonify({'success': True, 'message': 'Queue item deleted'})
-        else:
-            return jsonify({'success': False, 'error': 'Queue item not found or already started'}), 404
-    except Exception as e:
-        logger.error(f"Error deleting queue item {queue_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -1863,7 +1884,7 @@ def bulk_upload_schedules():
         df = pd.read_csv(file)
         
         # Validate required columns
-        required_cols = ['Name', 'SearchKeyword']
+        required_cols = ['name', 'query', 'limit_leads']
         if not all(col in df.columns for col in required_cols):
             return jsonify({'error': f'CSV must contain columns: {", ".join(required_cols)}'}), 400
         
@@ -1878,18 +1899,8 @@ def bulk_upload_schedules():
         for idx, row in df.iterrows():
             try:
                 # Get values with defaults
-                name = str(row['Name'])
-                
-                # Build query from SearchKeyword + Location
-                search_keyword = str(row.get('SearchKeyword', '')).strip()
-                location = str(row.get('Location', '')).strip()
-                
-                if search_keyword and location:
-                    query = f"{search_keyword} in {location}"
-                elif search_keyword:
-                    query = search_keyword
-                else:
-                    raise ValueError("SearchKeyword is required")
+                name = str(row['name'])
+                query = str(row['query'])
                 
                 # Handle "max" as limit_leads value
                 limit_str = str(row.get('limit_leads', '25')).lower()
@@ -1900,14 +1911,84 @@ def bulk_upload_schedules():
                     
                 verify_emails = str(row.get('verify_emails', 'false')).lower() == 'true'
                 
-                # Get interval from CSV or use default
+                # Get interval and calculate scheduled time BEFORE expansion logic
                 interval_minutes = int(row.get('interval_minutes', default_interval_minutes))
-                
-                # Calculate scheduled time for this search
                 scheduled_time = base_time + timedelta(minutes=interval_minutes * idx)
-                
-                # Check if this should be a recurring schedule or one-time queue item
                 interval_hours = int(row.get('interval_hours', 0))
+                
+                # Check if expand keywords is enabled for this row
+                expand_keywords = str(row.get('expand_keywords', 'false')).lower() == 'true'
+                
+                # If expand is enabled, generate keyword variants
+                if expand_keywords and 'KeywordExpander' in globals():
+                    try:
+                        expander = KeywordExpander()
+                        
+                        # Get max_variants from CSV, default to 20
+                        max_variants = int(row.get('max_variants', 20))
+                        max_variants = max(1, min(max_variants, 50))  # Clamp between 1-50
+                        
+                        # Extract location from query if possible
+                        location = ''
+                        if ' in ' in query:
+                            parts = query.split(' in ', 1)
+                            base_keyword = parts[0].strip()
+                            location = parts[1].strip()
+                        else:
+                            base_keyword = query
+                            
+                        # Generate variants
+                        variant_dicts = expander.expand_keywords(base_keyword, location, max_variants=max_variants)
+                        if location:
+                            variant_dicts = expander.combine_with_location(variant_dicts, location)
+                        
+                        # Extract just the keyword strings from the dictionaries
+                        variants = [v['keyword'] if isinstance(v, dict) else str(v) for v in variant_dicts]
+                        
+                        # Create multiple jobs for each variant
+                        logger.info(f"Expanding '{query}' into {len(variants)} variants")
+                        
+                        # Process each variant as a separate job
+                        for variant_idx, variant in enumerate(variants):
+                            variant_scheduled_time = scheduled_time + timedelta(minutes=variant_idx * 2)
+                            
+                            if interval_hours > 0:
+                                variant_schedule_id = scheduler.add_schedule(
+                                    name=f"{name} - Variant {variant_idx + 1}",
+                                    query=variant,
+                                    limit_leads=limit_leads,
+                                    verify_emails=verify_emails,
+                                    interval_hours=interval_hours
+                                )
+                                added_schedules.append({
+                                    'row': idx + 1,
+                                    'name': f"{name} - Variant {variant_idx + 1}",
+                                    'type': 'schedule',
+                                    'id': variant_schedule_id,
+                                    'expanded': True
+                                })
+                            else:
+                                variant_queue_id = scheduler.add_to_queue(
+                                    query=variant,
+                                    limit_leads=limit_leads,
+                                    verify_emails=verify_emails,
+                                    priority=1,
+                                    scheduled_time=variant_scheduled_time.isoformat() if variant_scheduled_time else None
+                                )
+                                added_schedules.append({
+                                    'row': idx + 1,
+                                    'name': f"{name} - Variant {variant_idx + 1}",
+                                    'type': 'queue',
+                                    'id': variant_queue_id,
+                                    'expanded': True
+                                })
+                        
+                        # Skip the normal processing since we handled expansion
+                        continue
+                        
+                    except Exception as e:
+                        logger.error(f"Error expanding keywords for row {idx + 1}: {e}")
+                        # Fall through to normal processing if expansion fails
                 
                 if interval_hours > 0:
                     schedule_id = scheduler.add_schedule(
@@ -1930,7 +2011,7 @@ def bulk_upload_schedules():
                         limit_leads=limit_leads,
                         verify_emails=verify_emails,
                         priority=1,  # All same priority = process in order
-                        scheduled_time=scheduled_time
+                        scheduled_time=scheduled_time.isoformat() if scheduled_time else None
                     )
                     added_schedules.append({
                         'row': idx + 1,
@@ -1972,12 +2053,7 @@ def download_schedule_template():
 def get_provider_status():
     """Get list of available data providers"""
     providers = {
-        'google_maps': {
-            'name': 'Google Maps Places API',
-            'configured': bool(os.getenv('GOOGLE_API_KEY')),
-            'description': 'Primary business directory search',
-            'cost': 'Paid API'
-        },
+        # Google Maps removed from available providers
         'openstreetmap': {
             'name': 'OpenStreetMap Overpass API',
             'configured': True,  # Always available
@@ -2185,7 +2261,7 @@ def multi_provider_search():
         query = data.get('query', '')
         location = data.get('location', '')
         limit = data.get('limit', 25)
-        providers = data.get('providers', ['google_maps'])
+        providers = data.get('providers', ['openstreetmap'])
         
         if not query:
             return jsonify({'error': 'Query required'}), 400
@@ -2193,34 +2269,7 @@ def multi_provider_search():
         all_results = []
         provider_results = {}
         
-        # Google Maps
-        if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
-            try:
-                google_provider = get_provider('auto')
-                google_results = google_provider.fetch_places(f"{query} {location}".strip(), limit)
-                # Normalize Google results to match our schema
-                normalized_google = []
-                for result in google_results:
-                    normalized = {
-                        'name': result.get('name', ''),
-                        'address': result.get('address', ''),
-                        'phone': result.get('phone', 'Not available'),
-                        'website': result.get('website', 'Not available'),
-                        'latitude': result.get('latitude'),
-                        'longitude': result.get('longitude'),
-                        'business_type': result.get('business_type', 'Business'),
-                        'data_source': 'Google Maps'
-                    }
-                    normalized_google.append(normalized)
-                    
-                provider_results['google_maps'] = {
-                    'count': len(normalized_google),
-                    'results': normalized_google
-                }
-                all_results.extend(normalized_google)
-            except Exception as e:
-                logger.error(f"Google Maps provider error: {e}")
-                provider_results['google_maps'] = {'error': str(e), 'count': 0}
+        # Google Maps removed - OpenStreetMap is primary provider
         
         # OpenStreetMap
         if 'openstreetmap' in providers:

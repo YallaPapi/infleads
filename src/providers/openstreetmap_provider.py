@@ -9,10 +9,11 @@ from typing import List, Dict, Optional, Tuple
 import time
 import re
 from urllib.parse import quote
+from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
-class OpenStreetMapProvider:
+class OpenStreetMapProvider(BaseProvider):
     """
     OpenStreetMap provider using Overpass API for business data
     Completely free, no API keys required
@@ -25,6 +26,38 @@ class OpenStreetMapProvider:
             'User-Agent': 'R27LeadsAgent/1.0 (Business Directory)'
         })
         self.rate_limit_delay = 1.0  # 1 second between requests to be respectful
+    
+    def fetch_places(self, query: str, limit: int = 25) -> List[Dict]:
+        """
+        BaseProvider interface method - fetches places from OpenStreetMap
+        
+        Args:
+            query: Search query like "coffee shops in Austin" 
+            limit: Maximum number of results
+            
+        Returns:
+            List of normalized business dictionaries
+        """
+        # Parse location from query if present
+        location = None
+        if ' in ' in query:
+            parts = query.split(' in ', 1)
+            business_type = parts[0].strip()
+            location = parts[1].strip()
+            clean_query = business_type
+        else:
+            clean_query = query
+            location = "unknown"
+            
+        results = self.search_businesses(clean_query, location, limit)
+        
+        # Set search metadata for each result
+        for result in results:
+            result['search_keyword'] = clean_query
+            result['search_location'] = location if location else "unknown"
+            result['full_query'] = query
+            
+        return results
         
     def search_businesses(self, query: str, location: str = None, limit: int = 50) -> List[Dict]:
         """
@@ -290,7 +323,7 @@ class OpenStreetMapProvider:
             else:
                 latitude = longitude = None
             
-            # Build address from OSM tags
+            # Build address from OSM tags with fallbacks
             address_parts = []
             if tags.get('addr:housenumber'):
                 address_parts.append(tags['addr:housenumber'])
@@ -303,7 +336,18 @@ class OpenStreetMapProvider:
             if tags.get('addr:postcode'):
                 address_parts.append(tags['addr:postcode'])
             
-            address = ', '.join(address_parts) if address_parts else 'Address not available'
+            # If no structured address, try alternative fields
+            if not address_parts:
+                if tags.get('addr:full'):
+                    address_parts.append(tags['addr:full'])
+                elif tags.get('address'):
+                    address_parts.append(tags['address'])
+            
+            # If still no address, use coordinates as fallback
+            if not address_parts and latitude and longitude:
+                address = f"Near {latitude:.4f}, {longitude:.4f}"
+            else:
+                address = ', '.join(address_parts) if address_parts else 'Address not available'
             
             # Extract contact info
             phone = tags.get('phone', '').strip()
@@ -322,17 +366,28 @@ class OpenStreetMapProvider:
             elif tags.get('tourism'):
                 business_type = tags['tourism'].replace('_', ' ').title()
             
-            # Create normalized business data
+            # Create normalized business data in expected format
             normalized = {
+                # Required fields for data normalizer
                 'name': name,
                 'address': address,
-                'phone': phone if phone else 'Not available',
-                'website': website if website else 'Not available',
+                'phone': phone if phone else 'NA',
+                'email': 'NA',  # OSM doesn't have emails
+                'website': website if website else 'NA',
+                'rating': 0,  # OSM doesn't have ratings
+                'reviews': 0,  # OSM doesn't have review counts
+                'types': [business_type],
+                'place_id': f"osm_{element.get('type', 'unknown')}_{element.get('id', '0')}",
+                'business_status': 'OPERATIONAL',  # Assume operational
+                'source': 'openstreetmap',
+                'search_keyword': 'business',  # Will be set by calling code
+                'search_location': 'unknown',  # Will be set by calling code
+                'full_query': 'business search',  # Will be set by calling code
+                
+                # Additional OSM-specific fields
                 'latitude': latitude,
                 'longitude': longitude,
                 'business_type': business_type,
-                'data_source': 'OpenStreetMap',
-                # OSM-specific fields
                 'osm_id': element.get('id'),
                 'osm_type': element.get('type'),
                 'osm_amenity': tags.get('amenity'),

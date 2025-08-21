@@ -6,29 +6,37 @@ import os
 import logging
 from typing import List, Dict, Any, Set
 from .base import BaseProvider
-from .serp_provider import DirectGoogleMapsProvider
-from .google_places_new import GooglePlacesNewProvider
+# Google providers removed - using OpenStreetMap and free providers only
 from .hybrid_scraper import HybridGoogleScraper
 from .pure_scraper import PureWebScraper
+from .openstreetmap_provider import OpenStreetMapProvider
 
 logger = logging.getLogger(__name__)
 
 class MultiProvider(BaseProvider):
     """
     Combines multiple providers to get high-volume results
-    Uses Google Maps API + Google Places + Hybrid Scraper + Pure Scraper
+    Uses OpenStreetMap + Hybrid Scraper + Pure Scraper (all FREE)
     """
     
     def __init__(self):
         self.providers = []
         
-        # Add providers in order of quality/reliability
-        if os.getenv('GOOGLE_API_KEY'):
-            self.providers.append(('DirectGoogleMaps', DirectGoogleMapsProvider()))
-            self.providers.append(('GooglePlacesNew', GooglePlacesNewProvider()))
+        # 🛡️ COST PROTECTION: Use FREE providers first!
+        # Only use expensive Google APIs as a last resort
         
-        self.providers.append(('HybridScraper', HybridGoogleScraper()))
+        # 1. FREE: OpenStreetMap (most reliable free option)
+        self.providers.append(('OpenStreetMap', OpenStreetMapProvider()))
+        
+        # 2. FREE: Pure web scraper (no API costs)
         self.providers.append(('PureScraper', PureWebScraper()))
+        
+        # 3. FREE: Hybrid scraper (uses free geocoding only)  
+        self.providers.append(('HybridScraper', HybridGoogleScraper()))
+        
+        # Using only FREE providers - no Google API costs
+        logger.info("🛡️ Using only FREE providers - no API costs!")
+        logger.info("💡 OpenStreetMap, PureScraper, and HybridScraper are all free")
         
         logger.info(f"MultiProviderCascade initialized with {len(self.providers)} providers")
     

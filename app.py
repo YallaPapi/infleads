@@ -256,7 +256,7 @@ scheduler = LeadScheduler()
 # Initialize search history manager
 search_history = SearchHistoryManager()
 
-def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = True):
+def process_scheduled_search(query: str, limit: int, verify_emails: bool, generate_emails: bool = False):
     """Process a scheduled search"""
     job_id = f"scheduled_{int(time.time())}"
     job = LeadGenerationJob(job_id, query, limit, verify_emails=verify_emails, generate_emails=generate_emails)
@@ -276,7 +276,7 @@ def process_scheduled_search(query: str, limit: int, verify_emails: bool, genera
 scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=False, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
         self.job_id = job_id
         self.query = query
         self.queries = queries or [query] if query else []  # Support multiple queries
@@ -327,26 +327,18 @@ def process_leads(job):
         # Step 1: Fetch leads
         job.status = "fetching"
         job.progress = 10
-        job.message = "Fetching leads from Google Maps..."
+        job.message = "Fetching leads from OpenStreetMap and free sources..."
         
         logger.info(f"Getting provider for job {job.job_id}")
         try:
-            # For multi-query requests, use DirectGoogleMapsProvider for more predictable results
-            if len(job.queries) > 1:
-                from src.providers.serp_provider import DirectGoogleMapsProvider
-                provider = DirectGoogleMapsProvider()
-                logger.info(f"Using DirectGoogleMapsProvider for multi-query request ({len(job.queries)} queries)")
-            else:
-                provider = get_provider('auto')  # Auto-detects best available (NOT APIFY)
+            # Always use auto provider (MultiProvider) for all requests
+            provider = get_provider('auto')  # Uses free providers only
+            logger.info(f"Using MultiProvider with free sources for request ({len(job.queries)} queries)")
                 logger.info(f"Using provider: {provider.__class__.__name__}")
             
             # Check API key availability
-            if hasattr(provider, 'api_key') and not provider.api_key:
-                error_msg = "Google API key not configured. Please set GOOGLE_API_KEY environment variable."
-                logger.error(error_msg)
-                job.status = "error"
-                job.error = error_msg
-                return
+            # No API key check needed - all providers are free now
+            logger.info("Using free providers - no API keys required")
             
             all_raw_leads = []
             seen_places = set()
@@ -794,9 +786,17 @@ def process_leads(job):
         # Apply column renaming
         df = df.rename(columns=column_mapping)
         
+        # CRITICAL FIX: Also rename the columns list to match the renamed DataFrame columns
+        renamed_columns = []
+        for col in columns:
+            renamed_col = column_mapping.get(col, col)  # Use renamed version if it exists
+            renamed_columns.append(renamed_col)
+        columns = renamed_columns
+        
         # Log DataFrame info
         logger.info(f"DataFrame shape: {df.shape}")
         logger.info(f"Standardized CSV columns: {list(df.columns)}")
+        logger.info(f"Expected columns after rename: {columns}")
         if not df.empty:
             logger.info(f"First row data: {df.iloc[0].to_dict()}")
         
@@ -1042,10 +1042,10 @@ def generate_leads():
     limit = int(data.get('limit', 25))
     industry = data.get('industry', 'default')
     verify_emails = data.get('verify_emails', False)
-    generate_emails = data.get('generate_emails', True) # Default to True
+    generate_emails = data.get('generate_emails', False) # Default to False - save costs
     export_verified_only = data.get('export_verified_only', False)
     advanced_scraping = data.get('advanced_scraping', False)
-    providers = data.get('providers', ['google_maps'])  # New provider selection
+    providers = data.get('providers', ['openstreetmap'])  # Default to OpenStreetMap
     add_to_instantly = data.get('add_to_instantly', False)
     instantly_campaign = data.get('instantly_campaign', '')
     
@@ -1060,11 +1060,10 @@ def generate_leads():
     if not providers:
         return jsonify({'error': 'At least one data source must be selected'}), 400
     
-    # If multi-provider search is requested, use the multi-provider flow
-    if len(providers) > 1 or (len(providers) == 1 and providers[0] != 'google_maps'):
-        return handle_multi_provider_generate(data)
+    # Always use multi-provider flow now (no Google Maps)
+    return handle_multi_provider_generate(data)
     
-    # Create job for Google Maps only
+    # Legacy single-provider code removed
     job_id = f"job_{int(time.time())}"
     job = LeadGenerationJob(job_id, query, limit, industry, verify_emails, generate_emails, export_verified_only, advanced_scraping, queries, add_to_instantly, instantly_campaign)
     jobs[job_id] = job
@@ -1082,9 +1081,9 @@ def handle_multi_provider_generate(data):
         queries = data.get('queries', [query] if query else [])
         limit = int(data.get('limit', 25))
         verify_emails = data.get('verify_emails', False)
-        generate_emails = data.get('generate_emails', True)
+        generate_emails = data.get('generate_emails', False)
         export_verified_only = data.get('export_verified_only', False)
-        providers = data.get('providers', ['google_maps'])
+        providers = data.get('providers', ['openstreetmap'])
         add_to_instantly = data.get('add_to_instantly', False)
         instantly_campaign = data.get('instantly_campaign', '')
         
@@ -1137,27 +1136,7 @@ def process_multi_provider_leads(job, providers):
                 business_type = query
                 location = None
             
-            # Google Maps
-            if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
-                try:
-                    job.message = "Searching Google Maps..."
-                    google_provider = get_provider('auto')
-                    google_results = google_provider.fetch_places(query, job.limit)
-                    logger.info(f"Google Maps found {len(google_results)} results")
-                    
-                    for result in google_results:
-                        normalized = {
-                            'Name': result.get('name', ''),
-                            'Address': result.get('address', ''),
-                            'Phone': result.get('phone', 'Not available'),
-                            'Website': result.get('website', 'Not available'),
-                            'SearchKeyword': business_type,
-                            'Location': location or 'No location specified',
-                            'data_source': 'Google Maps'
-                        }
-                        all_results.append(normalized)
-                except Exception as e:
-                    logger.error(f"Google Maps provider error: {e}")
+            # Google Maps removed - using OpenStreetMap as primary provider
             
             # OpenStreetMap
             if 'openstreetmap' in providers:
@@ -1699,7 +1678,10 @@ def download_csv_template():
         'query': ['dentists in New York', 'lawyers in Los Angeles', 'restaurants in Chicago'],
         'limit_leads': [100, 50, 25],
         'verify_emails': [True, True, False],
-        'interval_minutes': [15, 30, 60]
+        'expand_keywords': [False, False, True],
+        'max_variants': [20, 20, 20],
+        'interval_hours': [0, 0, 24],
+        'interval_minutes': [15, 30, 0]
     }
     df = pd.DataFrame(template_data)
     
@@ -1810,8 +1792,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'provider': provider_name,
-        'google_api_key': bool(os.getenv('GOOGLE_API_KEY')),
-        'google_api_key_value': os.getenv('GOOGLE_API_KEY', '')[:10] + '...' if os.getenv('GOOGLE_API_KEY') else 'None',
+        'google_api_key': False,  # Google API removed
+        'google_api_key_value': 'Not used - free providers only',
         'test_fetch_worked': len(test_results) > 0,
         'openai_configured': bool(os.getenv('OPENAI_API_KEY')),
         'available_industries': IndustryConfig.get_industry_display_names()
@@ -1833,7 +1815,7 @@ def create_schedule():
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
         verify_emails=data.get('verify_emails', False),
-        generate_emails=data.get('generate_emails', True),  # New parameter
+        generate_emails=data.get('generate_emails', False),  # New parameter
         interval_hours=data.get('interval_hours', 24),
         integrations=data.get('integrations', [])
     )
@@ -1929,14 +1911,84 @@ def bulk_upload_schedules():
                     
                 verify_emails = str(row.get('verify_emails', 'false')).lower() == 'true'
                 
-                # Get interval from CSV or use default
+                # Get interval and calculate scheduled time BEFORE expansion logic
                 interval_minutes = int(row.get('interval_minutes', default_interval_minutes))
-                
-                # Calculate scheduled time for this search
                 scheduled_time = base_time + timedelta(minutes=interval_minutes * idx)
-                
-                # Check if this should be a recurring schedule or one-time queue item
                 interval_hours = int(row.get('interval_hours', 0))
+                
+                # Check if expand keywords is enabled for this row
+                expand_keywords = str(row.get('expand_keywords', 'false')).lower() == 'true'
+                
+                # If expand is enabled, generate keyword variants
+                if expand_keywords and 'KeywordExpander' in globals():
+                    try:
+                        expander = KeywordExpander()
+                        
+                        # Get max_variants from CSV, default to 20
+                        max_variants = int(row.get('max_variants', 20))
+                        max_variants = max(1, min(max_variants, 50))  # Clamp between 1-50
+                        
+                        # Extract location from query if possible
+                        location = ''
+                        if ' in ' in query:
+                            parts = query.split(' in ', 1)
+                            base_keyword = parts[0].strip()
+                            location = parts[1].strip()
+                        else:
+                            base_keyword = query
+                            
+                        # Generate variants
+                        variant_dicts = expander.expand_keywords(base_keyword, location, max_variants=max_variants)
+                        if location:
+                            variant_dicts = expander.combine_with_location(variant_dicts, location)
+                        
+                        # Extract just the keyword strings from the dictionaries
+                        variants = [v['keyword'] if isinstance(v, dict) else str(v) for v in variant_dicts]
+                        
+                        # Create multiple jobs for each variant
+                        logger.info(f"Expanding '{query}' into {len(variants)} variants")
+                        
+                        # Process each variant as a separate job
+                        for variant_idx, variant in enumerate(variants):
+                            variant_scheduled_time = scheduled_time + timedelta(minutes=variant_idx * 2)
+                            
+                            if interval_hours > 0:
+                                variant_schedule_id = scheduler.add_schedule(
+                                    name=f"{name} - Variant {variant_idx + 1}",
+                                    query=variant,
+                                    limit_leads=limit_leads,
+                                    verify_emails=verify_emails,
+                                    interval_hours=interval_hours
+                                )
+                                added_schedules.append({
+                                    'row': idx + 1,
+                                    'name': f"{name} - Variant {variant_idx + 1}",
+                                    'type': 'schedule',
+                                    'id': variant_schedule_id,
+                                    'expanded': True
+                                })
+                            else:
+                                variant_queue_id = scheduler.add_to_queue(
+                                    query=variant,
+                                    limit_leads=limit_leads,
+                                    verify_emails=verify_emails,
+                                    priority=1,
+                                    scheduled_time=variant_scheduled_time.isoformat() if variant_scheduled_time else None
+                                )
+                                added_schedules.append({
+                                    'row': idx + 1,
+                                    'name': f"{name} - Variant {variant_idx + 1}",
+                                    'type': 'queue',
+                                    'id': variant_queue_id,
+                                    'expanded': True
+                                })
+                        
+                        # Skip the normal processing since we handled expansion
+                        continue
+                        
+                    except Exception as e:
+                        logger.error(f"Error expanding keywords for row {idx + 1}: {e}")
+                        # Fall through to normal processing if expansion fails
                 
                 if interval_hours > 0:
                     schedule_id = scheduler.add_schedule(
@@ -1959,7 +2011,7 @@ def bulk_upload_schedules():
                         limit_leads=limit_leads,
                         verify_emails=verify_emails,
                         priority=1,  # All same priority = process in order
-                        scheduled_time=scheduled_time
+                        scheduled_time=scheduled_time.isoformat() if scheduled_time else None
                     )
                     added_schedules.append({
                         'row': idx + 1,
@@ -2001,12 +2053,7 @@ def download_schedule_template():
 def get_provider_status():
     """Get list of available data providers"""
     providers = {
-        'google_maps': {
-            'name': 'Google Maps Places API',
-            'configured': bool(os.getenv('GOOGLE_API_KEY')),
-            'description': 'Primary business directory search',
-            'cost': 'Paid API'
-        },
+        # Google Maps removed from available providers
         'openstreetmap': {
             'name': 'OpenStreetMap Overpass API',
             'configured': True,  # Always available
@@ -2214,7 +2261,7 @@ def multi_provider_search():
         query = data.get('query', '')
         location = data.get('location', '')
         limit = data.get('limit', 25)
-        providers = data.get('providers', ['google_maps'])
+        providers = data.get('providers', ['openstreetmap'])
         
         if not query:
             return jsonify({'error': 'Query required'}), 400
@@ -2222,34 +2269,7 @@ def multi_provider_search():
         all_results = []
         provider_results = {}
         
-        # Google Maps
-        if 'google_maps' in providers and os.getenv('GOOGLE_API_KEY'):
-            try:
-                google_provider = get_provider('auto')
-                google_results = google_provider.fetch_places(f"{query} {location}".strip(), limit)
-                # Normalize Google results to match our schema
-                normalized_google = []
-                for result in google_results:
-                    normalized = {
-                        'name': result.get('name', ''),
-                        'address': result.get('address', ''),
-                        'phone': result.get('phone', 'Not available'),
-                        'website': result.get('website', 'Not available'),
-                        'latitude': result.get('latitude'),
-                        'longitude': result.get('longitude'),
-                        'business_type': result.get('business_type', 'Business'),
-                        'data_source': 'Google Maps'
-                    }
-                    normalized_google.append(normalized)
-                    
-                provider_results['google_maps'] = {
-                    'count': len(normalized_google),
-                    'results': normalized_google
-                }
-                all_results.extend(normalized_google)
-            except Exception as e:
-                logger.error(f"Google Maps provider error: {e}")
-                provider_results['google_maps'] = {'error': str(e), 'count': 0}
+        # Google Maps removed - OpenStreetMap is primary provider
         
         # OpenStreetMap
         if 'openstreetmap' in providers:

@@ -462,8 +462,8 @@
         <!-- Tab Navigation -->
         <ul class="nav nav-tabs mb-4" id="leadTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="google-tab" data-bs-toggle="tab" data-bs-target="#google" type="button">
-                    🔍 <i class="bi bi-database"></i> <strong>MULTI-SOURCE SEARCH</strong>
+                <button class="nav-link active" id="multi-tab" data-bs-toggle="tab" data-bs-target="#multi" type="button">
+                    🔍 <i class="bi bi-database"></i> <strong>FREE MULTI-SOURCE SEARCH</strong>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -485,8 +485,8 @@
 
         <!-- Tab Content -->
         <div class="tab-content" id="leadTabContent">
-            <!-- Google Maps Tab -->
-            <div class="tab-pane fade show active" id="google" role="tabpanel">
+            <!-- Multi-Source Tab -->
+            <div class="tab-pane fade show active" id="multi" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
                         <i class="bi bi-search"></i> Multi-Source Lead Generation
@@ -498,19 +498,10 @@
                                 <i class="bi bi-database"></i> Choose Your Data Sources
                             </h6>
                             <div class="row">
+                                <!-- Google Maps checkbox removed -->
                                 <div class="col-md-4 mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="singleProviderGoogle" value="google_maps" checked>
-                                        <label class="form-check-label fw-bold" for="singleProviderGoogle">
-                                            <i class="bi bi-geo-alt-fill text-danger"></i> Google Maps
-                                            <span class="badge bg-primary ms-1">PAID</span>
-                                        </label>
-                                        <small class="text-muted d-block">Most comprehensive, requires API key</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="singleProviderOSM" value="openstreetmap">
+                                        <input class="form-check-input" type="checkbox" id="singleProviderOSM" value="openstreetmap" checked>
                                         <label class="form-check-label fw-bold" for="singleProviderOSM">
                                             <i class="bi bi-globe text-success"></i> OpenStreetMap
                                             <span class="badge bg-success ms-1">FREE</span>
@@ -1015,7 +1006,7 @@
                     <div class="card h-100">
                         <div class="card-header">
                             <i class="bi bi-collection"></i> Multi-Provider Search
-                            <span class="badge bg-primary ms-2" data-bs-toggle="tooltip" title="Search across Google Maps, Yelp, and Yellow Pages simultaneously for maximum coverage">NEW</span>
+                            <span class="badge bg-success ms-2" data-bs-toggle="tooltip" title="Search across OpenStreetMap, Yelp, and Yellow Pages - all FREE providers!">FREE</span>
                         </div>
                         <div class="card-body">
                             <form id="multiProviderForm">
@@ -1025,18 +1016,12 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Data Sources</label>
+                                    <!-- Google Maps checkbox removed -->
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="providerGoogle" value="google_maps" checked>
-                                        <label class="form-check-label" for="providerGoogle">
-                                            <i class="bi bi-geo-alt-fill text-danger"></i> Google Maps
-                                            <span class="badge bg-success ms-1" data-bs-toggle="tooltip" title="Primary business directory with comprehensive coverage">MAIN</span>
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="providerOSM" value="openstreetmap">
+                                        <input class="form-check-input" type="checkbox" id="providerOSM" value="openstreetmap" checked>
                                         <label class="form-check-label" for="providerOSM">
                                             <i class="bi bi-globe text-success"></i> OpenStreetMap
-                                            <span class="badge bg-success ms-1" data-bs-toggle="tooltip" title="Free open-source business directory with global coverage">FREE</span>
+                                            <span class="badge bg-success ms-1" data-bs-toggle="tooltip" title="Free open-source business directory with global coverage">PRIMARY</span>
                                         </label>
                                     </div>
                                     <div class="form-check">
@@ -1463,7 +1448,7 @@
             
             // Get selected providers
             const providers = [];
-            if (document.getElementById('singleProviderGoogle').checked) providers.push('google_maps');
+            // Google Maps removed - no longer available
             if (document.getElementById('singleProviderOSM').checked) providers.push('openstreetmap');
             if (document.getElementById('singleProviderYP').checked) providers.push('yellowpages');
             
@@ -2345,7 +2330,7 @@
             const limit = document.getElementById('multiLimit').value;
             
             const providers = [];
-            if (document.getElementById('providerGoogle').checked) providers.push('google_maps');
+            // Google Maps removed - no longer available
             if (document.getElementById('providerOSM').checked) providers.push('openstreetmap');
             if (document.getElementById('providerYP').checked) providers.push('yellowpages');
             

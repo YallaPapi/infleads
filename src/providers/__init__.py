@@ -4,8 +4,8 @@ Lead data providers for R27 Infinite AI Leads Agent
 
 from .base import BaseProvider
 # from .apify_provider import ApifyProvider  # FUCK APIFY - removed
-from .serp_provider import get_maps_provider, DirectGoogleMapsProvider
-from .google_places_new import GooglePlacesNewProvider
+from .serp_provider import get_maps_provider
+# Google providers removed - using free providers only
 from .hybrid_scraper import HybridGoogleScraper
 from .multi_provider import MultiProvider
 from .yellowpages_provider import YellowPagesProvider
@@ -23,13 +23,10 @@ def get_provider(provider_name: str = 'auto') -> BaseProvider:
         logger.info("DEBUG: Returning MultiProvider for 'auto' request")
         return MultiProvider()
     
-    # Use the working Google Maps Legacy API by default!
-    if provider_name == 'google' and os.getenv('GOOGLE_API_KEY'):
-        return DirectGoogleMapsProvider()
-    
-    # Try the new Google Places API if specifically requested
-    if provider_name == 'google_new' and os.getenv('GOOGLE_API_KEY'):
-        return GooglePlacesNewProvider()
+    # Google providers removed - return MultiProvider instead
+    if provider_name in ['google', 'google_new']:
+        logger.warning("Google providers removed - using free MultiProvider instead")
+        return MultiProvider()
     
     # Hybrid scraper as fallback
     if provider_name == 'hybrid':

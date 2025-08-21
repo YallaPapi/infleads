@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 """
 Flask Web GUI for R27 Infinite AI Leads Agent
-
-Refactored for improved code organization and maintainability.
-Modularized into separate concerns:
-- Configuration (src.config)
-- Job Management (src.job_manager)
-- Debug Utilities (src.debug_utils)
-- Lead Processing (src.lead_processor)
-- Common Utilities (src.utils)
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
@@ -19,34 +11,24 @@ import threading
 import time
 from datetime import datetime, timedelta
 import pandas as pd
+from dotenv import load_dotenv
 import logging
 import pickle
 from collections import deque
+from flask import Response
 import queue
 import tempfile
 import zipfile
 import subprocess
 
-# Import configuration and utilities first
-from src.config import (
-    AppConfig, PathConfig, JobConfig, APIConfig, 
-    DebugConfig, CSVConfig, ProviderConfig, SchedulerConfig
-)
-from src.utils import (
-    sanitize_filename, generate_timestamp_filename, ensure_directory,
-    safe_json_loads, calculate_progress, format_percentage
-)
-from src.debug_utils import (
-    get_restart_counter, get_debug_terminal, SystemMonitor
-)
-from src.job_manager import (
-    get_job_manager, LeadGenerationJob, ApolloJob, JobStatus
-)
-from src.lead_processor import LeadProcessor
+# Load environment variables FIRST
+load_dotenv()
 
-# Import existing modules (to be further refactored)
+# Import our modules
 from src.providers import get_provider
+# Lead scoring functionality removed
 from src.email_generator import EmailGenerator
+# from src.drive_uploader import DriveUploader  # Removed - using local downloads instead
 from src.data_normalizer import DataNormalizer
 from src.industry_configs import IndustryConfig
 from src.apollo_lead_processor import ApolloLeadProcessor
@@ -58,49 +40,131 @@ from src.search_history import SearchHistoryManager
 from src.providers.openstreetmap_provider import OpenStreetMapProvider
 from src.providers.yellowpages_api_provider import YellowPagesAPIProvider
 from src.lead_enrichment import LeadEnricher
-from src.instantly_integration import (
-    InstantlyIntegration, CampaignTemplates, 
-    convert_r27_leads_to_instantly, create_campaign_from_r27_leads
-)
+from src.instantly_integration import InstantlyIntegration, CampaignTemplates, convert_r27_leads_to_instantly, create_campaign_from_r27_leads
 
-# Initialize Flask application with configuration
 app = Flask(__name__)
-app.config.from_object(AppConfig)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 CORS(app)
 
-# Ensure required directories exist
-PathConfig.ensure_directories()
+# Dev restart counter (for debugging during development)
+RESTART_INFO_PATH = os.path.join('data', 'restart_info.json')
 
-# Initialize debug utilities
-restart_counter = get_restart_counter()
-debug_terminal = get_debug_terminal()
+
+def _ensure_data_dir_dev():
+	try:
+		os.makedirs('data', exist_ok=True)
+	except Exception:
+		pass
+
+
+def _load_restart_info_internal():
+	_ensure_data_dir_dev()
+	if os.path.exists(RESTART_INFO_PATH):
+		try:
+			with open(RESTART_INFO_PATH, 'r', encoding='utf-8') as f:
+				return json.load(f)
+		except Exception:
+			return {'counter': 0, 'last_notes': '', 'history': []}
+	return {'counter': 0, 'last_notes': '', 'history': []}
+
+
+def _save_restart_info_internal(info):
+	_ensure_data_dir_dev()
+	with open(RESTART_INFO_PATH, 'w', encoding='utf-8') as f:
+		json.dump(info, f, indent=2)
+
+
+def _increment_restart_counter(notes: str | None = None):
+	info = _load_restart_info_internal()
+	info['counter'] = int(info.get('counter', 0)) + 1
+	if notes is not None:
+		info['last_notes'] = notes
+	if 'history' not in info or not isinstance(info['history'], list):
+		info['history'] = []
+	info['history'].append({
+		'timestamp': datetime.now().isoformat(timespec='seconds'),
+		'counter': info['counter'],
+		'notes': info.get('last_notes', '')
+	})
+	_save_restart_info_internal(info)
+	try:
+		import logging as _logging
+		_logging.getLogger(__name__).info(f"Dev restart counter incremented to {info['counter']}")
+	except Exception:
+		pass
+
+
+# Increment on import (each server start)
+_increment_restart_counter(os.getenv('RESTART_NOTES', '').strip() or None)
 
 
 @app.route('/api/restart-info', methods=['GET'])
 def get_restart_info():
-	"""Get restart counter information"""
-	return jsonify(restart_counter.get_info())
+	info = _load_restart_info_internal()
+	return jsonify({
+		'counter': info.get('counter', 0),
+		'last_notes': info.get('last_notes', ''),
+		'history': info.get('history', [])[-5:]
+	})
 
 
 @app.route('/api/restart-notes', methods=['POST'])
 def set_restart_notes():
-	"""Set notes for the current restart session"""
 	try:
 		payload = request.get_json(force=True) or {}
 		notes = str(payload.get('notes', '')).strip()
-		restart_counter.set_notes(notes)
+		info = _load_restart_info_internal()
+		info['last_notes'] = notes
+		if 'history' not in info or not isinstance(info['history'], list):
+			info['history'] = []
+		info['history'].append({
+			'timestamp': datetime.now().isoformat(timespec='seconds'),
+			'counter': info.get('counter', 0),
+			'notes': notes
+		})
+		_save_restart_info_internal(info)
 		return jsonify({'success': True})
 	except Exception as e:
 		logger.error(f"Failed to set restart notes: {e}")
 		return jsonify({'success': False, 'error': str(e)}), 500
 
-# Configure logging
+# In-memory log storage for debugging terminal
+debug_logs = deque(maxlen=1000)  # Keep last 1000 log entries
+log_subscribers = []
+
+class DebugLogHandler(logging.Handler):
+    """Custom log handler that stores logs for the debug terminal"""
+    def emit(self, record):
+        try:
+            log_entry = {
+                'timestamp': datetime.fromtimestamp(record.created).strftime('%H:%M:%S.%f')[:-3],
+                'level': record.levelname,
+                'name': record.name,
+                'message': self.format(record)
+            }
+            debug_logs.append(log_entry)
+            
+            # Notify all SSE subscribers
+            for subscriber_queue in log_subscribers[:]:  # Copy to avoid modification during iteration
+                try:
+                    subscriber_queue.put_nowait(log_entry)
+                except queue.Full:
+                    log_subscribers.remove(subscriber_queue)
+        except Exception:
+            pass  # Ignore errors in logging handler
+
+# Configure comprehensive logging
+debug_handler = DebugLogHandler()
+debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
 logging.basicConfig(
-    level=getattr(logging, AppConfig.LOG_LEVEL),
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(AppConfig.LOG_FILE),
-        logging.StreamHandler()
+        logging.FileHandler('logs/flask_app.log'),
+        logging.StreamHandler(),
+        debug_handler
     ]
 )
 logger = logging.getLogger(__name__)

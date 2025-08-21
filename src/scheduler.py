@@ -96,7 +96,7 @@ class LeadScheduler:
         conn.close()
         
     def add_schedule(self, name: str, query: str, limit_leads: int = 25, 
-                    verify_emails: bool = False, interval_hours: int = 24,
+                    verify_emails: bool = True, generate_emails: bool = False, interval_hours: int = 24,
                     integrations: List[Dict] = None) -> int:
         """Add a new scheduled search"""
         conn = sqlite3.connect(self.db_path)
@@ -106,10 +106,10 @@ class LeadScheduler:
         integrations_json = json.dumps(integrations) if integrations else '[]'
         
         cursor.execute('''
-            INSERT INTO schedules (name, query, limit_leads, verify_emails, 
+            INSERT INTO schedules (name, query, limit_leads, verify_emails, generate_emails,
                                   interval_hours, next_run, integrations)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (name, query, limit_leads, verify_emails, interval_hours, 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, query, limit_leads, verify_emails, generate_emails, interval_hours, 
               next_run, integrations_json))
         
         schedule_id = cursor.lastrowid
@@ -128,7 +128,7 @@ class LeadScheduler:
         updates = []
         values = []
         for key, value in kwargs.items():
-            if key in ['name', 'query', 'limit_leads', 'verify_emails', 
+            if key in ['name', 'query', 'limit_leads', 'verify_emails', 'generate_emails',
                       'interval_hours', 'enabled', 'integrations']:
                 if key == 'integrations':
                     value = json.dumps(value)
@@ -198,7 +198,7 @@ class LeadScheduler:
         return None
         
     def add_to_queue(self, query: str, limit_leads: int = 25, 
-                    verify_emails: bool = False, priority: int = 5,
+                    verify_emails: bool = True, generate_emails: bool = False, priority: int = 5,
                     schedule_id: Optional[int] = None, 
                     scheduled_time: Optional[datetime] = None) -> int:
         """Add a search to the queue"""
@@ -206,15 +206,15 @@ class LeadScheduler:
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO search_queue (query, limit_leads, verify_emails, priority, schedule_id, scheduled_time)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (query, limit_leads, verify_emails, priority, schedule_id, scheduled_time))
+            INSERT INTO search_queue (query, limit_leads, verify_emails, generate_emails, priority, schedule_id, scheduled_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (query, limit_leads, verify_emails, generate_emails, priority, schedule_id, scheduled_time))
         
         queue_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
-        logger.info(f"Added to queue {queue_id}: {query}")
+        logger.info(f"Added to queue {queue_id}: {query} (verify={verify_emails}, generate={generate_emails})")
         return queue_id
         
     def get_queue(self, status: str = None) -> List[Dict]:
@@ -457,7 +457,8 @@ class LeadScheduler:
                         result = process_callback(
                             query=item['query'],
                             limit=item['limit_leads'],
-                            verify_emails=item['verify_emails']
+                            verify_emails=True,  # ALWAYS enabled
+                            generate_emails=item.get('generate_emails', False)
                         )
                         
                         # Update queue item

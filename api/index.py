@@ -48,11 +48,11 @@ except ImportError as e:
 job_results = {}
 
 class SimpleLeadJob:
-    def __init__(self, job_id, query, limit, verify_emails=False, generate_emails=True):
+    def __init__(self, job_id, query, limit, verify_emails=True, generate_emails=True):
         self.job_id = job_id
         self.query = query
         self.limit = limit
-        self.verify_emails = verify_emails
+        self.verify_emails = True  # ALWAYS enabled
         self.generate_emails = generate_emails
         self.status = "processing"
         self.progress = 0
@@ -225,7 +225,7 @@ def generate_leads():
         data = request.json
         query = data.get('query', '')
         limit = int(data.get('limit', 25))
-        verify_emails = data.get('verify_emails', False)
+        verify_emails = True  # ALWAYS enabled
         generate_emails = data.get('generate_emails', False)  # Disabled for serverless
         
         if not query:

@@ -4,6 +4,7 @@ Multi-provider cascade to get high-volume results by combining multiple sources
 
 import os
 import logging
+import re
 from typing import List, Dict, Any, Set
 from .base import BaseProvider
 from .serp_provider import DirectGoogleMapsProvider
@@ -32,11 +33,45 @@ class MultiProvider(BaseProvider):
         
         logger.info(f"MultiProviderCascade initialized with {len(self.providers)} providers")
     
+    def _split_query(self, query: str) -> Dict[str, str]:
+        """Split an incoming query into keyword and location parts.
+        Returns dict with 'keyword' and 'location' strings (un-empty strings or '').
+        Case-insensitive on the separator ' in '.
+        """
+        keyword = query.strip()
+        location = ''
+        parts = re.split(r"\s+in\s+", query, flags=re.IGNORECASE, maxsplit=1)
+        if len(parts) == 2:
+            keyword = parts[0].strip()
+            location = parts[1].strip()
+        return {"keyword": keyword, "location": location}
+    
+    def _clean_city(self, text: str) -> str:
+        """Clean a location string down to a city-like value.
+        - Take first chunk before '|'
+        - If chunk contains ' in ', use the part after it
+        - Collapse whitespace and Title-Case
+        """
+        if not text:
+            return ''
+        chunk = re.split(r"\|", str(text))[0].strip()
+        # if someone passed phrases like 'restaurant in dallas'
+        parts = re.split(r"\s+in\s+", chunk, flags=re.IGNORECASE, maxsplit=1)
+        if len(parts) == 2:
+            chunk = parts[1].strip()
+        chunk = re.sub(r"\s+", " ", chunk)
+        return chunk.title()
+    
     def fetch_places(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
         """
         Fetch places using multiple providers until we reach the limit
         """
         logger.info(f"Multi-provider fetch: query='{query}', target={limit}")
+        
+        # Parse query once so we can annotate results consistently
+        q_parts = self._split_query(query)
+        search_keyword = q_parts.get('keyword', '').strip()
+        search_location = self._clean_city(q_parts.get('location', '').strip())
         
         all_results = []
         seen_names = set()
@@ -61,6 +96,12 @@ class MultiProvider(BaseProvider):
                     if name and name not in seen_names:
                         seen_names.add(name)
                         result['source'] = provider_name  # Tag with source
+                        # Annotate with query metadata if not present
+                        result.setdefault('full_query', query)
+                        if not result.get('search_keyword'):
+                            result['search_keyword'] = search_keyword
+                        if not result.get('search_location'):
+                            result['search_location'] = search_location
                         unique_results.append(result)
                         
                         if len(all_results) + len(unique_results) >= limit:

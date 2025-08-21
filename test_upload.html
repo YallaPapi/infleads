@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Upload Test</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+</head>
+<body>
+    <h1>CSV Upload Test</h1>
+    <div>
+        <input type="file" id="testFile" accept=".csv">
+        <button onclick="testUpload()">Upload CSV</button>
+    </div>
+    <div id="result" style="margin-top: 20px;"></div>
+
+    <script>
+        async function testUpload() {
+            const fileInput = document.getElementById('testFile');
+            const file = fileInput.files[0];
+            const resultDiv = document.getElementById('result');
+            
+            if (!file) {
+                resultDiv.innerHTML = '<span style="color: red;">Please select a file</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<span style="color: blue;">Uploading...</span>';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                console.log('Making fetch request to /api/schedules/bulk-upload-v2');
+                const response = await fetch('/api/schedules/bulk-upload-v2', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Response data:', result);
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<span style="color: green;">SUCCESS: ${result.total_added} items added</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span style="color: red;">ERROR: ${result.error}</span>`;
+                }
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                resultDiv.innerHTML = `<span style="color: red;">NETWORK ERROR: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

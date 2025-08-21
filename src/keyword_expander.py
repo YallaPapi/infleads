@@ -24,7 +24,7 @@ class KeywordExpander:
             self.openai_client = OpenAI(api_key=openai_key)
             logger.info("KeywordExpander initialized with OpenAI")
         else:
-            logger.warning("No OpenAI API key found - keyword expansion will use fallback")
+            logger.warning("No OpenAI API key found - keyword expansion will require OpenAI")
     
     def expand_keywords(self, base_keyword: str, location: str = "", max_variants: int = 15) -> List[Dict[str, str]]:
         """
@@ -40,10 +40,10 @@ class KeywordExpander:
         """
         logger.info(f"Expanding keyword: '{base_keyword}' for location: '{location}'")
         
-        if self.openai_client:
-            return self._expand_with_openai(base_keyword, location, max_variants)
-        else:
-            return self._expand_with_fallback(base_keyword, location, max_variants)
+        if not self.openai_client:
+            raise ValueError("OpenAI client not configured. Dynamic keyword expansion requires OpenAI API key.")
+        
+        return self._expand_with_openai(base_keyword, location, max_variants)
     
     def _expand_with_openai(self, base_keyword: str, location: str, max_variants: int) -> List[Dict[str, str]]:
         """Use OpenAI to generate keyword variants"""
@@ -108,91 +108,7 @@ Generate for "{base_keyword}":"""
             
         except Exception as e:
             logger.error(f"OpenAI keyword expansion failed: {e}")
-            return self._expand_with_fallback(base_keyword, location, max_variants)
-    
-    def _expand_with_fallback(self, base_keyword: str, location: str, max_variants: int) -> List[Dict[str, str]]:
-        """Fallback keyword expansion using predefined patterns"""
-        logger.info("Using fallback keyword expansion")
-        
-        # Common business type patterns
-        patterns = {
-            'lawyer': [
-                'personal injury lawyers', 'family attorneys', 'criminal defense attorneys',
-                'divorce lawyers', 'dui attorneys', 'bankruptcy lawyers', 'estate planning attorneys',
-                'immigration lawyers', 'employment attorneys', 'real estate lawyers',
-                'business attorneys', 'tax lawyers', 'medical malpractice attorneys',
-                'workers compensation lawyers', 'civil rights attorneys'
-            ],
-            'attorney': [
-                'personal injury attorneys', 'family lawyers', 'criminal defense lawyers',
-                'divorce attorneys', 'dui lawyers', 'bankruptcy attorneys', 'estate attorneys',
-                'immigration attorneys', 'employment lawyers', 'real estate attorneys',
-                'business lawyers', 'tax attorneys', 'malpractice lawyers'
-            ],
-            'doctor': [
-                'primary care physicians', 'specialists', 'family doctors', 'internists',
-                'cardiologists', 'dermatologists', 'orthopedic surgeons', 'pediatricians',
-                'gynecologists', 'psychiatrists', 'neurologists', 'oncologists',
-                'gastroenterologists', 'urologists', 'ophthalmologists'
-            ],
-            'dentist': [
-                'general dentists', 'orthodontists', 'oral surgeons', 'periodontists',
-                'endodontists', 'pediatric dentists', 'cosmetic dentists', 'dental implants',
-                'teeth whitening', 'dental hygienists', 'dental clinics'
-            ],
-            'restaurant': [
-                'fine dining restaurants', 'casual dining', 'fast food', 'pizza places',
-                'italian restaurants', 'mexican restaurants', 'chinese restaurants',
-                'sushi restaurants', 'steakhouses', 'seafood restaurants', 'cafes',
-                'bars and grills', 'food trucks', 'catering services'
-            ],
-            'contractor': [
-                'general contractors', 'home builders', 'remodeling contractors',
-                'roofing contractors', 'plumbing contractors', 'electrical contractors',
-                'hvac contractors', 'flooring contractors', 'painting contractors',
-                'landscaping contractors', 'concrete contractors', 'kitchen contractors'
-            ]
-        }
-        
-        # Find the best match for the base keyword
-        base_lower = base_keyword.lower()
-        variants = []
-        
-        # Direct match
-        if base_lower in patterns:
-            variants = patterns[base_lower]
-        else:
-            # Partial match
-            for key, values in patterns.items():
-                if key in base_lower or base_lower in key:
-                    variants = values
-                    break
-        
-        # If no match found, generate generic variants
-        if not variants:
-            variants = [
-                f"{base_keyword} near me",
-                f"best {base_keyword}",
-                f"top {base_keyword}",
-                f"local {base_keyword}",
-                f"{base_keyword} services",
-                f"professional {base_keyword}",
-                f"experienced {base_keyword}",
-                f"certified {base_keyword}",
-                f"licensed {base_keyword}",
-                f"{base_keyword} specialists"
-            ]
-        
-        # Convert to the expected format
-        result = []
-        for variant in variants[:max_variants]:
-            result.append({
-                'keyword': variant,
-                'description': f"Businesses related to {base_keyword}"
-            })
-        
-        logger.info(f"Generated {len(result)} fallback keyword variants")
-        return result
+            raise RuntimeError(f"Dynamic keyword expansion failed: {e}. No fallback patterns available.")
     
     def combine_with_location(self, keywords: List[Dict[str, str]], location: str) -> List[Dict[str, str]]:
         """Combine keywords with location for final search terms"""

@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>R27 Infinite AI Leads Agent</title>
-    <!-- Cache buster: 1755610593 -->
+    <!-- Cache buster: 1755714710_v2 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -752,8 +755,8 @@
                         </button>
                     </div>
                     <div class="card-body p-4">
-                        <!-- CSV Bulk Upload Section -->
-                        <div class="mb-4 p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px;">
+                        <!-- CSV Bulk Upload Section (TOP) -->
+                        <div class="mb-4 p-4" style="position: relative; z-index: 10; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px;">
                             <h5 class="fw-bold text-white mb-3">
                                 <i class="bi bi-file-earmark-spreadsheet"></i> 📊 BULK CSV UPLOAD - Add 100s of Searches at Once! 📊
                             </h5>
@@ -762,7 +765,7 @@
                                     <div class="bg-white p-3 rounded">
                                         <label class="form-label fw-bold">Upload CSV with Multiple Searches</label>
                                         <input type="file" class="form-control mb-2" id="bulkScheduleFile" accept=".csv">
-                                        <button class="btn btn-success w-100" onclick="uploadBulkSchedules()">
+                                        <button class="btn btn-success w-100" onclick="uploadBulkSchedulesV2()">
                                             <i class="bi bi-cloud-upload"></i> Upload & Schedule All
                                         </button>
                                     </div>
@@ -771,115 +774,67 @@
                                     <div class="bg-white p-3 rounded">
                                         <label class="form-label fw-bold">Need a Template?</label>
                                         <p class="text-muted small">Download our CSV template with examples</p>
-                                        <a href="/api/schedules/template" class="btn btn-primary w-100" download>
+                                        <a id="downloadCsvTemplateLink" href="/api/schedules/template" class="btn btn-primary w-100" download>
                                             <i class="bi bi-download"></i> Download CSV Template
                                         </a>
                                     </div>
                                 </div>
                             </div>
-                            <div class="mt-3 text-white">
-                                <small>
-                                    <strong>How it works:</strong><br>
-                                    • Searches are automatically scheduled with time gaps to avoid overloading<br>
-                                    • Default: 15 minutes between searches (customizable with interval_minutes column)<br>
-                                    • Use "max" in limit_leads column to get maximum leads (1000)<br>
-                                    • Each search runs at its scheduled time and is marked complete when done<br>
-                                    • Example: Upload 50 states → Scheduled over ~12 hours (50 × 15 min)
-                                </small>
+                            <div class="mt-3">
+                                <div class="p-3 bg-light rounded border">
+                                    <small class="text-dark">
+                                        <strong>How it works:</strong><br>
+                                        • Searches are automatically scheduled with time gaps to avoid overloading<br>
+                                        • Default: 15 minutes between searches (customizable with interval_minutes column)<br>
+                                        • Use "max" in limit_leads column to get maximum leads (1000)<br>
+                                        • Keyword expansion is included in the CSV template by default (columns: name, keyword, location, expand=TRUE, max_variants=15). Just fill name, keyword, location — expansion happens automatically.<br>
+                                        • Each search runs at its scheduled time and is marked complete when done<br>
+                                        • Example: Upload 50 states → Scheduled over ~12 hours (50 × 15 min)
+                                    </small>
+                                </div>
                             </div>
                             <div id="bulkUploadResults" class="mt-3 d-none">
                                 <div class="alert alert-info" id="bulkUploadMessage"></div>
                             </div>
                         </div>
 
-                        <!-- Quick Add to Queue with All Options -->
-                        <div class="mb-4 p-4 border rounded bg-light">
-                            <h5 class="fw-bold mb-3"><i class="bi bi-plus-square"></i> Add Search to Queue</h5>
-                            <div class="row g-3">
-                                <div class="col-md-8">
-                                    <label class="form-label fw-bold">Search Query</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control form-control-lg" id="quickQuery" 
-                                               placeholder="e.g., lawyers in Las Vegas">
-                                        <button type="button" class="btn btn-outline-secondary" onclick="expandQueueKeywords()">
-                                            <i class="bi bi-magic"></i> Expand
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">Enter business type and location</small>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Number of Leads</label>
-                                    <div class="d-flex align-items-center">
-                                        <input type="range" class="form-range flex-grow-1" id="quickLimitSlider" 
-                                               min="5" max="500" value="25" oninput="updateQueueLimit(this.value)">
-                                        <input type="number" class="form-control ms-2" id="quickLimit" 
-                                               value="25" min="5" max="1000" style="width: 80px"
-                                               onchange="document.getElementById('quickLimitSlider').value = Math.min(this.value, 500)">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Keyword Expansion Results -->
-                            <div id="queueKeywordResults" class="mt-3 d-none"></div>
-                            
-                            <!-- Options Checkboxes -->
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" id="queueVerifyEmails" checked>
-                                        <label class="form-check-label" for="queueVerifyEmails">
-                                            <strong>Verify Emails</strong> - Check validity
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" id="queueGenerateEmails">
-                                        <label class="form-check-label" for="queueGenerateEmails">
-                                            <strong>Generate Emails</strong> - Create outreach
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" id="queueExportVerified" checked>
-                                        <label class="form-check-label" for="queueExportVerified">
-                                            <strong>Export Verified Only</strong> - Filter invalid
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" id="queueAdvancedScraping">
-                                        <label class="form-check-label" for="queueAdvancedScraping">
-                                            <strong>Advanced Scraping</strong> - Extract names
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Priority Selection -->
-                            <div class="row mt-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Priority</label>
-                                    <select class="form-select" id="queuePriority">
-                                        <option value="1">High (Process First)</option>
-                                        <option value="5" selected>Normal</option>
-                                        <option value="10">Low (Process Last)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Schedule For</label>
-                                    <select class="form-select" id="queueScheduleType">
-                                        <option value="now">Process Now</option>
-                                        <option value="later">Schedule for Later</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <button class="btn btn-success btn-lg w-100 mt-4" onclick="addToQueueWithOptions()">
-                                        <i class="bi bi-plus-circle"></i> Add to Queue
-                                    </button>
-                                </div>
+                        <!-- Progress just below bulk upload -->
+                        <div id="schedulerProgressMount"></div>
+
+                        <!-- Recent jobs just below progress -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Recent History</h6>
+                            <div id="historyList" class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Emails</th>
+                                            <th>Status</th>
+                                            <th>Completed</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <!-- Schedules List -->
+                        <!-- Combined Export of Recent Results -->
+                        <div class="mb-4 p-4 border rounded bg-light">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-collection"></i> Combined Export</h5>
+                            <p class="text-muted">Select completed scrape CSVs (or select all) and export a single combined CSV.</p>
+                            <div id="recentResultsList" class="mb-2">Loading recent CSVs...</div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-secondary" onclick="selectAllRecentResults(true)">Select All</button>
+                                <button class="btn btn-sm btn-secondary" onclick="selectAllRecentResults(false)">Clear</button>
+                                <button class="btn btn-sm btn-success" onclick="exportCombined()"><i class="bi bi-download"></i> Export Combined CSV</button>
+                            </div>
+                        </div>
+
+                        <!-- Schedules List (bottom) -->
                         <div class="mb-4">
                             <h6 class="fw-bold">Active Schedules</h6>
                             <div id="schedulesList" class="table-responsive">
@@ -901,53 +856,13 @@
                             </div>
                         </div>
 
-                        <!-- Queue Status -->
-                        <div class="mb-4">
-                            <h6 class="fw-bold">Queue Status</h6>
-                            <div id="queueList" class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Query</th>
-                                            <th>Leads</th>
-                                            <th>Status</th>
-                                            <th>Scheduled For</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="queueTableBody">
-                                        <tr><td colspan="5" class="text-center text-muted">Loading queue...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Search History -->
-                        <div>
-                            <h6 class="fw-bold">Recent History</h6>
-                            <div id="historyList" class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Query</th>
-                                            <th>Leads</th>
-                                            <th>Emails</th>
-                                            <th>Status</th>
-                                            <th>Completed</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="historyTableBody">
-                                        <tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <!-- Removed Queue Status and duplicate Recent History -->
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Progress Section -->
+        <!-- Progress Section (also cloned mount in scheduler) -->
         <div class="card" id="progressSection" style="border: 2px solid red;">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1959,7 +1874,7 @@
             }
         }
 
-        async function uploadBulkSchedules() {
+        async function uploadBulkSchedulesV2() {
             const fileInput = document.getElementById('bulkScheduleFile');
             const file = fileInput.files[0];
             
@@ -1968,11 +1883,17 @@
                 return;
             }
             
+            // Show uploading feedback
+            const uploadBtn = document.querySelector('button[onclick="uploadBulkSchedulesV2()"]');
+            const originalText = uploadBtn.innerHTML;
+            uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Uploading...';
+            uploadBtn.disabled = true;
+            
             const formData = new FormData();
             formData.append('file', file);
             
             try {
-                const response = await fetch('/api/schedules/bulk-upload', {
+                const response = await fetch('/api/schedules/bulk-upload-v2', {
                     method: 'POST',
                     body: formData
                 });
@@ -1984,27 +1905,129 @@
                     const messageDiv = document.getElementById('bulkUploadMessage');
                     
                     resultsDiv.classList.remove('d-none');
+                    messageDiv.className = 'alert alert-success';
                     messageDiv.innerHTML = `
-                        <strong>Upload Complete!</strong><br>
-                        ✅ Successfully added: ${result.total_added} schedules/queue items<br>
+                        <strong>🚀 CSV Upload Complete!</strong><br>
+                        ✅ Successfully scheduled: ${result.total_added} searches<br>
                         ${result.total_errors > 0 ? `⚠️ Errors: ${result.total_errors} rows failed<br>` : ''}
-                        Total processed: ${result.total_processed} rows
+                        📊 Total processed: ${result.total_processed} rows<br><br>
+                        <strong>📋 Your searches are now in the queue and will process automatically!</strong><br>
+                        <small class="text-muted">Watch the progress below as searches complete...</small>
                     `;
                     
                     // Clear the file input
                     fileInput.value = '';
                     
-                    // Reload schedules and queue
+                    // Show the progress section for the scheduler
+                    const progressSection = document.getElementById('progressSectionScheduler');
+                    if (progressSection) {
+                        progressSection.classList.remove('d-none');
+                        const statusMsg = progressSection.querySelector('#statusMessage, [id$="statusMessage"]');
+                        if (statusMsg) {
+                            statusMsg.textContent = `Processing ${result.total_added} scheduled searches...`;
+                        }
+                    }
+                    
+                    // Reload schedules and queue immediately
                     loadSchedules();
                     loadQueue();
+                    loadActiveJobs(); // Also update active jobs display
+                    
                 } else {
-                    alert(`Upload failed: ${result.error}`);
+                    const resultsDiv = document.getElementById('bulkUploadResults');
+                    const messageDiv = document.getElementById('bulkUploadMessage');
+                    
+                    resultsDiv.classList.remove('d-none');
+                    messageDiv.className = 'alert alert-danger';
+                    messageDiv.innerHTML = `<strong>❌ Upload Failed:</strong> ${result.error}`;
                 }
             } catch (error) {
                 console.error('Error uploading bulk schedules:', error);
-                alert('Failed to upload CSV file');
+                const resultsDiv = document.getElementById('bulkUploadResults');
+                const messageDiv = document.getElementById('bulkUploadMessage');
+                
+                resultsDiv.classList.remove('d-none');
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.innerHTML = '<strong>❌ Network Error:</strong> Failed to upload CSV file';
+            } finally {
+                // Reset button
+                uploadBtn.innerHTML = originalText;
+                uploadBtn.disabled = false;
             }
         }
+
+        // Recent results listing and combined export
+        async function loadRecentResults() {
+            try {
+                const r = await fetch('/api/results/recent');
+                const data = await r.json();
+                const mount = document.getElementById('recentResultsList');
+                if (data.files && data.files.length) {
+                    mount.innerHTML = data.files.slice(0, 50).map((f, i) => `
+                        <div class="form-check">
+                          <input class="form-check-input recent-csv" type="checkbox" id="recent_${i}" value="${f.path}">
+                          <label class="form-check-label" for="recent_${i}">${f.name} <small class="text-muted">(${new Date(f.modified).toLocaleString()})</small></label>
+                        </div>
+                    `).join('');
+                } else {
+                    mount.textContent = 'No recent CSV files found.';
+                }
+            } catch (e) {
+                document.getElementById('recentResultsList').textContent = 'Failed to load recent CSVs';
+            }
+        }
+
+        function selectAllRecentResults(select) {
+            document.querySelectorAll('.recent-csv').forEach(cb => { cb.checked = !!select; });
+        }
+
+        async function exportCombined() {
+            const files = Array.from(document.querySelectorAll('.recent-csv:checked')).map(cb => cb.value);
+            if (!files.length) { alert('Select at least one CSV'); return; }
+            try {
+                const r = await fetch('/api/export/combined', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files })
+                });
+                if (!r.ok) {
+                    const err = await r.json().catch(()=>({error:'Unknown error'}));
+                    alert('Export failed: ' + (err.error || r.statusText));
+                    return;
+                }
+                const blob = await r.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'combined.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Export failed');
+            }
+        }
+
+        // Mount progress under scheduler when tab opens and load recent results
+        document.getElementById('scheduler-tab').addEventListener('shown.bs.tab', function() {
+            const mount = document.getElementById('schedulerProgressMount');
+            if (mount && !mount.dataset.mounted) {
+                const clone = document.getElementById('progressSection').cloneNode(true);
+                clone.id = 'progressSectionScheduler';
+                mount.appendChild(clone);
+                mount.dataset.mounted = '1';
+            }
+            loadRecentResults();
+
+            // Cache-bust the template download link
+            const link = document.getElementById('downloadCsvTemplateLink');
+            if (link) {
+                const url = new URL(link.href, window.location.origin);
+                url.searchParams.set('_cb', Date.now().toString());
+                link.href = url.toString();
+            }
+        });
 
         // Update queue limit display
         function updateQueueLimit(value) {

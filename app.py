@@ -276,7 +276,7 @@ def process_scheduled_search(query: str, limit: int, verify_emails: bool, genera
 scheduler.start(process_callback=process_scheduled_search)
 
 class LeadGenerationJob:
-    def __init__(self, job_id, query, limit, industry='default', verify_emails=False, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
+    def __init__(self, job_id, query, limit, industry='default', verify_emails=True, generate_emails=True, export_verified_only=False, advanced_scraping=False, queries=None, add_to_instantly=False, instantly_campaign=''):
         self.job_id = job_id
         self.query = query
         self.queries = queries or [query] if query else []  # Support multiple queries
@@ -285,7 +285,7 @@ class LeadGenerationJob:
         print(f"FLASK DEBUG: Job created with {len(self.queries)} queries: {self.queries}")
         print(f"FLASK DEBUG: Limit per query: {self.limit}")
         self.industry = industry
-        self.verify_emails = verify_emails
+        self.verify_emails = True  # ALWAYS enabled - email verification is mandatory
         self.generate_emails = generate_emails  # New toggle for email generation
         self.export_verified_only = export_verified_only  # New toggle for verified emails only
         self.advanced_scraping = advanced_scraping  # New toggle for advanced website scraping
@@ -1051,7 +1051,7 @@ def generate_leads():
     queries = data.get('queries', [query] if query else [])  # Handle multiple queries
     limit = int(data.get('limit', 25))
     industry = data.get('industry', 'default')
-    verify_emails = data.get('verify_emails', False)
+    verify_emails = True  # ALWAYS enabled
     generate_emails = data.get('generate_emails', True) # Default to True
     export_verified_only = data.get('export_verified_only', False)
     advanced_scraping = data.get('advanced_scraping', False)
@@ -1091,7 +1091,7 @@ def handle_multi_provider_generate(data):
         query = data.get('query', '')
         queries = data.get('queries', [query] if query else [])
         limit = int(data.get('limit', 25))
-        verify_emails = data.get('verify_emails', False)
+        verify_emails = True  # ALWAYS enabled  
         generate_emails = data.get('generate_emails', True)
         export_verified_only = data.get('export_verified_only', False)
         providers = data.get('providers', ['google_maps'])
@@ -1681,7 +1681,7 @@ def handle_favorites():
             name=data.get('name'),
             query=data.get('query'),
             limit_leads=data.get('limit_leads', 25),
-            verify_emails=data.get('verify_emails', False),
+            verify_emails=True,  # ALWAYS enabled
             generate_emails=data.get('generate_emails', False),
             export_verified_only=data.get('export_verified_only', False),
             advanced_scraping=data.get('advanced_scraping', False)
@@ -1842,7 +1842,7 @@ def create_schedule():
         name=data['name'],
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
-        verify_emails=data.get('verify_emails', False),
+        verify_emails=True,  # ALWAYS enabled
         generate_emails=data.get('generate_emails', True),  # New parameter
         interval_hours=data.get('interval_hours', 24),
         integrations=data.get('integrations', [])
@@ -1884,7 +1884,7 @@ def add_to_queue():
     queue_id = scheduler.add_to_queue(
         query=data['query'],
         limit_leads=data.get('limit_leads', 25),
-        verify_emails=data.get('verify_emails', False),
+        verify_emails=True,  # ALWAYS enabled
         priority=data.get('priority', 5)
     )
     return jsonify({'id': queue_id, 'success': True})

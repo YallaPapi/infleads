@@ -58,9 +58,13 @@ class VerificationResult:
 
     def to_dict(self) -> Dict:
         """Convert result to dictionary for CSV export"""
+        # ONLY count as verified if status is VALID (ok/Accepted)
+        # NOT catch-all, timeout, mx error, rejected, or any other status
+        is_verified = self.status == EmailStatus.VALID
+        
         return {
             'email': self.email,
-            'email_verified': self.status == EmailStatus.VALID,
+            'email_verified': is_verified,
             'email_status': self.status.value,
             'email_score': self.score,
             'mx_valid': self.mx_valid,

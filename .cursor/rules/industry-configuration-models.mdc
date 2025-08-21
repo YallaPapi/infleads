@@ -1,59 +1,59 @@
 ---
-description: Documents industry-specific scoring models and personalization rules for B2B verticals
+description: Documents industry-specific lead scoring models and value proposition mapping for B2B sales automation
 ---
 
 
 # industry-configuration-models
 
-Industry Configuration Models
-Importance Score: 90/100
+Industry Configuration Registry (Importance: 95/100)
+src/industry_configs.py:
+- Vertical-specific scoring matrices and threshold values
+- Value proposition mapping per industry segment
+- Pain point detection patterns by business type
+- Email template personalization rules by vertical
 
-1. Vertical-Specific Scoring Models (src/industry_configs.py)
-- Manufacturing Vertical
-  - Equipment age assessment
-  - Production volume indicators
-  - Automation readiness score
-  - Supply chain complexity factor
+Mapped Industry Categories:
+1. Solar Companies
+- Roof size evaluation scoring (0-30 points)
+- Energy consumption pattern analysis
+- Local competitor density weighting
+- Installation complexity factors
 
-- Healthcare Vertical
-  - Patient volume metrics
-  - Legacy system indicators
-  - Compliance risk factors
-  - Digital maturity score
+2. Insurance Agencies
+- Risk profile scoring (0-25 points) 
+- Policy type specialization weights
+- Market saturation adjustments
+- Digital presence multipliers
 
-- Professional Services
-  - Client portfolio size
-  - Service complexity rating
-  - Technology adoption level
-  - Market positioning score
+3. HVAC Services
+- Building age coefficient matrix
+- Service area coverage scoring
+- Emergency response capability weight
+- Equipment specialization factors
 
-2. Personalization Rule Sets (src/apollo_smart_personalizer.py)
-- Industry-specific value propositions
-  - ROI calculation formulas by vertical
-  - Pain point mapping matrices
-  - Solution alignment scoring
-  - Competitor differentiation rules
+4. Payroll/HR Services
+- Employee count thresholds
+- Industry turnover rate adjustments
+- Compliance requirement scoring
+- Technology adoption factors
 
-3. Lead Quality Scoring Models (src/lead_scorer.py)
-- Manufacturing Lead Scoring
-  - Facility size weightings
-  - Equipment modernization needs
-  - Process efficiency indicators
-  - Growth trajectory factors
+Value Proposition Mapping:
+- Revenue tier personalization rules:
+  - <$1M: Cost savings focus
+  - $1M-$10M: Efficiency gains
+  - >$10M: Market leadership positioning
 
-- Healthcare Lead Scoring
-  - Practice size coefficients
-  - Technology gap analysis
-  - Regulatory compliance needs
-  - Patient volume growth rates
+Pain Point Detection:
+- Industry-specific keyword patterns
+- Service gap identification rules
+- Competitive weakness scoring
+- Digital maturity assessment
 
-- Technology Sector Scoring
-  - Stack compatibility rating
-  - Integration complexity score
-  - Scale readiness indicators
-  - Innovation adoption metrics
-
-The system implements dynamic scoring and personalization models that adapt based on industry vertical, company size, and technological maturity. Each vertical has unique qualification criteria, value proposition mappings, and personalization rules that determine lead quality and engagement strategy.
+Personalization Engine Rules:
+- Industry vertical templating
+- Company size adaptations
+- Geographic market adjustments
+- Competitor presence weighting
 
 $END$
 

@@ -63,7 +63,7 @@ class SearchHistoryManager:
             
             conn.commit()
     
-    def add_search(self, query: str, limit_leads: int = 25, verify_emails: bool = False,
+    def add_search(self, query: str, limit_leads: int = 25, verify_emails: bool = True,
                    generate_emails: bool = False, export_verified_only: bool = False,
                    advanced_scraping: bool = False, results_count: int = 0):
         """Add a search to history"""
@@ -123,7 +123,7 @@ class SearchHistoryManager:
             return [row[0] for row in cursor.fetchall()]
     
     def add_favorite(self, name: str, query: str, limit_leads: int = 25,
-                    verify_emails: bool = False, generate_emails: bool = False,
+                    verify_emails: bool = True, generate_emails: bool = False,
                     export_verified_only: bool = False, advanced_scraping: bool = False):
         """Add a favorite search"""
         with sqlite3.connect(self.db_path) as conn:

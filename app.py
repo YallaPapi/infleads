@@ -495,8 +495,6 @@ def process_leads(job):
             job.message = "Verifying email addresses..."
             
             try:
-                from concurrent.futures import ThreadPoolExecutor, as_completed
-                import threading
                 
                 verifier = MailTesterVerifier()
                 
@@ -510,78 +508,74 @@ def process_leads(job):
                         emails_to_verify.append((i, email))
                         email_lead_map[email] = i
                 
-                logger.info(f"Starting parallel verification of {len(emails_to_verify)} emails")
-                
-                # Thread-safe counters
-                completed_count = [0]  # Use list for mutable counter
-                lock = threading.Lock()
+                logger.info(f"Starting sequential verification of {len(emails_to_verify)} emails")
                 
                 def verify_single_email(email_data):
-                    """Verify a single email with thread safety"""
+                    """Verify a single email"""
                     idx, email = email_data
                     try:
                         result = verifier.verify_email(email)
-                        
-                        with lock:
-                            # Update counters safely
-                            job.emails_verified += 1
-                            if result.status == EmailStatus.VALID:
-                                job.valid_emails += 1
-                            
-                            # Update progress
-                            completed_count[0] += 1
-                            progress_pct = int((completed_count[0] / len(emails_to_verify)) * 10)
-                            job.progress = 35 + progress_pct
-                            job.message = f"Verified {completed_count[0]}/{len(emails_to_verify)} emails"
-                        
                         return (idx, email, result, None)
                     except Exception as e:
                         logger.warning(f"Email verification failed for {email}: {e}")
                         return (idx, email, None, str(e))
                 
-                # Use ThreadPoolExecutor for parallel processing
-                # Limit to 5 threads to respect API rate limits while gaining speed
-                max_workers = min(5, len(emails_to_verify))
+                # Process emails sequentially to avoid API token conflicts
+                # MailTester API doesn't handle concurrent authentication well
+                completed_count = 0
                 
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # Submit all verification tasks
-                    future_to_email = {
-                        executor.submit(verify_single_email, email_data): email_data 
-                        for email_data in emails_to_verify
-                    }
-                    
-                    # Process results as they complete
-                    for future in as_completed(future_to_email):
-                        if job.cancelled:
-                            executor.shutdown(wait=False)
-                            break
+                for idx, email in emails_to_verify:
+                    if job.cancelled:
+                        break
+                        
+                    try:
+                        # Add small delay between requests to prevent overwhelming API
+                        if completed_count > 0:
+                            time.sleep(0.1)  # 100ms delay between requests
+                        
+                        result = verify_single_email((idx, email))
+                        idx, email, result, error = result
+                        lead = normalized_leads[idx]
+                        
+                        # Update counters
+                        job.emails_verified += 1
+                        if result and result.status == EmailStatus.VALID:
+                            job.valid_emails += 1
+                        
+                        # Update progress
+                        completed_count += 1
+                        progress_pct = int((completed_count / len(emails_to_verify)) * 10)
+                        job.progress = 35 + progress_pct
+                        job.message = f"Verified {completed_count}/{len(emails_to_verify)} emails"
+                        
+                        if result:
+                            # Add verification data
+                            lead['email_verified'] = result.status == EmailStatus.VALID
+                            lead['email_status'] = result.status.value
+                            lead['email_score'] = result.score
                             
-                        try:
-                            idx, email, result, error = future.result()
-                            lead = normalized_leads[idx]
-                            
-                            if result:
-                                # Add verification data
-                                lead['email_verified'] = result.status == EmailStatus.VALID
-                                lead['email_status'] = result.status.value
-                                lead['email_score'] = result.score
-                                
-                                # Adjust scoring boost
-                                if result.status == EmailStatus.VALID:
-                                    lead['email_quality_boost'] = 20
-                                elif result.status == EmailStatus.CATCH_ALL:
-                                    lead['email_quality_boost'] = 10
-                                elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
-                                    lead['email_quality_boost'] = -50
-                                else:
-                                    lead['email_quality_boost'] = 0
+                            # Adjust scoring boost
+                            if result.status == EmailStatus.VALID:
+                                lead['email_quality_boost'] = 20
+                            elif result.status == EmailStatus.CATCH_ALL:
+                                lead['email_quality_boost'] = 10
+                            elif result.status in [EmailStatus.INVALID, EmailStatus.DISPOSABLE]:
+                                lead['email_quality_boost'] = -50
                             else:
-                                # Verification failed
-                                lead['email_verified'] = False
-                                lead['email_status'] = 'error'
                                 lead['email_quality_boost'] = 0
-                        except Exception as e:
-                            logger.error(f"Error processing verification result: {e}")
+                        else:
+                            # Verification failed
+                            lead['email_verified'] = False
+                            lead['email_status'] = 'error'
+                            lead['email_quality_boost'] = 0
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing verification for {email}: {e}")
+                        # Mark as failed verification
+                        lead = normalized_leads[idx]
+                        lead['email_verified'] = False
+                        lead['email_status'] = 'error'
+                        lead['email_quality_boost'] = 0
                 
                 # Set default values for leads without emails
                 for lead in normalized_leads:
@@ -768,9 +762,9 @@ def process_leads(job):
         
         # CRITICAL FIX: Standardize CSV column names for consistency
         column_mapping = {
-            # Email verification fields - standardize to PascalCase for CSV
+            # Email verification fields - keep email_verified lowercase to match template
             'email_status': 'Email_Status',
-            'email_verified': 'Email_Verified', 
+            # 'email_verified': 'Email_Verified',  # REMOVED - keep lowercase to match CSV template
             'email_score': 'Email_Score',
             'email_quality_boost': 'Email_Quality_Boost',
             'mx_valid': 'MX_Valid',
@@ -795,16 +789,23 @@ def process_leads(job):
         # Log DataFrame info
         logger.info(f"DataFrame shape: {df.shape}")
         logger.info(f"Standardized CSV columns: {list(df.columns)}")
-        # Normalize Email_Verified to TRUE/blank for CSV consumers
+        # Normalize email_verified to TRUE/blank for CSV consumers
         try:
-            if 'Email_Verified' in df.columns:
+            # Check for lowercase column name (no longer mapping to uppercase)
+            verified_col = None
+            if 'email_verified' in df.columns:
+                verified_col = 'email_verified'
+            elif 'Email_Verified' in df.columns:
+                verified_col = 'Email_Verified'
+            
+            if verified_col:
                 def _map_verified(v):
                     vs = str(v).strip().lower()
                     if v is True or vs in ('true', '1', 'yes'):
                         return 'TRUE'
                     return ''
-                df['Email_Verified'] = df['Email_Verified'].apply(_map_verified)
-                logger.info("Mapped Email_Verified to TRUE/blank for CSV output")
+                df[verified_col] = df[verified_col].apply(_map_verified)
+                logger.info(f"Mapped {verified_col} to TRUE/blank for CSV output")
         except Exception as e:
             logger.warning(f"Failed to map Email_Verified for CSV: {e}")
         if not df.empty:
@@ -1709,6 +1710,7 @@ def download_csv_template():
         'query': ['dentists in New York', 'lawyers in Los Angeles', 'restaurants in Chicago'],
         'limit_leads': [100, 50, 25],
         'verify_emails': [True, True, False],
+        'interval_hours': [24, 0, 168],
         'interval_minutes': [15, 30, 60]
     }
     df = pd.DataFrame(template_data)
@@ -1889,6 +1891,19 @@ def add_to_queue():
     )
     return jsonify({'id': queue_id, 'success': True})
 
+@app.route('/api/queue/<int:queue_id>', methods=['DELETE'])
+def delete_queue_item(queue_id):
+    """Delete a specific queue item"""
+    try:
+        success = scheduler.cancel_queue_item(queue_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Queue item deleted'})
+        else:
+            return jsonify({'success': False, 'error': 'Queue item not found or already started'}), 404
+    except Exception as e:
+        logger.error(f"Error deleting queue item {queue_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/history', methods=['GET'])
 def get_history():
     """Get search history"""
@@ -1912,7 +1927,7 @@ def bulk_upload_schedules():
         df = pd.read_csv(file)
         
         # Validate required columns
-        required_cols = ['name', 'query', 'limit_leads']
+        required_cols = ['Name', 'SearchKeyword']
         if not all(col in df.columns for col in required_cols):
             return jsonify({'error': f'CSV must contain columns: {", ".join(required_cols)}'}), 400
         
@@ -1927,8 +1942,18 @@ def bulk_upload_schedules():
         for idx, row in df.iterrows():
             try:
                 # Get values with defaults
-                name = str(row['name'])
-                query = str(row['query'])
+                name = str(row['Name'])
+                
+                # Build query from SearchKeyword + Location
+                search_keyword = str(row.get('SearchKeyword', '')).strip()
+                location = str(row.get('Location', '')).strip()
+                
+                if search_keyword and location:
+                    query = f"{search_keyword} in {location}"
+                elif search_keyword:
+                    query = search_keyword
+                else:
+                    raise ValueError("SearchKeyword is required")
                 
                 # Handle "max" as limit_leads value
                 limit_str = str(row.get('limit_leads', '25')).lower()

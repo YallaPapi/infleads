@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>R27 Infinite AI Leads Agent</title>
-    <!-- Cache buster: 1755714710_v2 -->
+    <!-- Cache buster: 1755740400_v3 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -801,7 +801,53 @@
                         <!-- Progress just below bulk upload -->
                         <div id="schedulerProgressMount"></div>
 
-                        <!-- Recent jobs just below progress -->
+                        <!-- Upcoming Scheduled Scrapes -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold"><i class="bi bi-calendar-event"></i> Upcoming Scheduled Scrapes</h6>
+                            <div id="upcomingQueueList" class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Query</th>
+                                            <th>Leads</th>
+                                            <th>Scheduled Time</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="upcomingQueueTableBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading upcoming scrapes...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Calendar View for Scheduled Scrapes -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold"><i class="bi bi-calendar-month"></i> Calendar View</h6>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary active" id="calendarWeekBtn" onclick="showCalendarView('week')">Week</button>
+                                    <button type="button" class="btn btn-outline-primary" id="calendarMonthBtn" onclick="showCalendarView('month')">Month</button>
+                                </div>
+                            </div>
+                            <div class="border rounded p-3 bg-light">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <button class="btn btn-sm btn-secondary" onclick="navigateCalendar(-1)">
+                                        <i class="bi bi-chevron-left"></i> Prev
+                                    </button>
+                                    <h6 class="mb-0" id="calendarTitle">Loading...</h6>
+                                    <button class="btn btn-sm btn-secondary" onclick="navigateCalendar(1)">
+                                        Next <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <div id="calendarContainer">
+                                    <div class="text-center text-muted">Loading calendar...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent jobs just below upcoming scrapes -->
                         <div class="mb-4">
                             <h6 class="fw-bold">Recent History</h6>
                             <div id="historyList" class="table-responsive">
@@ -1799,6 +1845,214 @@
             }
         }
 
+        async function loadUpcomingQueue() {
+            try {
+                const response = await fetch('/api/queue?status=pending');
+                const queue = await response.json();
+                
+                const tbody = document.getElementById('upcomingQueueTableBody');
+                if (queue.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No upcoming scrapes scheduled</td></tr>';
+                } else {
+                    tbody.innerHTML = queue.map(item => {
+                        // Format scheduled time in local timezone
+                        let scheduledTime = '';
+                        if (item.scheduled_time) {
+                            const date = new Date(item.scheduled_time);
+                            scheduledTime = date.toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: '2-digit', 
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        } else {
+                            scheduledTime = 'Immediate';
+                        }
+                        
+                        return `
+                            <tr>
+                                <td>${item.query}</td>
+                                <td>${item.limit_leads}</td>
+                                <td>${scheduledTime}</td>
+                                <td><span class="badge bg-${item.status === 'pending' ? 'warning' : item.status === 'running' ? 'primary' : 'success'}">${item.status}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="cancelQueueItem(${item.id})" title="Cancel this scheduled scrape">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading upcoming queue:', error);
+                document.getElementById('upcomingQueueTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading upcoming scrapes</td></tr>';
+            }
+        }
+
+        async function cancelQueueItem(queueId) {
+            if (!confirm('Are you sure you want to cancel this scheduled scrape?')) return;
+            
+            try {
+                const response = await fetch(`/api/queue/${queueId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadUpcomingQueue(); // Reload the list
+                    loadCalendarData(); // Refresh calendar
+                } else {
+                    alert('Failed to cancel the scheduled scrape');
+                }
+            } catch (error) {
+                console.error('Error canceling queue item:', error);
+                alert('Failed to cancel the scheduled scrape');
+            }
+        }
+
+        // Calendar functionality
+        let calendarData = [];
+        let currentCalendarDate = new Date();
+        let currentCalendarView = 'week';
+
+        async function showCalendarView(view) {
+            currentCalendarView = view;
+            
+            // Update button styles
+            document.getElementById('calendarWeekBtn').classList.toggle('active', view === 'week');
+            document.getElementById('calendarMonthBtn').classList.toggle('active', view === 'month');
+            
+            await renderCalendar();
+        }
+
+        async function navigateCalendar(direction) {
+            if (currentCalendarView === 'week') {
+                currentCalendarDate.setDate(currentCalendarDate.getDate() + (direction * 7));
+            } else {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+            }
+            await renderCalendar();
+        }
+
+        async function loadCalendarData() {
+            try {
+                const response = await fetch('/api/queue?status=pending');
+                const queue = await response.json();
+                calendarData = queue.filter(item => item.scheduled_time);
+                await renderCalendar();
+            } catch (error) {
+                console.error('Error loading calendar data:', error);
+            }
+        }
+
+        async function renderCalendar() {
+            const container = document.getElementById('calendarContainer');
+            const title = document.getElementById('calendarTitle');
+            
+            if (currentCalendarView === 'week') {
+                await renderWeekView(container, title);
+            } else {
+                await renderMonthView(container, title);
+            }
+        }
+
+        async function renderWeekView(container, title) {
+            const startOfWeek = new Date(currentCalendarDate);
+            startOfWeek.setDate(currentCalendarDate.getDate() - currentCalendarDate.getDay());
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            
+            title.textContent = `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            
+            let html = '<div class="row g-1">';
+            
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(startOfWeek);
+                day.setDate(startOfWeek.getDate() + i);
+                
+                const dayEvents = calendarData.filter(item => {
+                    const eventDate = new Date(item.scheduled_time);
+                    return eventDate.toDateString() === day.toDateString();
+                });
+                
+                const isToday = day.toDateString() === new Date().toDateString();
+                
+                html += `
+                    <div class="col">
+                        <div class="card ${isToday ? 'border-primary bg-primary bg-opacity-10' : ''}">
+                            <div class="card-body p-2">
+                                <h6 class="card-title text-center mb-2 ${isToday ? 'text-primary fw-bold' : ''}">${day.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</h6>
+                                ${dayEvents.map(event => `
+                                    <div class="badge bg-secondary text-wrap mb-1 d-block" style="font-size: 0.7em;">
+                                        <div class="fw-bold">${new Date(event.scheduled_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</div>
+                                        <div class="text-truncate" title="${event.query}">${event.query.length > 15 ? event.query.substring(0, 15) + '...' : event.query}</div>
+                                        <button class="btn btn-sm btn-danger p-0 ms-1" onclick="cancelQueueItem(${event.id})" style="width: 16px; height: 16px; font-size: 10px;">×</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function renderMonthView(container, title) {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            title.textContent = currentCalendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(firstDay.getDate() - firstDay.getDay());
+            
+            let html = '<div class="row g-1 mb-2"><div class="col text-center fw-bold">Sun</div><div class="col text-center fw-bold">Mon</div><div class="col text-center fw-bold">Tue</div><div class="col text-center fw-bold">Wed</div><div class="col text-center fw-bold">Thu</div><div class="col text-center fw-bold">Fri</div><div class="col text-center fw-bold">Sat</div></div>';
+            
+            for (let week = 0; week < 6; week++) {
+                html += '<div class="row g-1 mb-1">';
+                
+                for (let day = 0; day < 7; day++) {
+                    const currentDay = new Date(startDate);
+                    currentDay.setDate(startDate.getDate() + (week * 7) + day);
+                    
+                    const isCurrentMonth = currentDay.getMonth() === month;
+                    const isToday = currentDay.toDateString() === new Date().toDateString();
+                    
+                    const dayEvents = calendarData.filter(item => {
+                        const eventDate = new Date(item.scheduled_time);
+                        return eventDate.toDateString() === currentDay.toDateString();
+                    });
+                    
+                    html += `
+                        <div class="col">
+                            <div class="calendar-day ${isCurrentMonth ? (isToday ? 'bg-primary bg-opacity-10 border-primary' : 'border') : 'text-muted'}" style="min-height: 60px; font-size: 0.8em; padding: 2px;">
+                                <div class="fw-bold ${isToday ? 'text-primary' : ''}">${currentDay.getDate()}</div>
+                                ${dayEvents.slice(0, 2).map(event => `
+                                    <div class="badge bg-secondary text-truncate d-block mb-1" style="font-size: 0.6em; max-width: 100%;" title="${event.query} at ${new Date(event.scheduled_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}">
+                                        ${event.query.length > 8 ? event.query.substring(0, 8) + '...' : event.query}
+                                    </div>
+                                `).join('')}
+                                ${dayEvents.length > 2 ? `<div class="badge bg-info" style="font-size: 0.6em;">+${dayEvents.length - 2} more</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+                
+                // Break if we've shown all days of the month and we're past it
+                if (week === 4 && currentDay.getMonth() !== month) break;
+            }
+            
+            container.innerHTML = html;
+        }
+
         async function loadQueue() {
             try {
                 const response = await fetch('/api/queue');
@@ -2346,14 +2600,18 @@
         document.getElementById('scheduler-tab').addEventListener('shown.bs.tab', function() {
             loadSchedules();
             loadQueue();
+            loadUpcomingQueue();
             loadHistory();
+            loadCalendarData(); // Initialize calendar
         });
 
         // Refresh scheduler data every 30 seconds when tab is active
         setInterval(() => {
             if (document.getElementById('scheduler').classList.contains('active')) {
                 loadQueue();
+                loadUpcomingQueue();
                 loadHistory();
+                loadCalendarData(); // Refresh calendar data
             }
         }, 30000);
 

@@ -241,7 +241,7 @@ class LeadScheduler:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
-            DELETE FROM queue 
+            DELETE FROM search_queue 
             WHERE id = ? AND status = 'pending'
         ''', (queue_id,))
         conn.commit()
@@ -254,7 +254,7 @@ class LeadScheduler:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
-            DELETE FROM queue 
+            DELETE FROM search_queue 
             WHERE status = 'pending'
         ''')
         count = cursor.rowcount

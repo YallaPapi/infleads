@@ -334,7 +334,7 @@ def process_leads(job):
             # Always use auto provider (MultiProvider) for all requests
             provider = get_provider('auto')  # Uses free providers only
             logger.info(f"Using MultiProvider with free sources for request ({len(job.queries)} queries)")
-                logger.info(f"Using provider: {provider.__class__.__name__}")
+            logger.info(f"Using provider: {provider.__class__.__name__}")
             
             # Check API key availability
             # No API key check needed - all providers are free now
@@ -343,13 +343,29 @@ def process_leads(job):
             all_raw_leads = []
             seen_places = set()
             
+            # Extract location from original query if available
+            original_location = ""
+            if job.query and ' in ' in job.query:
+                original_location = job.query.split(' in ', 1)[1].strip()
+                logger.info(f"Extracted location '{original_location}' from original query: '{job.query}'")
+            
             for current_query in job.queries:
+                # Fix query format - ensure location is included
+                formatted_query = current_query
+                
+                # Check if query already has location
+                if ' in ' not in current_query and original_location:
+                    formatted_query = f"{current_query} in {original_location}"
+                    logger.info(f"Fixed query format: '{current_query}' -> '{formatted_query}'")
+                elif ' in ' not in current_query:
+                    logger.warning(f"Query '{current_query}' has no location and no original location available")
+                
                 # When using multiple queries, increase the limit per query to get more total results
                 # This helps overcome individual provider limitations
                 effective_limit = job.limit if len(job.queries) == 1 else min(job.limit * 2, 100)
-                logger.info(f"Fetching places for query: '{current_query}', limit: {effective_limit} (original: {job.limit})")
-                raw_leads_for_query = provider.fetch_places(current_query, effective_limit)
-                logger.info(f"Provider returned {len(raw_leads_for_query) if raw_leads_for_query else 0} leads for '{current_query}'")
+                logger.info(f"Fetching places for query: '{formatted_query}', limit: {effective_limit} (original: {job.limit})")
+                raw_leads_for_query = provider.fetch_places(formatted_query, effective_limit)
+                logger.info(f"Provider returned {len(raw_leads_for_query) if raw_leads_for_query else 0} leads for '{formatted_query}'")
                 
                 # Add leads from this query, deduplicating as we go
                 query_leads_added = 0
@@ -366,15 +382,15 @@ def process_leads(job):
                     if unique_identifier and unique_identifier not in seen_places:
                         seen_places.add(unique_identifier)
                         # Add the search query to each lead so we know what search found it
-                        # Parse out the keyword and location from the query
+                        # Parse out the keyword and location from the formatted query
                         # Typical format: "keyword in location" or "keyword location"
-                        query_parts = current_query.split(' in ')
+                        query_parts = formatted_query.split(' in ')
                         if len(query_parts) == 2:
                             search_keyword = query_parts[0].strip()
                             location = query_parts[1].strip()
                         else:
                             # Fallback: assume last 2-3 words are location
-                            words = current_query.split()
+                            words = formatted_query.split()
                             if len(words) >= 3:
                                 # Common patterns: "lawyers las vegas", "coffee shops austin"
                                 # Check if last words look like a location
@@ -385,16 +401,16 @@ def process_leads(job):
                                 search_keyword = words[0]
                                 location = words[1]
                             else:
-                                search_keyword = current_query
+                                search_keyword = formatted_query
                                 location = ''
                         
                         lead['search_keyword'] = search_keyword
                         lead['search_location'] = location
-                        lead['full_query'] = current_query
+                        lead['full_query'] = formatted_query
                         all_raw_leads.append(lead)
                         query_leads_added += 1
                 
-                logger.info(f"Added {query_leads_added} unique leads from query '{current_query}' (after deduplication)")
+                logger.info(f"Added {query_leads_added} unique leads from query '{formatted_query}' (after deduplication)")
 
             raw_leads = all_raw_leads
             logger.info(f"Total unique leads from all {len(job.queries)} queries: {len(raw_leads)}")
@@ -1053,6 +1069,8 @@ def generate_leads():
     logger.info(f"DEBUG: Request data: {data}")
     logger.info(f"DEBUG: generate_emails from request: {generate_emails}")
     logger.info(f"DEBUG: advanced_scraping from request: {advanced_scraping}")
+    logger.info(f"DEBUG: Received queries: {queries}")
+    logger.info(f"DEBUG: Single query: {query}")
     
     if not query:
         return jsonify({'error': 'Query is required'}), 400
@@ -1118,112 +1136,94 @@ def handle_multi_provider_generate(data):
         return jsonify({'error': str(e)}), 500
 
 def process_multi_provider_leads(job, providers):
-    """Process leads using multiple providers"""
+    """Process leads using unified MultiProvider approach"""
     try:
+        logger.info(f"Starting multi-provider processing for job {job.job_id} with {len(job.queries)} queries")
+        
         job.status = "fetching"
         job.progress = 10
-        job.message = f"Searching across {len(providers)} data sources..."
+        job.message = f"Using unified provider system with {len(providers)} sources..."
         
-        all_results = []
+        # Use the unified MultiProvider which handles all the logic correctly
+        provider = get_provider('auto')  # Gets MultiProvider
+        logger.info(f"Using {provider.__class__.__name__} for multi-provider search")
         
-        for query in job.queries:
-            logger.info(f"Searching '{query}' across providers: {providers}")
+        all_raw_leads = []
+        seen_places = set()
+        
+        # Extract location from original query if available
+        original_location = ""
+        if job.query and ' in ' in job.query:
+            original_location = job.query.split(' in ', 1)[1].strip()
+            logger.info(f"Extracted location '{original_location}' from original query: '{job.query}'")
+        
+        for current_query in job.queries:
+            # Fix query format - ensure location is included
+            formatted_query = current_query
             
-            # Parse query to extract business type and location
-            if ' in ' in query:
-                business_type, location = query.split(' in ', 1)
-            else:
-                business_type = query
-                location = None
+            # Check if query already has location
+            if ' in ' not in current_query and original_location:
+                formatted_query = f"{current_query} in {original_location}"
+                logger.info(f"Fixed query format: '{current_query}' -> '{formatted_query}'")
+            elif ' in ' not in current_query:
+                logger.warning(f"Query '{current_query}' has no location and no original location available")
             
-            # Google Maps removed - using OpenStreetMap as primary provider
+            # When using multiple queries, increase the limit per query to get more total results
+            effective_limit = job.limit if len(job.queries) == 1 else min(job.limit * 2, 100)
+            logger.info(f"Fetching places for query: '{formatted_query}', limit: {effective_limit} (original: {job.limit})")
             
-            # OpenStreetMap
-            if 'openstreetmap' in providers:
-                try:
-                    job.message = "Searching OpenStreetMap..."
-                    osm_provider = OpenStreetMapProvider()
-                    osm_results = osm_provider.search_businesses(business_type, location, limit=job.limit)
-                    logger.info(f"OpenStreetMap found {len(osm_results)} results")
+            raw_leads_for_query = provider.fetch_places(formatted_query, effective_limit)
+            logger.info(f"Provider returned {len(raw_leads_for_query) if raw_leads_for_query else 0} leads for '{formatted_query}'")
+            
+            # Add leads from this query, deduplicating as we go
+            query_leads_added = 0
+            for lead in raw_leads_for_query or []:
+                place_id = lead.get('place_id')
+                unique_identifier = None
+                
+                if place_id:
+                    unique_identifier = place_id
+                elif lead.get('name') and lead.get('address'):
+                    # Fallback deduplication for providers without place_id
+                    unique_identifier = (lead['name'], lead['address'])
+                
+                if unique_identifier and unique_identifier not in seen_places:
+                    seen_places.add(unique_identifier)
+                    all_raw_leads.append(lead)
+                    query_leads_added += 1
                     
-                    for result in osm_results:
-                        normalized = {
-                            'Name': result.get('name', ''),
-                            'Address': result.get('address', ''),
-                            'Phone': result.get('phone', 'Not available'),
-                            'Website': result.get('website', 'Not available'),
-                            'SearchKeyword': business_type,
-                            'Location': location or 'No location specified',
-                            'data_source': 'OpenStreetMap'
-                        }
-                        all_results.append(normalized)
-                except Exception as e:
-                    logger.error(f"OpenStreetMap provider error: {e}")
+                    # Stop if we've reached the total limit
+                    if len(all_raw_leads) >= job.limit:
+                        break
             
-            # Yellow Pages
-            if 'yellowpages' in providers:
-                try:
-                    job.message = "Searching Yellow Pages..."
-                    yp_provider = YellowPagesAPIProvider()
-                    yp_results = yp_provider.search_businesses(business_type, location, limit=job.limit)
-                    logger.info(f"Yellow Pages found {len(yp_results)} results")
-                    
-                    for result in yp_results:
-                        normalized = {
-                            'Name': result.get('name', ''),
-                            'Address': result.get('address', ''),
-                            'Phone': result.get('phone', 'Not available'),
-                            'Website': result.get('website', 'Not available'),
-                            'SearchKeyword': business_type,
-                            'Location': location or 'No location specified',
-                            'data_source': 'Yellow Pages'
-                        }
-                        all_results.append(normalized)
-                except Exception as e:
-                    logger.error(f"Yellow Pages provider error: {e}")
+            logger.info(f"Added {query_leads_added} unique leads from query '{formatted_query}' (total: {len(all_raw_leads)})")
+            
+            # Stop if we've reached the total limit
+            if len(all_raw_leads) >= job.limit:
+                break
         
         job.progress = 50
-        job.message = f"Found {len(all_results)} leads from {len(providers)} sources..."
+        job.message = f"Found {len(all_raw_leads)} leads, normalizing data..."
         
-        # Deduplicate results
-        seen = set()
-        unique_results = []
-        for result in all_results:
-            name = result.get('Name', '').lower().strip()
-            address = result.get('Address', '').lower().strip()
-            key = (name, address[:50] if address else '')
-            
-            if key not in seen and name and name not in ['unknown business', '']:
-                seen.add(key)
-                unique_results.append(result)
+        # Normalize the data using the standard normalizer
+        normalizer = DataNormalizer()
+        normalized_leads = normalizer.normalize(all_raw_leads)
         
-        job.progress = 70
-        job.message = f"Deduplicated to {len(unique_results)} unique leads..."
-        
-        # Save results to CSV
         job.progress = 90
-        job.message = "Preparing CSV file..."
+        job.message = "Preparing results..."
         
-        if unique_results:
-            df = pd.DataFrame(unique_results)
-            timestamp = int(time.time())
-            filename = f'leads_multi_provider_{timestamp}.csv'
-            filepath = os.path.join('output', filename)
-            
-            os.makedirs('output', exist_ok=True)
-            df.to_csv(filepath, index=False)
-            
-            job.result_file = filepath
-            job.leads_data = unique_results
-            job.total_leads = len(unique_results)
+        # Save results
+        if normalized_leads:
+            job.leads_data = normalized_leads
+            job.total_leads = len(normalized_leads)
             job.status = "completed"
             job.progress = 100
-            job.message = f"✅ Found {len(unique_results)} unique leads from {len(providers)} providers!"
+            job.message = f"Found {len(normalized_leads)} unique leads from unified provider system!"
             
             # Persist completed multi-provider job
             save_completed_job(job)
             
-            logger.info(f"Multi-provider search completed: {len(unique_results)} leads saved to {filename}")
+            logger.info(f"Multi-provider search completed: {len(normalized_leads)} leads found")
         else:
             job.status = "completed"
             job.progress = 100
@@ -2570,8 +2570,8 @@ if __name__ == '__main__':
     print("\n" + "="*50)
     print("UPDATED - R27 Infinite AI Leads Agent - SCORING REMOVED")
     print("="*50)
-    print("\nStarting server at: http://localhost:5000")
+    print("\nStarting server at: http://localhost:5001")
     print("\nPress Ctrl+C to stop")
     print("="*50 + "\n")
     
-    app.run(debug=False, port=5000)
+    app.run(debug=False, port=5001)

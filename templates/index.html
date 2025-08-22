@@ -1265,6 +1265,12 @@
                 // Update the main query with selected keywords (just show count)
                 const queryInput = document.getElementById('query');
                 const originalQuery = queryInput.value;
+                
+                // Store the original query to preserve location information
+                if (!queryInput.getAttribute('data-original-query')) {
+                    queryInput.setAttribute('data-original-query', originalQuery);
+                }
+                
                 queryInput.value = `${selectedKeywords.size} search terms selected (${Array.from(selectedKeywords).slice(0, 2).join(', ')}${selectedKeywords.size > 2 ? '...' : ''})`;
                 queryInput.title = Array.from(selectedKeywords).join(', ');
             }
@@ -1394,7 +1400,17 @@
             // Handle multiple keywords if expanded
             let searchQueries = [];
             if (selectedKeywords.size > 0) {
-                searchQueries = Array.from(selectedKeywords);
+                // Extract location from original query
+                const originalQuery = document.getElementById('query').getAttribute('data-original-query') || document.getElementById('query').value;
+                const locationMatch = originalQuery.match(/\s+in\s+(.+)$/i);
+                const location = locationMatch ? locationMatch[1] : '';
+                
+                // Combine each keyword with the location
+                searchQueries = Array.from(selectedKeywords).map(keyword => {
+                    return location ? `${keyword} in ${location}` : keyword;
+                });
+                
+                console.log('Multiple keywords with location:', searchQueries);
             } else {
                 searchQueries = [document.getElementById('query').value];
             }

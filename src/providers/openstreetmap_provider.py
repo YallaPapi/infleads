@@ -25,7 +25,8 @@ class OpenStreetMapProvider(BaseProvider):
         self.session.headers.update({
             'User-Agent': 'R27LeadsAgent/1.0 (Business Directory)'
         })
-        self.rate_limit_delay = 1.0  # 1 second between requests to be respectful
+        self.rate_limit_delay = 2.5  # Increase delay to avoid 429 rate limiting errors
+        self.last_request_time = 0
     
     def fetch_places(self, query: str, limit: int = 25) -> List[Dict]:
         """
@@ -38,6 +39,9 @@ class OpenStreetMapProvider(BaseProvider):
         Returns:
             List of normalized business dictionaries
         """
+        logger.info(f"OpenStreetMapProvider.fetch_places: query='{query}', limit={limit}")
+        print(f"OSM DEBUG: Processing query='{query}'")
+        
         # Parse location from query if present
         location = None
         if ' in ' in query:
@@ -45,9 +49,11 @@ class OpenStreetMapProvider(BaseProvider):
             business_type = parts[0].strip()
             location = parts[1].strip()
             clean_query = business_type
+            logger.debug(f"Parsed combined query: keyword='{business_type}', location='{location}'")
         else:
             clean_query = query
             location = "unknown"
+            logger.debug(f"No location separator found, using query as keyword: '{clean_query}'")
             
         results = self.search_businesses(clean_query, location, limit)
         
@@ -56,7 +62,8 @@ class OpenStreetMapProvider(BaseProvider):
             result['search_keyword'] = clean_query
             result['search_location'] = location if location else "unknown"
             result['full_query'] = query
-            
+        
+        logger.info(f"OpenStreetMapProvider returning {len(results)} results")
         return results
         
     def search_businesses(self, query: str, location: str = None, limit: int = 50) -> List[Dict]:
@@ -144,7 +151,7 @@ class OpenStreetMapProvider(BaseProvider):
             'bars': 'amenity~"bar"',
             'pub': 'amenity~"pub"',
             'fast food': 'amenity~"fast_food"',
-            'pizza': 'amenity~"restaurant" and cuisine~"pizza"',
+            'pizza': 'amenity~"restaurant"',  # Remove 'and' syntax which causes parse errors
             
             # Professional Services
             'lawyer': 'office~"lawyer"',
@@ -153,7 +160,7 @@ class OpenStreetMapProvider(BaseProvider):
             'law firm': 'office~"lawyer"',
             'dentist': 'amenity~"dentist"',
             'doctor': 'amenity~"doctors"',
-            'medical': 'amenity~"clinic|doctors|hospital"',
+            'medical': 'amenity~"clinic"',  # Simplify to avoid regex issues
             'accountant': 'office~"accountant"',
             'real estate': 'office~"estate_agent"',
             'insurance': 'office~"insurance"',
@@ -161,7 +168,7 @@ class OpenStreetMapProvider(BaseProvider):
             # Retail
             'shop': 'shop',
             'store': 'shop',
-            'grocery': 'shop~"supermarket|convenience"',
+            'grocery': 'shop~"supermarket"',  # Simplify regex pattern
             'pharmacy': 'amenity~"pharmacy"',
             'gas station': 'amenity~"fuel"',
             'bank': 'amenity~"bank"',
@@ -171,8 +178,8 @@ class OpenStreetMapProvider(BaseProvider):
             'hotel': 'tourism~"hotel"',
             'gym': 'leisure~"fitness_centre"',
             'fitness': 'leisure~"fitness_centre"',
-            'salon': 'shop~"hairdresser|beauty"',
-            'beauty': 'shop~"beauty|cosmetics"',
+            'salon': 'shop~"hairdresser"',  # Simplify regex pattern
+            'beauty': 'shop~"beauty"',  # Simplify regex pattern
             'auto repair': 'shop~"car_repair"',
             'mechanic': 'shop~"car_repair"',
             
@@ -274,8 +281,18 @@ class OpenStreetMapProvider(BaseProvider):
         return query.strip()
     
     def _execute_overpass_query(self, query: str) -> Optional[Dict]:
-        """Execute Overpass API query"""
+        """Execute Overpass API query with rate limiting"""
         try:
+            # Implement rate limiting to avoid 429 errors
+            current_time = time.time()
+            time_since_last = current_time - self.last_request_time
+            if time_since_last < self.rate_limit_delay:
+                sleep_time = self.rate_limit_delay - time_since_last
+                logger.debug(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+            
+            self.last_request_time = time.time()
+            
             response = self.session.post(
                 self.base_url,
                 data=query,
@@ -285,6 +302,10 @@ class OpenStreetMapProvider(BaseProvider):
             
             if response.status_code == 200:
                 return response.json()
+            elif response.status_code == 429:
+                logger.warning("Rate limited by Overpass API (429), backing off")
+                time.sleep(5)  # Back off for 5 seconds on rate limit
+                return None
             else:
                 logger.error(f"Overpass API error: {response.status_code} - {response.text}")
                 return None

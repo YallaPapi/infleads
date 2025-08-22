@@ -31,6 +31,7 @@ class HybridGoogleScraper:
     
     def fetch_places(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
         """Fetch places using hybrid approach"""
+        logger.info(f"HybridGoogleScraper.fetch_places: query='{query}', limit={limit}")
         
         results = []
         
@@ -49,6 +50,13 @@ class HybridGoogleScraper:
             # Final fallback: Google search for businesses
             results = self._scrape_google_search(query, limit)
         
+        # Ensure all results have proper metadata
+        for result in results:
+            result.setdefault('search_keyword', self._extract_keyword_from_query(query))
+            result.setdefault('search_location', self._extract_location_from_query(query))
+            result.setdefault('full_query', query)
+        
+        logger.info(f"HybridGoogleScraper returning {len(results)} results")
         return results[:limit]
     
     def _get_location_coordinates(self, query: str) -> Dict[str, float]:
@@ -138,7 +146,8 @@ class HybridGoogleScraper:
                         try:
                             # Parse and extract business data
                             pass  # Complex parsing would go here
-                        except:
+                        except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
+                            logger.debug(f"Error parsing Google Maps APP_OPTIONS data: {e}")
                             pass
                 
         except Exception as e:
@@ -263,3 +272,21 @@ class HybridGoogleScraper:
         
         logger.info(f"Using sample data (scrapers failed)")
         return sample_data
+    
+    def _extract_keyword_from_query(self, query: str) -> str:
+        """Extract business type/keyword from query"""
+        if ' in ' in query:
+            return query.split(' in ')[0].strip()
+        elif ' near ' in query:
+            return query.split(' near ')[0].strip()
+        else:
+            return query.strip()
+    
+    def _extract_location_from_query(self, query: str) -> str:
+        """Extract location from query"""
+        if ' in ' in query:
+            return query.split(' in ')[1].strip()
+        elif ' near ' in query:
+            return query.split(' near ')[1].strip()
+        else:
+            return 'unknown'

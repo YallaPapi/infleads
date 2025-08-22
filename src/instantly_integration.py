@@ -6,9 +6,13 @@ Handles email campaign creation, lead import, and sequence management
 import requests
 import json
 import time
+import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,15 +85,11 @@ class InstantlyIntegration:
         """Make API request to Instantly V2"""
         url = f"{self.base_url}/{endpoint}"
         
-        # LOG EVERYTHING
-        print(f"\n{'='*60}")
-        print(f"INSTANTLY API CALL:")
-        print(f"Method: {method}")
-        print(f"URL: {url}")
-        print(f"Headers: {self.headers}")
+        # Log API request details
+        logger.debug(f"Instantly API Call - Method: {method}, URL: {url}")
+        logger.debug(f"Request headers: {self.headers}")
         if data:
-            print(f"Data: {json.dumps(data, indent=2)[:1000]}")
-        print(f"{'='*60}\n")
+            logger.debug(f"Request data: {json.dumps(data, indent=2)[:1000]}")
         
         try:
             if method.upper() == "GET":
@@ -103,9 +103,9 @@ class InstantlyIntegration:
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
             
-            print(f"RESPONSE Status: {response.status_code}")
-            print(f"RESPONSE Headers: {dict(response.headers)}")
-            print(f"RESPONSE Body: {response.text[:500]}")
+            logger.debug(f"Response status: {response.status_code}")
+            logger.debug(f"Response headers: {dict(response.headers)}")
+            logger.debug(f"Response body: {response.text[:500]}")
             
             response.raise_for_status()
             
@@ -116,12 +116,10 @@ class InstantlyIntegration:
             return response.json()
             
         except requests.exceptions.RequestException as e:
-            print(f"\n!!!!! INSTANTLY API ERROR !!!!!")
-            print(f"Error: {e}")
+            logger.error(f"Instantly API error: {e}")
             if hasattr(e, 'response') and e.response is not None:
-                print(f"Response Status: {e.response.status_code}")
-                print(f"Response Body: {e.response.text}")
-            print(f"!!!!! END ERROR !!!!!\n")
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response body: {e.response.text}")
             raise
             
     def get_accounts(self) -> List[Dict]:
@@ -140,7 +138,7 @@ class InstantlyIntegration:
             elif 'campaigns' in result:
                 return result['campaigns']
             # If dict but no known field, return empty
-            print(f"DEBUG: Unexpected campaigns response structure: {list(result.keys())}")
+            logger.warning(f"Unexpected campaigns response structure: {list(result.keys())}")
             return []
         return result if isinstance(result, list) else []
         
@@ -205,15 +203,15 @@ class InstantlyIntegration:
             
             # CRITICAL: Ensure email field exists (required by API)
             if 'email' not in lead_data or not lead_data.get('email'):
-                print(f"WARNING: Skipping lead without email: {lead_data.get('first_name', 'Unknown')}")
+                logger.warning(f"Skipping lead without email: {lead_data.get('first_name', 'Unknown')}")
                 continue
             # Normalize and deduplicate email
             lead_data['email'] = str(lead_data['email']).strip().lower()
             if not lead_data['email']:
-                print(f"WARNING: Skipping lead with empty email after normalization")
+                logger.warning("Skipping lead with empty email after normalization")
                 continue
             if lead_data['email'] in seen_emails:
-                print(f"INFO: Skipping duplicate email in batch: {lead_data['email']}")
+                logger.info(f"Skipping duplicate email in batch: {lead_data['email']}")
                 continue
             seen_emails.add(lead_data['email'])
                 
@@ -249,18 +247,15 @@ class InstantlyIntegration:
             instantly_leads.append(lead_data)
         
         if not instantly_leads:
-            print("WARNING: No leads with valid emails to send to Instantly")
+            logger.warning("No leads with valid emails to send to Instantly")
             return {"success": False, "message": "No valid email addresses found"}
         
-        print(f"DEBUG: Sending {len(instantly_leads)} leads to campaign {campaign_id}")
+        logger.info(f"Sending {len(instantly_leads)} leads to campaign {campaign_id}")
         if instantly_leads:
-            print(f"DEBUG: First lead data: {instantly_leads[0]}")
+            logger.debug(f"First lead data: {instantly_leads[0]}")
         
         # Send to Instantly with campaign assignment
-        print(f"\n{'*'*60}")
-        print(f"ADDING {len(instantly_leads)} LEADS TO INSTANTLY CAMPAIGN")
-        print(f"Campaign ID: {campaign_id}")
-        print(f"{'*'*60}\n")
+        logger.info(f"Adding {len(instantly_leads)} leads to Instantly campaign {campaign_id}")
         
         results = []
         failed = []
@@ -271,10 +266,7 @@ class InstantlyIntegration:
         base_delay = 0.5  # 500ms between requests
         
         for i, lead_data in enumerate(instantly_leads, 1):
-            print(f"\n--- Lead {i}/{len(instantly_leads)} ---")
-            print(f"Email: {lead_data.get('email')}")
-            print(f"Name: {lead_data.get('first_name')} {lead_data.get('last_name')}")
-            print(f"Campaign ID: {lead_data.get('campaign')}")
+            logger.debug(f"Processing lead {i}/{len(instantly_leads)}: {lead_data.get('email')} ({lead_data.get('first_name')} {lead_data.get('last_name')})")
             
             # Retry logic for rate limiting
             for retry in range(max_retries):
@@ -284,15 +276,13 @@ class InstantlyIntegration:
                     
                     if isinstance(result, dict) and 'id' in result:
                         results.append(result)
-                        print(f"[SUCCESS] Lead added to campaign")
-                        print(f"Lead ID: {result.get('id')}")
+                        logger.info(f"Lead added to campaign successfully - ID: {result.get('id')}")
                         
                         # Check if campaign was assigned
                         if 'campaign_id' in result or 'campaign' in result:
-                            print(f"Campaign confirmed: {result.get('campaign_id') or result.get('campaign')}")
+                            logger.debug(f"Campaign confirmed: {result.get('campaign_id') or result.get('campaign')}")
                     else:
-                        print(f"[WARNING] Unexpected response format")
-                        print(f"Response: {json.dumps(result, indent=2)[:200]}")
+                        logger.warning(f"Unexpected response format: {json.dumps(result, indent=2)[:200]}")
                     
                     # Success - break retry loop
                     break
@@ -300,29 +290,29 @@ class InstantlyIntegration:
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 429:  # Rate limit
                         retry_after = int(e.response.headers.get('Retry-After', 5))
-                        print(f"[RATE LIMIT] Waiting {retry_after} seconds...")
+                        logger.warning(f"Rate limit hit, waiting {retry_after} seconds...")
                         time.sleep(retry_after)
                         continue
                     elif e.response.status_code in (400, 409):
                         # Likely validation error or duplicate; treat duplicates as skipped
                         body = e.response.text[:200]
                         if 'duplicate' in body.lower() or 'already exists' in body.lower():
-                            print(f"[SKIP] Duplicate lead: {lead_data.get('email')}")
+                            logger.info(f"Skipping duplicate lead: {lead_data.get('email')}")
                             skipped_duplicates.append(lead_data.get('email'))
                             break
                         else:
-                            print(f"[HTTP ERROR] {e.response.status_code}: {body}")
+                            logger.error(f"HTTP error {e.response.status_code}: {body}")
                             failed.append(lead_data.get('email'))
                             break
                     else:
-                        print(f"[HTTP ERROR] {e.response.status_code}: {e.response.text[:200]}")
+                        logger.error(f"HTTP error {e.response.status_code}: {e.response.text[:200]}")
                         failed.append(lead_data.get('email'))
                         break
                         
                 except Exception as e:
-                    print(f"[ERROR] Attempt {retry + 1}/{max_retries} failed: {str(e)}")
+                    logger.error(f"Attempt {retry + 1}/{max_retries} failed: {str(e)}")
                     if retry == max_retries - 1:
-                        print(f"[FAILED] Could not add lead after {max_retries} attempts")
+                        logger.error(f"Could not add lead after {max_retries} attempts")
                         failed.append(lead_data.get('email'))
                     else:
                         time.sleep(base_delay * (2 ** retry))  # Exponential backoff
@@ -331,16 +321,9 @@ class InstantlyIntegration:
             if i < len(instantly_leads):
                 time.sleep(base_delay)
         
-        print(f"\n{'='*60}")
-        print(f"FINAL RESULTS:")
-        print(f"Total leads processed: {len(instantly_leads)}")
-        print(f"Successfully added: {len(results)}")
-        print(f"Failed: {len(failed)}")
-        if skipped_duplicates:
-            print(f"Skipped (duplicates): {len(skipped_duplicates)}")
+        logger.info(f"Lead import results: {len(results)} added, {len(failed)} failed, {len(skipped_duplicates)} duplicates out of {len(instantly_leads)} total")
         if failed:
-            print(f"Failed emails: {failed}")
-        print(f"{'='*60}\n")
+            logger.warning(f"Failed emails: {failed}")
         
         if results or skipped_duplicates:
             return {"success": True, "added": len(results), "failed": len(failed), "skipped_duplicates": len(skipped_duplicates)}
@@ -359,10 +342,7 @@ class InstantlyIntegration:
         bulk upload endpoint. Each lead must be added individually.
         """
         
-        print(f"\n{'='*60}")
-        print("NOTICE: Bulk import not supported in Instantly API v2")
-        print("Redirecting to individual lead creation with rate limiting...")
-        print(f"{'='*60}\n")
+        logger.info("Bulk import not supported in Instantly API v2, using individual lead creation with rate limiting")
         
         # Redirect to the working method
         if campaign_id:

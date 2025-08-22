@@ -213,21 +213,24 @@ class SeleniumGoogleMapsScraper:
                     try:
                         address_elements = element.find_elements(By.CSS_SELECTOR, "span")
                         address = " ".join([span.text for span in address_elements if "·" not in span.text][:2])
-                    except:
+                    except (AttributeError, IndexError, TypeError) as e:
+                        logger.debug(f"Error extracting address from Selenium element: {e}")
                         address = ""
                     
                     # Try to get rating
                     try:
                         rating_element = element.find_element(By.CSS_SELECTOR, "span[role='img']")
                         rating = float(rating_element.get_attribute("aria-label").split()[0])
-                    except:
+                    except (AttributeError, ValueError, IndexError) as e:
+                        logger.debug(f"Error extracting rating from Selenium element: {e}")
                         rating = 0
                     
                     # Try to get review count
                     try:
                         review_text = element.find_element(By.CSS_SELECTOR, "span[aria-label*='reviews']").text
                         reviews = int(re.findall(r'\d+', review_text.replace(',', ''))[0])
-                    except:
+                    except (AttributeError, ValueError, IndexError, TypeError) as e:
+                        logger.debug(f"Error extracting review count from Selenium element: {e}")
                         reviews = 0
                     
                     results.append({

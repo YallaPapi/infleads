@@ -25,6 +25,13 @@ class BaseProvider(ABC):
     
     def normalize_field(self, value: Any, default: str = 'NA') -> str:
         """Helper method to normalize field values"""
-        if value is None or value == '' or (isinstance(value, float) and pd.isna(value)):
+        if value is None or value == '':
             return default
+        # Handle float NaN values if pandas is available
+        try:
+            import pandas as pd
+            if isinstance(value, float) and pd.isna(value):
+                return default
+        except ImportError:
+            pass
         return str(value)

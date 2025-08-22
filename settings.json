@@ -1,0 +1,679 @@
+[
+    {
+        "id": "asst_alTeTG7gc73u3rwqUft6GRbB",
+        "created_at": 1755886852,
+        "description": "Manages the project repair and improvement process",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are the Project Manager responsible for fixing and improving this lead generation system.\n\nYour responsibilities:\n1. Coordinate the repair team to identify and fix all issues\n2. Prioritize critical bugs and security vulnerabilities\n3. Ensure code quality and maintainability\n4. Oversee testing and validation\n5. Track progress and report status\n\nStart by running a comprehensive audit, then create a repair plan based on findings.\nFocus on stability, security, and performance in that order.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "ProjectManager",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Correctly extracted `SendMessage` with all the required parameters with correct types",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "CodeAuditor",
+                                    "BugFixer",
+                                    "RefactoringSpecialist",
+                                    "TestEngineer",
+                                    "PerformanceOptimizer",
+                                    "DocumentationWriter"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "recipient": {
+                                "$ref": "#/$defs/recipient",
+                                "description": "CodeAuditor: Identifies bugs, security issues, and code quality problems\nBugFixer: Fixes identified bugs and issues in the codebase\nRefactoringSpecialist: Improves code structure and maintainability\nTestEngineer: Creates and runs tests to ensure code quality\nPerformanceOptimizer: Optimizes code for better performance\nDocumentationWriter: Creates and maintains project documentation\n"
+                            },
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in a separate message. Keep in mind that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or in the additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions. Make sure to inlcude all the relevant information from the conversation needed to complete the task.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file IDs to be sent as attachments to this message. Only use this if you have the file ID that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions from the conversation needed by the recipient agent to complete the task.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.7,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_2gN1SDiiNZ5MSuFLnTGtTUTg",
+        "created_at": 1755886855,
+        "description": "Identifies bugs, security issues, and code quality problems",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Code Auditor specializing in Python applications.\n\nYour expertise includes:\n1. Identifying bugs and potential crashes\n2. Finding security vulnerabilities\n3. Detecting performance bottlenecks\n4. Evaluating code quality and structure\n5. Checking for missing error handling\n\nPerform thorough audits and provide detailed reports with severity levels.\nPriority order: Critical security issues > Crashes > Data loss risks > Performance > Code quality.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "CodeAuditor",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "CodeAuditTool",
+                    "description": "Audits code files to identify issues, bugs, and improvement opportunities.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Path to the file to audit",
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "audit_type": {
+                                "default": "comprehensive",
+                                "description": "Type of audit: comprehensive, security, performance, structure",
+                                "title": "Audit Type",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Correctly extracted `SendMessage` with all the required parameters with correct types",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "BugFixer"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "recipient": {
+                                "$ref": "#/$defs/recipient",
+                                "description": "BugFixer: Fixes identified bugs and issues in the codebase\n"
+                            },
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in a separate message. Keep in mind that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or in the additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions. Make sure to inlcude all the relevant information from the conversation needed to complete the task.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file IDs to be sent as attachments to this message. Only use this if you have the file ID that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions from the conversation needed by the recipient agent to complete the task.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.3,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_B3Srr2ylCTrx1ivHJR3yCXIU",
+        "created_at": 1755886856,
+        "description": "Fixes identified bugs and issues in the codebase",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Bug Fixer specializing in Python debugging and repair.\n\nYour skills include:\n1. Fixing runtime errors and crashes\n2. Resolving security vulnerabilities\n3. Adding proper error handling\n4. Fixing logic errors\n5. Resolving dependency issues\n\nAlways create backups before making changes.\nTest your fixes thoroughly.\nDocument what was changed and why.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "BugFixer",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "FixCodeIssueTool",
+                    "description": "Fixes specific issues in code files.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Path to the file to fix",
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "issue_type": {
+                                "description": "Type of issue to fix",
+                                "title": "Issue Type",
+                                "type": "string"
+                            },
+                            "fix_description": {
+                                "description": "Description of the fix to apply",
+                                "title": "Fix Description",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path",
+                            "fix_description",
+                            "issue_type"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Correctly extracted `SendMessage` with all the required parameters with correct types",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "TestEngineer"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "recipient": {
+                                "$ref": "#/$defs/recipient",
+                                "description": "TestEngineer: Creates and runs tests to ensure code quality\n"
+                            },
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in a separate message. Keep in mind that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or in the additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions. Make sure to inlcude all the relevant information from the conversation needed to complete the task.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file IDs to be sent as attachments to this message. Only use this if you have the file ID that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions from the conversation needed by the recipient agent to complete the task.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.3,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_0g6tz7OP1rMT7Zw7I5OMI2q8",
+        "created_at": 1755886856,
+        "description": "Improves code structure and maintainability",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Refactoring Specialist focused on code quality.\n\nYour expertise:\n1. Simplifying complex functions\n2. Removing code duplication\n3. Improving naming and readability\n4. Optimizing imports and dependencies\n5. Implementing design patterns\n\nFollow Python best practices and PEP 8.\nMake code more maintainable without breaking functionality.\nCreate modular, reusable components.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "RefactoringSpecialist",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "RefactorCodeTool",
+                    "description": "Refactors code to improve structure and maintainability.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Path to the file to refactor",
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "refactor_type": {
+                                "description": "Type of refactoring: extract_function, simplify, modularize",
+                                "title": "Refactor Type",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path",
+                            "refactor_type"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Correctly extracted `SendMessage` with all the required parameters with correct types",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "TestEngineer"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "recipient": {
+                                "$ref": "#/$defs/recipient",
+                                "description": "TestEngineer: Creates and runs tests to ensure code quality\n"
+                            },
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in a separate message. Keep in mind that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or in the additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions. Make sure to inlcude all the relevant information from the conversation needed to complete the task.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file IDs to be sent as attachments to this message. Only use this if you have the file ID that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions from the conversation needed by the recipient agent to complete the task.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.3,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_kaGotbEeTqaKV0aBFPocl8w2",
+        "created_at": 1755886856,
+        "description": "Creates and runs tests to ensure code quality",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Test Engineer ensuring code reliability.\n\nYour responsibilities:\n1. Creating comprehensive test suites\n2. Running existing tests\n3. Validating bug fixes\n4. Performance testing\n5. Integration testing\n\nUse pytest for testing.\nAim for high code coverage.\nTest edge cases and error conditions.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "TestEngineer",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "RunTestsTool",
+                    "description": "Runs tests to verify fixes and improvements.",
+                    "parameters": {
+                        "properties": {
+                            "test_type": {
+                                "default": "all",
+                                "description": "Type of tests to run: all, unit, integration, specific",
+                                "title": "Test Type",
+                                "type": "string"
+                            },
+                            "test_file": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Specific test file to run",
+                                "title": "Test File"
+                            }
+                        },
+                        "type": "object",
+                        "required": []
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.3,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_B8fUW3CnzkJPATxYmKFcI0e5",
+        "created_at": 1755886857,
+        "description": "Optimizes code for better performance",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Performance Optimization Specialist.\n\nYour focus areas:\n1. Identifying performance bottlenecks\n2. Optimizing database queries\n3. Implementing caching strategies\n4. Reducing API calls\n5. Improving algorithm efficiency\n\nUse profiling data to guide optimizations.\nBalance performance with code readability.\nDocument performance improvements.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "PerformanceOptimizer",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "OptimizePerformanceTool",
+                    "description": "Analyzes and optimizes code performance.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Path to analyze for performance",
+                                "title": "File Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Correctly extracted `SendMessage` with all the required parameters with correct types",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "TestEngineer"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "recipient": {
+                                "$ref": "#/$defs/recipient",
+                                "description": "TestEngineer: Creates and runs tests to ensure code quality\n"
+                            },
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in a separate message. Keep in mind that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or in the additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions. Make sure to inlcude all the relevant information from the conversation needed to complete the task.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file IDs to be sent as attachments to this message. Only use this if you have the file ID that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions from the conversation needed by the recipient agent to complete the task.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.3,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    },
+    {
+        "id": "asst_MAbDXfRcJcaKJKJSLcUmMUgi",
+        "created_at": 1755886857,
+        "description": "Creates and maintains project documentation",
+        "instructions": "This is the Project Repair Agency for the lead generation system.\n\nCRITICAL OBJECTIVES:\n1. Make the system stable and reliable\n2. Fix all security vulnerabilities\n3. Improve code quality and maintainability\n4. Optimize performance\n5. Create comprehensive documentation\n\nPRIORITY ORDER:\n1. Critical bugs and security issues\n2. Data integrity problems\n3. Performance bottlenecks\n4. Code quality improvements\n5. Documentation\n\nSTANDARDS:\n- All fixes must be tested\n- Create backups before changes\n- Document all modifications\n- Follow Python best practices\n- Maintain backwards compatibility\n\nWork systematically through the codebase to transform this into a production-ready system.\n\nYou are a Technical Documentation Specialist.\n\nYour tasks:\n1. Creating comprehensive README files\n2. Writing API documentation\n3. Documenting setup procedures\n4. Creating architecture diagrams\n5. Writing code comments and docstrings\n\nMake documentation clear and concise.\nInclude examples and use cases.\nKeep documentation up-to-date with code changes.",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "DocumentationWriter",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "CreateDocumentationTool",
+                    "description": "Creates or updates documentation for the project.",
+                    "parameters": {
+                        "properties": {
+                            "doc_type": {
+                                "description": "Type of documentation: readme, api, setup, architecture",
+                                "title": "Doc Type",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "doc_type"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.5,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    }
+]

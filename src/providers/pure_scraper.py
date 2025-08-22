@@ -49,7 +49,7 @@ class PureWebScraper:
     def fetch_places(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
         """Main entry point - fetches business data"""
         
-        logger.info(f"Pure web scraping for: {query}")
+        logger.info(f"PureWebScraper.fetch_places: query='{query}', limit={limit}")
         results = []
         
         # Try multiple search engines
@@ -88,6 +88,16 @@ class PureWebScraper:
             logger.warning("No results from pure scraping, using sample data")
             unique_results = self._get_sample_data(query, limit)
         
+        # Ensure all results have proper metadata
+        keyword = self._extract_keyword_from_query(query)
+        location = self._extract_location_from_query(query)
+        
+        for result in unique_results:
+            result.setdefault('search_keyword', keyword)
+            result.setdefault('search_location', location)
+            result.setdefault('full_query', query)
+        
+        logger.info(f"PureWebScraper returning {len(unique_results)} results")
         return unique_results[:limit]
     
     def _scrape_duckduckgo(self, query: str, limit: int) -> List[Dict[str, Any]]:
@@ -176,7 +186,8 @@ class PureWebScraper:
                                 'reviews': listing.get('reviewCount', 0),
                                 'source': 'bing_maps'
                             })
-                    except:
+                    except (json.JSONDecodeError, KeyError, IndexError) as e:
+                        logger.debug(f"Error parsing Bing Maps JSON data: {e}")
                         pass
                 
                 # Fallback: HTML parsing
@@ -196,7 +207,8 @@ class PureWebScraper:
                                     'reviews': 0,
                                     'source': 'bing_maps'
                                 })
-                        except:
+                        except (AttributeError, TypeError) as e:
+                            logger.debug(f"Error extracting Bing Maps business card data: {e}")
                             continue
         
         except Exception as e:
@@ -259,7 +271,8 @@ class PureWebScraper:
                                 'reviews': 0,
                                 'source': 'yellowpages'
                             })
-                    except:
+                    except (AttributeError, TypeError, ValueError) as e:
+                        logger.debug(f"Error extracting Yellow Pages listing data: {e}")
                         continue
         
         except Exception as e:
@@ -348,3 +361,17 @@ class PureWebScraper:
             })
         
         return sample_data
+    
+    def _extract_keyword_from_query(self, query: str) -> str:
+        """Extract business type/keyword from query"""
+        if ' in ' in query:
+            return query.split(' in ')[0].strip()
+        else:
+            return query.strip()
+    
+    def _extract_location_from_query(self, query: str) -> str:
+        """Extract location from query"""
+        if ' in ' in query:
+            return query.split(' in ')[1].strip()
+        else:
+            return 'unknown'

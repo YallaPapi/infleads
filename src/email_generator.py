@@ -20,7 +20,13 @@ class EmailGenerator:
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
         
-        self.client = OpenAI(api_key=api_key)
+        # Simple OpenAI client initialization without extra arguments
+        try:
+            self.client = OpenAI(api_key=api_key)
+        except TypeError as e:
+            # Fallback for compatibility issues
+            logger.warning(f"OpenAI client initialization failed: {e}, using basic config")
+            self.client = OpenAI()  # Will use OPENAI_API_KEY from environment
         self.model = "gpt-3.5-turbo"  # Fast model
         self.industry = industry
         self.config = IndustryConfig.get_config(industry)
